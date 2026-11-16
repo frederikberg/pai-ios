@@ -7,6 +7,7 @@ import SwiftUI
 struct SettingsScreen: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(SettingsStore.self) private var settings
+    @State private var watchKeys = WatchKeysPresenter()
 
     var hidesSignOut = false
 
@@ -45,7 +46,7 @@ struct SettingsScreen: View {
 
             // A person's own keys, so a guest has them too.
             if environment.connection?.me.capabilities.canOpenAlarm == true {
-                WatchKeysSection()
+                WatchKeysSection(presenter: watchKeys)
             }
 
             // A person's own location setting, so a guest has it too.
@@ -73,6 +74,7 @@ struct SettingsScreen: View {
             }
         }
         .fixtureScrollsToAnchor()
+        .watchKeyPresentations(watchKeys)
         .task { await settings.playbackVoices.load() }
         .paiListBackground()
         .navigationTitle("Settings")
