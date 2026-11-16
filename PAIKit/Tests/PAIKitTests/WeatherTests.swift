@@ -54,11 +54,12 @@ final class WeatherTests: XCTestCase {
     private var berlin: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Berlin")!
+        calendar.locale = Locale(identifier: "en_US")
         return calendar
     }
 
     private func presenter(now: Date? = nil) -> WeatherPresenter {
-        WeatherPresenter(now: now ?? reference, calendar: berlin, locale: Locale(identifier: "de_DE"))
+        WeatherPresenter(now: now ?? reference, calendar: berlin)
     }
 
     private func answer(_ state: String?) throws -> WeatherResponse {
