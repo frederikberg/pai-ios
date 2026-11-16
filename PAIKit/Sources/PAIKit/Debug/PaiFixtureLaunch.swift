@@ -33,6 +33,7 @@
         static let scrollAnchorFlag = "-PaiFixtureScrollTo"
         static let notificationSourceFlag = "-PaiFixtureNotificationSource"
         static let weatherFlag = "-PaiFixtureWeather"
+        static let watchKeysFlag = "-PaiFixtureWatchKeys"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -189,6 +190,13 @@
         /// target names the spots), because a screenshot shows only what is on screen.
         public static func requestedScrollAnchor(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: scrollAnchorFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureWatchKeys create|revoke-ask|revoke`: drives the watch-key rows with no touch
+        /// to press them. `create` makes a key, `revoke-ask` asks to revoke the first one,
+        /// `revoke` asks and confirms.
+        public static func requestedWatchKeyProbe(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: watchKeysFlag, in: arguments)
         }
 
         /// `-PaiFixtureWeather <state>`: which of `PaiFixtures.weatherStates` the Weather screen

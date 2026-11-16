@@ -80,6 +80,9 @@ private struct WatchKeyPresentations: ViewModifier {
                 let created = WatchKeysStore(api: client)
                 presenter.store = created
                 await created.load()
+                #if DEBUG
+                    await WatchKeyProbe.run(store: created) { presenter.keyToRevoke = $0 }
+                #endif
             }
             .onChange(of: presenter.store?.errorMessage) { _, message in
                 if let message { toasts.show(message, kind: .error) }
@@ -106,6 +109,8 @@ private struct WatchKeyPresentations: ViewModifier {
             ) { created in
                 CreatedKeySheet(created: created)
             }
+            .fixtureFact("watchKeyCount", "\(presenter.store?.keys.count ?? -1)")
+            .fixtureFact("watchKeyRevokeAsked", presenter.keyToRevoke?.id ?? "none")
     }
 }
 
@@ -143,5 +148,14 @@ private struct CreatedKeySheet: View {
             }
         }
         .presentationDetents([.medium])
+        // What the simulator probe asserts: this sheet is on screen, and was not torn down.
+        .fixtureFact("watchKeySheet", "shown")
+        .onDisappear { fixtureFactGone() }
+    }
+
+    private func fixtureFactGone() {
+        #if DEBUG
+            FixtureFacts.shared.record("watchKeySheet", "gone")
+        #endif
     }
 }
