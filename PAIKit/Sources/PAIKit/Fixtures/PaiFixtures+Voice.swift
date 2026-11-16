@@ -141,7 +141,9 @@ extension PaiFixtures {
               "description": "A session telling you it finished, or that it needs you.",
               "kinds": ["agent"] },
             { "id": "alerts", "label": "Alerts",
-              "description": "Something in PAI Cloud broke or recovered.", "kinds": ["alert"] }
+              "description": "Something in PAI Cloud broke or recovered.", "kinds": ["alert"] },
+            { "id": "alarm", "label": "Alarm",
+              "description": "A ringing alarm, sent every few seconds until you stop it.", "kinds": [] }
           ]
         }
         """#

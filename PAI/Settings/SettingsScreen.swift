@@ -36,12 +36,17 @@ struct SettingsScreen: View {
                 SessionDefaultsSection(store: settings.sessionDefaults)
             }
 
-            // Device push registration is the owner's route; a guest's phone has none to configure.
+            // Device push registration is a person's own route, a guest's included.
             if environment.connection?.me.capabilities.canRegisterPush == true {
                 NotificationsSection()
             }
 
             EmailNotificationsSection(store: settings.userSettings)
+
+            // A person's own keys, so a guest has them too.
+            if environment.connection?.me.capabilities.canOpenAlarm == true {
+                WatchKeysSection()
+            }
 
             VoiceSection(settings: settings)
 

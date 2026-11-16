@@ -21,11 +21,13 @@ final class UserSettingsStoreTests: XCTestCase {
 
     func testTheRowDecodesTheContractShape() throws {
         let json =
-            #"{"recording_mode":"batch","playback_voice_id":null,"playback_speed":1.25,"email_notifications":false}"#
+            #"{"recording_mode":"batch","playback_voice_id":null,"playback_speed":1.25,"email_notifications":false,"alarm_ring_interval_s":10,"alarm_ring_duration_s":120}"#
         let settings = try JSONDecoder().decode(UserSettings.self, from: Data(json.utf8))
         XCTAssertEqual(
             settings,
-            UserSettings(recordingMode: .batch, playbackVoiceId: nil, playbackSpeed: 1.25, emailNotifications: false))
+            UserSettings(
+                recordingMode: .batch, playbackVoiceId: nil, playbackSpeed: 1.25, emailNotifications: false,
+                alarmRingIntervalS: 10, alarmRingDurationS: 120))
     }
 
     func testAChangeShowsAtOnceAndTheServersAnswerReplacesIt() async {

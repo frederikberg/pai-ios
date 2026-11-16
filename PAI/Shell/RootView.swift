@@ -355,6 +355,8 @@ struct RootView: View {
             ComputerCallView()
         case .canteen:
             CanteenView()
+        case .alarm:
+            AlarmView()
         case .usage:
             UsageView()
         case .decisions:
@@ -386,6 +388,18 @@ struct RootView: View {
         if case .notification(let id) = link {
             Task { await resolveAndOpenNotification(id: id, connection: connection) }
             return
+        }
+        // A tapped alarm push stops that alarm on the server, so every device stops ringing; the
+        // Alarm screen it opens shows the result on its next read.
+        if case .alarm(let id?) = link {
+            Task {
+                do {
+                    try await connection.apiClient.dismissAlarm(id: id)
+                } catch {
+                    connection.toasts.show(
+                        (error as? PaiError)?.userMessage ?? "Could not stop the alarm", kind: .error)
+                }
+            }
         }
         guard link.dismissesOverlays else {
             environment.router.replace(with: link.routes)

@@ -29,6 +29,9 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     case notification(id: String)
     /// The agent's browser sessions; `name` is one session's live view, `nil` the list.
     case browser(name: String?)
+    /// The Alarm app. A tapped alarm push names its alarm (`id`), which opening the link also
+    /// dismisses; the Control Center control and a universal link name none.
+    case alarm(id: String?)
 
     /// The routes this link lands on. Whole paths rather than single routes: a deep link arrives
     /// knowing nothing about what the app was showing, so it replaces the stack, and a note with
@@ -43,6 +46,7 @@ public enum DeepLink: Equatable, Sendable, Hashable {
         case .notification: return [.notifications]
         case .browser(let name?): return [.browserList, .browser(name: name)]
         case .browser(nil): return [.browserList]
+        case .alarm: return [.alarm]
         }
     }
 
@@ -50,12 +54,13 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     /// apply. A presented screen sits on top of the navigation stack, so replacing the path
     /// underneath it leaves it covering the destination.
     ///
-    /// Only the launcher asks for it: it is a fresh start from a hardware button. `createSession`
+    /// Only the launcher and the alarm ask for it: both are a fresh start from outside the app (a
+    /// hardware button; a control or a ringing push) that must not land behind a sheet. `createSession`
     /// is itself a presented sheet, so closing the overlays first would tear down the very screen
     /// the link is opening.
     public var dismissesOverlays: Bool {
         switch self {
-        case .quickActions: return true
+        case .quickActions, .alarm: return true
         case .session, .note, .notesList, .createSession, .notification, .browser: return false
         }
     }
@@ -78,6 +83,8 @@ extension DeepLink {
     /// `notifications`'s doc comment for why this, not a resolved session/message pair, is what
     /// arrives on the wire.
     public static let notificationIDKey = "pai_notification_id"
+    /// An alarm push's own key; the alarm it names is dismissed when the push is tapped.
+    public static let alarmIDKey = "pai_alarm_id"
 
     /// Reads a link out of a notification's `userInfo`.
     ///
@@ -86,12 +93,14 @@ extension DeepLink {
     /// system's dictionary is one line at the call site and is the part that genuinely cannot be
     /// tested.
     ///
-    /// Checked in a fixed order for a payload naming more than one: the notification id first,
+    /// Checked in a fixed order for a payload naming more than one: the alarm id first, since an
+    /// alarm push exists only to be stopped; then the notification id,
     /// since that is what every push this app currently sends for an agent or alert notification
     /// actually carries; then session, then note — a push about a session that also mentions a
     /// note is still about the session, and silently picking the other one would send the reader
     /// somewhere they did not ask to go.
     public static func from(payload: [String: String]) -> DeepLink? {
+        if let id = payload[alarmIDKey], !id.isEmpty { return .alarm(id: id) }
         if let id = payload[notificationIDKey], !id.isEmpty { return .notification(id: id) }
         if let id = payload[sessionIDKey], !id.isEmpty {
             let messageID = payload[messageIDKey].flatMap(Int.init)
@@ -105,7 +114,7 @@ extension DeepLink {
     /// through an App Intent.
     ///
     /// `pai://session/<id>`, `pai://note/<id>`, `pai://notes`, `pai://createsession`,
-    /// `pai://quickactions`, `pai://browser` and `pai://browser/<name>`. Rejects
+    /// `pai://quickactions`, `pai://alarm`, `pai://browser` and `pai://browser/<name>`. Rejects
     /// anything else rather than guessing, including a well-formed URL with an unknown host — a
     /// link the app does not understand must not silently open some other screen.
     public static func from(url: URL) -> DeepLink? {
@@ -141,6 +150,9 @@ extension DeepLink {
         case "quickactions":
             guard segments.count == 1 else { return nil }
             return .quickActions
+        case "alarm":
+            guard segments.count == 1 else { return nil }
+            return .alarm(id: nil)
         case "browser":
             guard segments.count <= 2 else { return nil }
             guard segments.count == 2 else { return .browser(name: nil) }
@@ -165,7 +177,7 @@ extension DeepLink {
     ///
     /// `/session/<id>` (with the web's `?m=<message id>` jump, or `?n=<notification id>` for a
     /// notification whose anchor resolves on read), `/apps/notes` (the list), `/apps/notes/<id>`, including the
-    /// note's `/preview` subpaths, and `/apps/browser[/<name>]`. Anything else is no link: the domain's association file claims
+    /// note's `/preview` subpaths, `/apps/alarm` and `/apps/browser[/<name>]`. Anything else is no link: the domain's association file claims
     /// paths this parser does not know, and those open the app where it already is.
     ///
     /// The host is not checked. iOS delivers a browsing activity only for a domain the app's
@@ -200,6 +212,7 @@ extension DeepLink {
                 case nil: return nil
                 }
             }
+            if segments.count == 2, segments[1] == "alarm" { return .alarm(id: nil) }
             if segments.count == 2, segments[1] == "notes" { return .notesList }
             guard segments.count >= 3, segments[1] == "notes", let noteID = id(at: 2) else { return nil }
             guard segments.count == 3 || segments[3] == "preview" else { return nil }
@@ -209,6 +222,9 @@ extension DeepLink {
         }
     }
 
+    /// `alarm`'s id never appears either: a stored URL that dismissed an alarm months later would
+    /// dismiss nothing, and an opened Alarm screen is all it is for.
+    ///
     /// `session`'s `messageID` never appears here — a URL is what a shortcut or widget persists
     /// and reopens months later, exactly the staleness this type's own doc comment already rules
     /// out for everything else. `messageID` only ever travels fresh, over an APNs payload this
@@ -223,6 +239,7 @@ extension DeepLink {
         case .notification(let id): return URL(string: "pai://notification/\(Self.escape(id))")
         case .browser(let name?): return URL(string: "pai://browser/\(Self.escape(name))")
         case .browser(nil): return URL(string: "pai://browser")
+        case .alarm: return URL(string: "pai://alarm")
         }
     }
 

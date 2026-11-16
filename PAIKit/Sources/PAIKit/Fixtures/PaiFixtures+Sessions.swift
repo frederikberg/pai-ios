@@ -132,7 +132,8 @@ extension PaiFixtures {
 
     /// `GET`/`PUT /api/settings/me` — the person's own settings.
     public static let mySettings: String = #"""
-        { "recording_mode": "live", "playback_voice_id": null, "playback_speed": 1.0, "email_notifications": true }
+        { "recording_mode": "live", "playback_voice_id": null, "playback_speed": 1.0, "email_notifications": true,
+          "alarm_ring_interval_s": 5, "alarm_ring_duration_s": 60 }
         """#
 
     /// `GET /api/health` — everything connected.

@@ -76,7 +76,7 @@ final class FixtureDecodingTests: XCTestCase {
         let routing = try decode(AlertRoutingSettings.self, from: PaiFixtures.alertRouting, "alert routing")
         XCTAssertEqual(routing.routes["relay"], .both)
         let channels = try decode(PushChannelsResponse.self, from: PaiFixtures.pushChannels, "push channels")
-        XCTAssertEqual(channels.channels.map(\.id), ["default", "alerts"])
+        XCTAssertEqual(channels.channels.map(\.id), ["default", "alerts", "alarm"])
     }
 
     // MARK: - Machines and session types

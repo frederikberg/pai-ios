@@ -2,7 +2,7 @@ import PAIKit
 import SwiftUI
 
 /// Where the top bar's "Apps" button leads — a small picker over Quick Actions, Arc, Notes, the
-/// Scheduler, the Canteen, Usage, Decisions and the Browser, each shown to those whose
+/// Scheduler, the Alarm, the Canteen, Usage, Decisions and the Browser, each shown to those whose
 /// capabilities admit it.
 /// Mirrors the web's own `AppsFlyout`/`AppsHome` pairing (a modal listing every registered app),
 /// minus Memory and Notifications: PAI Cloud's Memory app is notes plus projects/phases/search,
@@ -45,6 +45,12 @@ struct AppsHomeSheet: View {
                         Label("Scheduler", systemImage: "clock.badge.checkmark")
                     }
                     .accessibilityIdentifier("apps-open-scheduler")
+                }
+                if capabilities.canOpenAlarm {
+                    Button(action: openAlarm) {
+                        Label("Alarm", systemImage: "alarm")
+                    }
+                    .accessibilityIdentifier("apps-open-alarm")
                 }
                 if capabilities.canOpenCanteen {
                     Button(action: openCanteen) {
@@ -114,6 +120,11 @@ struct AppsHomeSheet: View {
 
     private func openScheduler() {
         environment.router.push(.schedulerList)
+        dismiss()
+    }
+
+    private func openAlarm() {
+        environment.router.push(.alarm)
         dismiss()
     }
 
