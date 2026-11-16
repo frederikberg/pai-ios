@@ -437,3 +437,30 @@ final class WatchKeyFixtureStateTests: XCTestCase {
         XCTAssertNil(PaiFixtureLaunch.requestedWatchKeyProbe(arguments: []))
     }
 }
+
+final class AlarmDeliveryTests: XCTestCase {
+    private let delivered = [
+        AlarmDelivery.Delivered(identifier: "n1", alarmID: "a1"),
+        AlarmDelivery.Delivered(identifier: "n2", alarmID: "a1"),
+        AlarmDelivery.Delivered(identifier: "n3", alarmID: "a2"),
+        AlarmDelivery.Delivered(identifier: "n4", alarmID: nil),
+    ]
+
+    /// The payload exactly as the backend sends a stopped ring.
+    func testTheStoppedPushNamesItsAlarm() {
+        XCTAssertEqual(
+            AlarmDelivery.stoppedAlarmID(in: ["pai_kind": "alarm_stopped", "pai_alarm_id": "a1"]), "a1")
+        XCTAssertNil(AlarmDelivery.stoppedAlarmID(in: ["pai_alarm_id": "a1"]))
+        XCTAssertNil(AlarmDelivery.stoppedAlarmID(in: ["pai_kind": "alarm_stopped"]))
+        XCTAssertNil(AlarmDelivery.stoppedAlarmID(in: ["pai_kind": "read_sync", "pai_alarm_id": "a1"]))
+    }
+
+    func testAStoppedRingTakesOnlyItsOwnBanners() {
+        XCTAssertEqual(AlarmDelivery.identifiers(of: "a1", in: delivered), ["n1", "n2"])
+    }
+
+    func testOpeningTheAppKeepsRingingBannersAndNonAlarmOnes() {
+        XCTAssertEqual(AlarmDelivery.identifiersToClear(delivered: delivered, ringingIDs: ["a2"]), ["n1", "n2"])
+        XCTAssertEqual(AlarmDelivery.identifiersToClear(delivered: delivered, ringingIDs: []), ["n1", "n2", "n3"])
+    }
+}

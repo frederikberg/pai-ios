@@ -237,6 +237,12 @@ struct RootView: View {
                             await connection.notifications.refreshSummary()
                             await PushRegistrar.reconcileDeliveredNotifications(against: connection.notifications)
                         }
+                        // Banners of alarms that stopped while the phone was away. Only a read
+                        // that succeeded counts: no answer must not clear a ringing alarm's banners.
+                        Task {
+                            guard let list = try? await connection.apiClient.listAlarms() else { return }
+                            await PushRegistrar.clearStoppedAlarmNotifications(ringing: Set(list.ringing.map(\.id)))
+                        }
                     case .background:
                         attention.setAppActive(false)
                         // The one place a backgrounding is guaranteed to be observed — flushed here
