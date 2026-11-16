@@ -112,6 +112,19 @@ screenshot() {
   # from "nothing drawn" — three causes a picture cannot tell apart.
   curl -sS --max-time 3 "http://127.0.0.1:8765/logs?level=info&limit=200" \
     -o "artifacts/logs-$name.json" || true
+  # Behind the sign-in gate every route is the sign-in screen, whatever it was asked for; only
+  # the run that asks for a refused sign-in expects that.
+  case " $* " in
+    *" -PaiFixtureAuthState "*) ;;
+    *)
+      gate=$(curl -sS --max-time 5 "http://127.0.0.1:8765/fixture" \
+        | python3 -c "import json,sys; print(json.load(sys.stdin).get('gate',''))" 2> /dev/null || echo "")
+      if [ "$gate" != "ready" ]; then
+        echo "::error::$name: the app is behind its sign-in gate ('$gate'), not on the screen asked for"
+        fail=1
+      fi
+      ;;
+  esac
   bytes=$(stat -f %z "artifacts/screen-$name.png")
   echo "$name: ${bytes} bytes"
   # A wholly blank screen still produces a valid PNG, just a small one — the one thing

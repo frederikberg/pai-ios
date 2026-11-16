@@ -52,6 +52,9 @@ struct RootView: View {
                 _ = await (machinePoll, notificationPoll)
             }
             .onAppear { pendingCrash = CrashReporter.readUnseen() }
+            // What a screenshot run checks first: behind the sign-in gate, every screen it asks for
+            // is the sign-in screen.
+            .fixtureFact("gate", String(describing: environment.router.gate))
             // Two triggers, because a link and a usable app arrive in either order: tapped while
             // the app is open, the link is last; tapped from cold, the gate opening is last.
             .onChange(of: deepLinks.pending) { _, _ in consumeDeepLink() }
