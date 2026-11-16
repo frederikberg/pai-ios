@@ -14,10 +14,14 @@ public struct UserSettings: Codable, Sendable, Equatable {
     public var alarmRingIntervalS: Int
     /// Seconds an alarm keeps ringing when nobody dismisses it (the server allows 10 to 600).
     public var alarmRingDurationS: Int
+    /// The sign-in of the one iPhone that reports its location in the background; `nil` when no
+    /// phone does.
+    public var locationSignInId: String?
 
     public init(
         recordingMode: VoiceSttMode = .live, playbackVoiceId: String? = nil, playbackSpeed: Double = 1,
-        emailNotifications: Bool = true, alarmRingIntervalS: Int = 5, alarmRingDurationS: Int = 60
+        emailNotifications: Bool = true, alarmRingIntervalS: Int = 5, alarmRingDurationS: Int = 60,
+        locationSignInId: String? = nil
     ) {
         self.recordingMode = recordingMode
         self.playbackVoiceId = playbackVoiceId
@@ -25,6 +29,7 @@ public struct UserSettings: Codable, Sendable, Equatable {
         self.emailNotifications = emailNotifications
         self.alarmRingIntervalS = alarmRingIntervalS
         self.alarmRingDurationS = alarmRingDurationS
+        self.locationSignInId = locationSignInId
     }
 
     enum CodingKeys: String, CodingKey {
@@ -34,17 +39,21 @@ public struct UserSettings: Codable, Sendable, Equatable {
         case emailNotifications = "email_notifications"
         case alarmRingIntervalS = "alarm_ring_interval_s"
         case alarmRingDurationS = "alarm_ring_duration_s"
+        case locationSignInId = "location_sign_in_id"
     }
 }
 
-/// The slots `PUT /api/settings/me` takes, any subset. Only the voice can be cleared, which is
-/// spelled out as `null`; a slot left `nil` here is not sent at all.
+/// The slots `PUT /api/settings/me` takes, any subset. Only the voice and the location sign-in
+/// can be cleared, which is spelled out as `null`; a slot left `nil` here is not sent at all.
 public struct UserSettingsPatch: Encodable, Sendable, Equatable {
-    public enum Voice: Sendable, Equatable {
+    /// A slot that can be left alone, set, or cleared to `null`.
+    public enum Slot<Value: Sendable & Equatable>: Sendable, Equatable {
         case unchanged
-        case set(String)
+        case set(Value)
         case clear
     }
+
+    public typealias Voice = Slot<String>
 
     public var recordingMode: VoiceSttMode?
     public var playbackVoice: Voice = .unchanged
@@ -52,10 +61,12 @@ public struct UserSettingsPatch: Encodable, Sendable, Equatable {
     public var emailNotifications: Bool?
     public var alarmRingIntervalS: Int?
     public var alarmRingDurationS: Int?
+    public var locationSignIn: Slot<String> = .unchanged
 
     public init(
         recordingMode: VoiceSttMode? = nil, playbackVoice: Voice = .unchanged, playbackSpeed: Double? = nil,
-        emailNotifications: Bool? = nil, alarmRingIntervalS: Int? = nil, alarmRingDurationS: Int? = nil
+        emailNotifications: Bool? = nil, alarmRingIntervalS: Int? = nil, alarmRingDurationS: Int? = nil,
+        locationSignIn: Slot<String> = .unchanged
     ) {
         self.recordingMode = recordingMode
         self.playbackVoice = playbackVoice
@@ -63,6 +74,7 @@ public struct UserSettingsPatch: Encodable, Sendable, Equatable {
         self.emailNotifications = emailNotifications
         self.alarmRingIntervalS = alarmRingIntervalS
         self.alarmRingDurationS = alarmRingDurationS
+        self.locationSignIn = locationSignIn
     }
 
     enum CodingKeys: String, CodingKey {
@@ -72,6 +84,7 @@ public struct UserSettingsPatch: Encodable, Sendable, Equatable {
         case emailNotifications = "email_notifications"
         case alarmRingIntervalS = "alarm_ring_interval_s"
         case alarmRingDurationS = "alarm_ring_duration_s"
+        case locationSignInId = "location_sign_in_id"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -86,6 +99,11 @@ public struct UserSettingsPatch: Encodable, Sendable, Equatable {
         try container.encodeIfPresent(emailNotifications, forKey: .emailNotifications)
         try container.encodeIfPresent(alarmRingIntervalS, forKey: .alarmRingIntervalS)
         try container.encodeIfPresent(alarmRingDurationS, forKey: .alarmRingDurationS)
+        switch locationSignIn {
+        case .unchanged: break
+        case let .set(id): try container.encode(id, forKey: .locationSignInId)
+        case .clear: try container.encodeNil(forKey: .locationSignInId)
+        }
     }
 
     /// The settings as they stand once the patch is applied, for showing a change before the
@@ -102,6 +120,11 @@ public struct UserSettingsPatch: Encodable, Sendable, Equatable {
         if let emailNotifications { next.emailNotifications = emailNotifications }
         if let alarmRingIntervalS { next.alarmRingIntervalS = alarmRingIntervalS }
         if let alarmRingDurationS { next.alarmRingDurationS = alarmRingDurationS }
+        switch locationSignIn {
+        case .unchanged: break
+        case let .set(id): next.locationSignInId = id
+        case .clear: next.locationSignInId = nil
+        }
         return next
     }
 }

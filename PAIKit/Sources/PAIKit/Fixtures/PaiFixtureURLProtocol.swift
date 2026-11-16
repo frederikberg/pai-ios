@@ -292,6 +292,9 @@
                 Data()
             },
             FixtureRoute(method: "DELETE", matches: { $0.hasPrefix("/api/alarm/") }) { Data() },
+            exact("GET", "/api/weather") { PaiFixtures.weather(state: PaiFixtureLaunch.requestedWeatherState()) },
+            FixtureRoute(method: "POST", matches: { $0 == "/api/location" }) { Data() },
+            exact("GET", "/api/sign-ins") { PaiFixtures.mySignIns },
             exact("GET", "/api/watch-keys") { PaiFixtures.watchKeys },
             exact("POST", "/api/watch-keys") { PaiFixtures.watchKeyCreated },
             FixtureRoute(method: "DELETE", matches: { $0.hasPrefix("/api/watch-keys/") }) { Data() },

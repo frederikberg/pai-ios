@@ -20,7 +20,7 @@ set -o pipefail
 SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscreen-pdf secret-prompt compact-chip mailverdict person-settings playback playback-voice
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
-watch-keys alarm-facts"
+watch-keys alarm-facts weather-states location-settings"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
@@ -277,6 +277,29 @@ if want alarm-facts; then
   screenshot alarm-facts -PaiFixtureRoute alarm
   fact_assert alarm-facts alarmRinging 1
   fact_assert alarm-facts alarmArmed 2
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want weather-states; then
+  # Every state the two rows can be in, each photographed and asserted on its verdicts.
+  weather_state() {
+    state=$1 now=$2 later=$3
+    screenshot "weather-$state" -PaiFixtureRoute weather -PaiFixtureWeather "$state"
+    fact_assert "weather-$state" weatherNowVerdict "$now"
+    fact_assert "weather-$state" weatherLaterVerdict "$later"
+    xcrun simctl terminate "$udid" "$bundle" || true
+  }
+  weather_state showersApproaching rain maybe
+  weather_state rainingNow rain maybe
+  weather_state dry dry dry
+  weather_state noLocation unknown unknown
+  weather_state sourceUnavailable unknown unknown
+  weather_state forecastOnly unlikely rain
+fi
+
+if want location-settings; then
+  # The Location section in Settings, below the fold.
+  screenshot location-settings -PaiFixtureRoute settings -PaiFixtureScrollTo location
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 

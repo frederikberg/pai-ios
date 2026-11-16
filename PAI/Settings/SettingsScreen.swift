@@ -48,6 +48,11 @@ struct SettingsScreen: View {
                 WatchKeysSection()
             }
 
+            // A person's own location setting, so a guest has it too.
+            if environment.connection?.me.capabilities.canOpenWeather == true {
+                LocationSection()
+            }
+
             VoiceSection(settings: settings)
 
             ComputerSection(settings: settings)

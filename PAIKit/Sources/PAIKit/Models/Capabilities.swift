@@ -47,4 +47,7 @@ public struct Capabilities: Sendable, Equatable {
 
     /// The Alarm app and the watch keys: person routes, open to a guest.
     public var canOpenAlarm: Bool { isPerson }
+
+    /// The Weather app and the location it is answered for: person routes, open to a guest.
+    public var canOpenWeather: Bool { isPerson }
 }

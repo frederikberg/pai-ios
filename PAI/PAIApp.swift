@@ -18,6 +18,10 @@ struct PAIApp: App {
         // it feeds `/crash` for is the DEBUG-only half of this facility, not the capture itself.
         CrashReporter.install()
         AppVoiceDiagnosticsLog.startPeriodicFlush()
+        // Before launch finishes: a location event that relaunched the app is delivered to a
+        // location manager that already has its delegate, and the environment it reports into.
+        _ = LocationReporter.shared
+        _ = AppEnvironment.shared
         #if DEBUG
             FixtureBootstrap.installIfRequested()
             Self.debugBridge.start()

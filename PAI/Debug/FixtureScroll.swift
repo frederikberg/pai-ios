@@ -12,6 +12,7 @@ enum FixtureScrollAnchor: String {
     case emailNotifications
     case playbackVoice
     case watchKeys
+    case location
 
     /// Where in the viewport the anchor's top edge lands. A section scrolled to `.top` has its
     /// header under the navigation bar.
