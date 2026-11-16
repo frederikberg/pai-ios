@@ -200,12 +200,14 @@ jobs:
       # is checked, plus the resolved copy Xcode leaves in the build directory when it has one.
       - name: The app asks for Time Sensitive notifications
         run: |
-          plutil -extract com.apple.developer.usernotifications.time-sensitive raw PAI/PAI.entitlements \
+          key=com.apple.developer.usernotifications.time-sensitive
+          # PlistBuddy takes the key after a colon; plutil would read its dots as a key path.
+          /usr/libexec/PlistBuddy -c "Print :$key" PAI/PAI.entitlements 2>/dev/null \
             | grep -qx true \
             || { echo '::error::PAI/PAI.entitlements lacks com.apple.developer.usernotifications.time-sensitive'; exit 1; }
           xcent=$(find build/dd/Build/Intermediates.noindex -name 'PAI.app.xcent' 2>/dev/null | head -1)
           if [ -n "$xcent" ]; then
-            plutil -extract com.apple.developer.usernotifications.time-sensitive raw "$xcent" | grep -qx true \
+            /usr/libexec/PlistBuddy -c "Print :$key" "$xcent" 2>/dev/null | grep -qx true \
               || { echo "::error::$xcent lacks the time-sensitive entitlement"; exit 1; }
             echo "entitlement present in $xcent"
           else
