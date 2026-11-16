@@ -163,6 +163,22 @@ final class PushRegistrar: NSObject, UIApplicationDelegate, UNUserNotificationCe
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: idsToClear)
     }
 
+    /// Removes the delivered banners of alarms that no longer ring. `ringing` is the ids from a
+    /// successful read of the alarm list; with none read, nothing is removed.
+    static func clearStoppedAlarmNotifications(ringing: Set<String>) async {
+        let center = UNUserNotificationCenter.current()
+        let delivered = await center.deliveredNotifications().map(Self.deliveredAlarm)
+        let ids = AlarmDelivery.identifiersToClear(delivered: delivered, ringingIDs: ringing)
+        guard !ids.isEmpty else { return }
+        center.removeDeliveredNotifications(withIdentifiers: ids)
+    }
+
+    private static func deliveredAlarm(_ notification: UNNotification) -> AlarmDelivery.Delivered {
+        AlarmDelivery.Delivered(
+            identifier: notification.request.identifier,
+            alarmID: notification.request.content.userInfo[DeepLink.alarmIDKey] as? String)
+    }
+
     /// Set once the app has a connection, the same way `store` above is — what the handler below
     /// has to reach, since a silent push can wake the app before any screen, and therefore any
     /// `@Environment`, exists to read `connection.notifications` from. `weak` for the same reason
@@ -194,6 +210,17 @@ final class PushRegistrar: NSObject, UIApplicationDelegate, UNUserNotificationCe
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
+        // A ring ended: its banners go, with no network and no store needed.
+        if let alarmID = AlarmDelivery.stoppedAlarmID(in: Self.stringPayload(userInfo)) {
+            Task {
+                let center = UNUserNotificationCenter.current()
+                let delivered = await center.deliveredNotifications().map(Self.deliveredAlarm)
+                center.removeDeliveredNotifications(
+                    withIdentifiers: AlarmDelivery.identifiers(of: alarmID, in: delivered))
+                completionHandler(.newData)
+            }
+            return
+        }
         guard let store = Self.notificationsStore else {
             completionHandler(.noData)
             return
