@@ -141,7 +141,7 @@ private struct ArmedRow: View {
             Spacer()
             if let date = alarm.fireDate {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(date.formatted(date: .omitted, time: .shortened))
+                    Text(ClockTime.string(date))
                         .font(PaiTypography.bodyEmphasized.font)
                         .foregroundStyle(PaiPalette.Semantic.textPrimary)
                     Text(dayLabel(date))
@@ -176,6 +176,7 @@ private struct NewAlarmSheet: View {
                 DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute)
                     .datePickerStyle(.wheel)
                     .labelsHidden()
+                    .environment(\.locale, ClockTime.pickerLocale)
                     .accessibilityIdentifier("alarm-time")
                 TextField("Name (optional)", text: $name)
                     .accessibilityIdentifier("alarm-name")

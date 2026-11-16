@@ -12,16 +12,14 @@ public struct WeatherRow: Equatable, Sendable {
 }
 
 /// Turns the server's answer into the words on the Weather screen. Times are the server's UTC
-/// instants shown in `calendar`'s time zone and `locale`'s clock style.
+/// instants shown in `calendar`'s time zone on a 24-hour clock.
 public struct WeatherPresenter: Sendable {
     public let now: Date
     public let calendar: Calendar
-    public let locale: Locale
 
-    public init(now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) {
+    public init(now: Date = Date(), calendar: Calendar = .current) {
         self.now = now
         self.calendar = calendar
-        self.locale = locale
     }
 
     /// "Rain pants now?": the next hour.
@@ -127,15 +125,7 @@ public struct WeatherPresenter: Sendable {
         km < 1 ? "under 1 km" : "\(Int(km.rounded())) km"
     }
 
-    private func clock(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
+    private func clock(_ date: Date) -> String { ClockTime.string(date, calendar: calendar) }
 
     /// The clock time, prefixed with "tomorrow" when it falls on another day than now.
     private func dayClock(_ date: Date) -> String {
