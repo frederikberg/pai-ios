@@ -415,3 +415,25 @@ private actor FakeWatchKeysApi: WatchKeysApiClient {
         keys.removeAll { $0.id == id }
     }
 }
+
+/// The fixture corpus remembers what the watch-key probe creates and revokes, so the list read
+/// after each shows it.
+final class WatchKeyFixtureStateTests: XCTestCase {
+    func testAListReadAfterCreateAndRevokeShowsBoth() throws {
+        let state = WatchKeyFixtureState()
+        func names() throws -> [String] {
+            try JSONDecoder().decode([WatchKey].self, from: state.listBody()).map(\.id)
+        }
+        XCTAssertEqual(try names(), ["k1", "k2"])
+        state.create()
+        XCTAssertEqual(try names(), ["k3", "k1", "k2"])
+        state.revoke("k1")
+        XCTAssertEqual(try names(), ["k3", "k2"])
+    }
+
+    func testTheProbeFlagIsRead() {
+        XCTAssertEqual(
+            PaiFixtureLaunch.requestedWatchKeyProbe(arguments: ["-PaiFixtureWatchKeys", "revoke"]), "revoke")
+        XCTAssertNil(PaiFixtureLaunch.requestedWatchKeyProbe(arguments: []))
+    }
+}

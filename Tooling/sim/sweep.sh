@@ -272,6 +272,33 @@ if want watch-keys; then
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 
+# The watch-key probes press what a finger would, through `-PaiFixtureWatchKeys`, and are read
+# after the settle in `screenshot` (the probe acts two seconds after the screen is up).
+if want watch-key-create; then
+  # Creating a key: the one-time key sheet must still be showing after the list reload.
+  screenshot watch-key-create -PaiFixtureRoute settings -PaiFixtureScrollTo watchKeys -PaiFixtureWatchKeys create
+  fact_assert watch-key-create watchKeyProbe create:done
+  fact_assert watch-key-create watchKeySheet shown
+  fact_assert watch-key-create watchKeyCount 3
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want watch-key-revoke-ask; then
+  # Revoke swiped on the first key: the confirmation must be on screen (read the picture).
+  screenshot watch-key-revoke-ask -PaiFixtureRoute settings -PaiFixtureScrollTo watchKeys -PaiFixtureWatchKeys revoke-ask
+  fact_assert watch-key-revoke-ask watchKeyProbe revoke-ask:done
+  fact_assert watch-key-revoke-ask watchKeyRevokeAsked k1
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want watch-key-revoke; then
+  # Revoke confirmed: the list is read again without the key.
+  screenshot watch-key-revoke -PaiFixtureRoute settings -PaiFixtureScrollTo watchKeys -PaiFixtureWatchKeys revoke
+  fact_assert watch-key-revoke watchKeyProbe revoke:done
+  fact_assert watch-key-revoke watchKeyCount 1
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
 if want alarm-facts; then
   # The Alarm screen read the fixture list: one ringing, two armed.
   screenshot alarm-facts -PaiFixtureRoute alarm

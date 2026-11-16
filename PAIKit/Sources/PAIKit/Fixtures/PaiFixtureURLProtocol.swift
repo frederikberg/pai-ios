@@ -168,6 +168,24 @@
                 }
                 return Match(status: 200) { PaiFixtures.notePatched(id: note.id, requestBody: body) ?? Data() }
             }
+            // The watch keys remember what was created and revoked in this process, so a list read
+            // after either shows it, the way the real list does.
+            if path == "/api/watch-keys" {
+                if method == "GET" { return Match(status: 200) { WatchKeyFixtureState.shared.listBody() } }
+                if method == "POST" {
+                    return Match(status: 201) {
+                        WatchKeyFixtureState.shared.create()
+                        return PaiFixtures.data(PaiFixtures.watchKeyCreated)
+                    }
+                }
+            }
+            if method == "DELETE", path.hasPrefix("/api/watch-keys/") {
+                let id = String(path.dropFirst("/api/watch-keys/".count))
+                return Match(status: 204) {
+                    WatchKeyFixtureState.shared.revoke(id)
+                    return Data()
+                }
+            }
             guard let fixture = routes.first(where: { $0.method == method && $0.matches(path) }) else {
                 let detail = "no fixture route for \(method) \(path)"
                 return Match(status: 404) { Data("{\"detail\":\"\(detail)\"}".utf8) }
@@ -295,9 +313,6 @@
             exact("GET", "/api/weather") { PaiFixtures.weather(state: PaiFixtureLaunch.requestedWeatherState()) },
             FixtureRoute(method: "POST", matches: { $0 == "/api/location" }) { Data() },
             exact("GET", "/api/sign-ins") { PaiFixtures.mySignIns },
-            exact("GET", "/api/watch-keys") { PaiFixtures.watchKeys },
-            exact("POST", "/api/watch-keys") { PaiFixtures.watchKeyCreated },
-            FixtureRoute(method: "DELETE", matches: { $0.hasPrefix("/api/watch-keys/") }) { Data() },
             exact("GET", "/api/alerts") { PaiFixtures.alerts },
             exact("POST", "/api/alerts/clear") { PaiFixtures.alertsCleared },
             // The create. Without it `-PaiFixtureAutoCreateSession` drives a send that the
@@ -355,6 +370,34 @@
                 matches: { $0.hasPrefix("/api/arc/reports/") }
             ) { PaiFixtures.data(PaiFixtures.arcReport) },
         ]
+    }
+
+    /// The watch keys of the fixture corpus plus what this process created and revoked.
+    final class WatchKeyFixtureState: @unchecked Sendable {
+        static let shared = WatchKeyFixtureState()
+
+        private let lock = NSLock()
+        private var created = false
+        private var revoked: Set<String> = []
+
+        func create() { lock.withLock { created = true } }
+        func revoke(_ id: String) { lock.withLock { _ = revoked.insert(id) } }
+
+        func listBody() -> Data {
+            let corpus = try? JSONSerialization.jsonObject(with: Data(PaiFixtures.watchKeys.utf8))
+            let base = corpus as? [[String: Any]] ?? []
+            let new: [[String: Any]] =
+                lock.withLock { created }
+                ? [
+                    [
+                        "id": "k3", "name": "New watch", "hint": "pw_fixt",
+                        "created_at": "2026-09-01T08:00:00.000001+00:00", "last_used_at": NSNull(),
+                    ]
+                ] : []
+            let gone = lock.withLock { revoked }
+            let keys = (new + base).filter { !gone.contains($0["id"] as? String ?? "") }
+            return (try? JSONSerialization.data(withJSONObject: keys)) ?? Data("[]".utf8)
+        }
     }
 
 #endif
