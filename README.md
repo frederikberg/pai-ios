@@ -68,9 +68,15 @@ Signing needs one thing the app alone does not: the App Store profile `PAI Share
 
 ## The Control Center control
 
-`PAIControls/` is a third target, a WidgetKit extension offering one 1x1 control, Quick actions, that opens the quick-actions screen from Control Center, the Lock Screen or the Action button. `SharedIntents/` holds the intent it runs and is compiled into the app as well as the extension: a control opens the app only when the app holds the very same intent type.
+`PAIControls/` is a third target, a WidgetKit extension offering two 1x1 controls: Quick actions opens the quick-actions screen and Alarm opens the Alarm app, from Control Center, the Lock Screen or the Action button. `SharedIntents/` holds the intents they run and is compiled into the app as well as the extension: a control opens the app only when the app holds the very same intent type.
 
 Signing needs the App Store profile `PAI Controls App Store` for `com.frederikberg.pai.controls`, in the repository secret `IOS_CONTROLS_PROVISIONING_PROFILE_BASE64`.
+
+## Alarm
+
+The Alarm app (Apps, or the Alarm control) lists the armed alarms, pins ringing ones on top with Dismiss, and arms a new one from an hour and minute wheel with an optional name. The backend rings an alarm by sending a push every few seconds; tapping one opens the app and stops the alarm on every device. The interval and the ring duration are settings of the person, edited inside the app. Settings also lists, creates and revokes the watch keys a Garmin watch signs in with; a new key is shown once.
+
+The pushes are time-sensitive, so the app declares the Time Sensitive Notifications entitlement in `PAI/PAI.entitlements`. A build signed for TestFlight needs the capability enabled on the App ID and a provisioning profile created after that.
 
 ## Notes offline
 

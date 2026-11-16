@@ -10,15 +10,21 @@ public struct UserSettings: Codable, Sendable, Equatable {
     public var playbackSpeed: Double
     /// Whether an agent's notification to this person may also go out by e-mail.
     public var emailNotifications: Bool
+    /// Seconds between the pushes of a ringing alarm (the server allows 2 to 60).
+    public var alarmRingIntervalS: Int
+    /// Seconds an alarm keeps ringing when nobody dismisses it (the server allows 10 to 600).
+    public var alarmRingDurationS: Int
 
     public init(
         recordingMode: VoiceSttMode = .live, playbackVoiceId: String? = nil, playbackSpeed: Double = 1,
-        emailNotifications: Bool = true
+        emailNotifications: Bool = true, alarmRingIntervalS: Int = 5, alarmRingDurationS: Int = 60
     ) {
         self.recordingMode = recordingMode
         self.playbackVoiceId = playbackVoiceId
         self.playbackSpeed = playbackSpeed
         self.emailNotifications = emailNotifications
+        self.alarmRingIntervalS = alarmRingIntervalS
+        self.alarmRingDurationS = alarmRingDurationS
     }
 
     enum CodingKeys: String, CodingKey {
@@ -26,6 +32,8 @@ public struct UserSettings: Codable, Sendable, Equatable {
         case playbackVoiceId = "playback_voice_id"
         case playbackSpeed = "playback_speed"
         case emailNotifications = "email_notifications"
+        case alarmRingIntervalS = "alarm_ring_interval_s"
+        case alarmRingDurationS = "alarm_ring_duration_s"
     }
 }
 
@@ -42,15 +50,19 @@ public struct UserSettingsPatch: Encodable, Sendable, Equatable {
     public var playbackVoice: Voice = .unchanged
     public var playbackSpeed: Double?
     public var emailNotifications: Bool?
+    public var alarmRingIntervalS: Int?
+    public var alarmRingDurationS: Int?
 
     public init(
         recordingMode: VoiceSttMode? = nil, playbackVoice: Voice = .unchanged, playbackSpeed: Double? = nil,
-        emailNotifications: Bool? = nil
+        emailNotifications: Bool? = nil, alarmRingIntervalS: Int? = nil, alarmRingDurationS: Int? = nil
     ) {
         self.recordingMode = recordingMode
         self.playbackVoice = playbackVoice
         self.playbackSpeed = playbackSpeed
         self.emailNotifications = emailNotifications
+        self.alarmRingIntervalS = alarmRingIntervalS
+        self.alarmRingDurationS = alarmRingDurationS
     }
 
     enum CodingKeys: String, CodingKey {
@@ -58,6 +70,8 @@ public struct UserSettingsPatch: Encodable, Sendable, Equatable {
         case playbackVoiceId = "playback_voice_id"
         case playbackSpeed = "playback_speed"
         case emailNotifications = "email_notifications"
+        case alarmRingIntervalS = "alarm_ring_interval_s"
+        case alarmRingDurationS = "alarm_ring_duration_s"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -70,6 +84,8 @@ public struct UserSettingsPatch: Encodable, Sendable, Equatable {
         }
         try container.encodeIfPresent(playbackSpeed, forKey: .playbackSpeed)
         try container.encodeIfPresent(emailNotifications, forKey: .emailNotifications)
+        try container.encodeIfPresent(alarmRingIntervalS, forKey: .alarmRingIntervalS)
+        try container.encodeIfPresent(alarmRingDurationS, forKey: .alarmRingDurationS)
     }
 
     /// The settings as they stand once the patch is applied, for showing a change before the
@@ -84,6 +100,8 @@ public struct UserSettingsPatch: Encodable, Sendable, Equatable {
         }
         if let playbackSpeed { next.playbackSpeed = playbackSpeed }
         if let emailNotifications { next.emailNotifications = emailNotifications }
+        if let alarmRingIntervalS { next.alarmRingIntervalS = alarmRingIntervalS }
+        if let alarmRingDurationS { next.alarmRingDurationS = alarmRingDurationS }
         return next
     }
 }

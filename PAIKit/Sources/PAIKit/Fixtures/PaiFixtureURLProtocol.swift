@@ -285,6 +285,16 @@
             exact("GET", "/api/decisions") { PaiFixtures.openDecisions },
             sessionScoped("GET", suffix: "/decisions") { PaiFixtures.sessionDecisions },
             exact("GET", "/api/canteen/entries") { PaiFixtures.canteenEntries },
+            exact("GET", "/api/alarm") { PaiFixtures.alarmList },
+            exact("POST", "/api/alarm") { PaiFixtures.alarmCreated },
+            FixtureRoute(method: "POST", matches: { $0 == "/api/alarm/dismiss" }) { Data() },
+            FixtureRoute(method: "POST", matches: { $0.hasPrefix("/api/alarm/") && $0.hasSuffix("/dismiss") }) {
+                Data()
+            },
+            FixtureRoute(method: "DELETE", matches: { $0.hasPrefix("/api/alarm/") }) { Data() },
+            exact("GET", "/api/watch-keys") { PaiFixtures.watchKeys },
+            exact("POST", "/api/watch-keys") { PaiFixtures.watchKeyCreated },
+            FixtureRoute(method: "DELETE", matches: { $0.hasPrefix("/api/watch-keys/") }) { Data() },
             exact("GET", "/api/alerts") { PaiFixtures.alerts },
             exact("POST", "/api/alerts/clear") { PaiFixtures.alertsCleared },
             // The create. Without it `-PaiFixtureAutoCreateSession` drives a send that the

@@ -182,9 +182,11 @@ jobs:
             || { echo "::error::version mismatch: app ${app_short}/${app_build} vs appex ${appex_short}/${appex_build} — App Store Connect rejects this"; fail=1; }
 
           for bundle in "$app" "$appex"; do
-            grep -rqs "OpenQuickActionsIntent" "$bundle/Metadata.appintents" \
-              || { echo "::error::OpenQuickActionsIntent is missing from $(basename "$bundle")/Metadata.appintents — SharedIntents/ is not compiled into it"; \
-                   ls -la "$bundle/Metadata.appintents" 2>&1 || true; fail=1; }
+            for intent in OpenQuickActionsIntent OpenAlarmIntent; do
+              grep -rqs "$intent" "$bundle/Metadata.appintents" \
+                || { echo "::error::$intent is missing from $(basename "$bundle")/Metadata.appintents — SharedIntents/ is not compiled into it"; \
+                     ls -la "$bundle/Metadata.appintents" 2>&1 || true; fail=1; }
+            done
           done
 
           if [ "$fail" -ne 0 ]; then
@@ -192,6 +194,23 @@ jobs:
             exit 1
           fi
           echo 'controls appex checks out'
+
+      # An alarm push is time-sensitive, which iOS honours only for a build holding this
+      # entitlement. The simulator build is unsigned, so the project's entitlements file is what
+      # is checked, plus the resolved copy Xcode leaves in the build directory when it has one.
+      - name: The app asks for Time Sensitive notifications
+        run: |
+          plutil -extract com.apple.developer.usernotifications.time-sensitive raw PAI/PAI.entitlements \
+            | grep -qx true \
+            || { echo '::error::PAI/PAI.entitlements lacks com.apple.developer.usernotifications.time-sensitive'; exit 1; }
+          xcent=$(find build/dd/Build/Intermediates.noindex -name 'PAI.app.xcent' 2>/dev/null | head -1)
+          if [ -n "$xcent" ]; then
+            plutil -extract com.apple.developer.usernotifications.time-sensitive raw "$xcent" | grep -qx true \
+              || { echo "::error::$xcent lacks the time-sensitive entitlement"; exit 1; }
+            echo "entitlement present in $xcent"
+          else
+            echo 'no resolved .xcent in the build directory; checked the source file only'
+          fi
 
       # Runs after the app build on purpose. This step compiles the whole package on a macOS host,
       # which is the only place the UIKit-guarded files compile at all — so it fails for reasons

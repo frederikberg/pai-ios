@@ -19,7 +19,8 @@ set -o pipefail
 
 SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscreen-pdf secret-prompt compact-chip mailverdict person-settings playback playback-voice
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
-note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused"
+note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
+watch-keys alarm-facts"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
@@ -262,6 +263,20 @@ if want person-settings; then
   # The e-mail switch, read from the person's settings.
   screenshot person-settings -PaiFixtureRoute settings -PaiFixtureScrollTo emailNotifications
   fact_assert person-settings emailNotifications on
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want watch-keys; then
+  # The watch keys list in Settings, below the fold.
+  screenshot watch-keys -PaiFixtureRoute settings -PaiFixtureScrollTo watchKeys
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want alarm-facts; then
+  # The Alarm screen read the fixture list: one ringing, two armed.
+  screenshot alarm-facts -PaiFixtureRoute alarm
+  fact_assert alarm-facts alarmRinging 1
+  fact_assert alarm-facts alarmArmed 2
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 

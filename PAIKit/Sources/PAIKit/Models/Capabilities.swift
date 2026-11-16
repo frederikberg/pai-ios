@@ -27,6 +27,10 @@ public struct Capabilities: Sendable, Equatable {
 
     private var isOwner: Bool { role == .owner }
 
+    /// Any signed-in person the backend knows a role for: the owner and a guest. Per-person
+    /// routes (a device token, the alarms, watch keys) are keyed by the caller's own user.
+    private var isPerson: Bool { role == .owner || role == .guest }
+
     public var canOpenNotes: Bool { isOwner }
     public var canOpenArc: Bool { isOwner }
     public var canOpenScheduler: Bool { isOwner }
@@ -37,6 +41,10 @@ public struct Capabilities: Sendable, Equatable {
     /// The write-only secrets' presence read (`GET /api/settings/secrets`).
     public var canReadSecrets: Bool { isOwner }
 
-    /// `POST /api/devices/register`: a device token belongs to the owner's account only.
-    public var canRegisterPush: Bool { isOwner }
+    /// `POST /api/devices/register`: a device token belongs to the signed-in person, a guest's
+    /// included.
+    public var canRegisterPush: Bool { isPerson }
+
+    /// The Alarm app and the watch keys: person routes, open to a guest.
+    public var canOpenAlarm: Bool { isPerson }
 }

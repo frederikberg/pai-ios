@@ -9,6 +9,7 @@ import WidgetKit
 struct PAIControls: WidgetBundle {
     var body: some Widget {
         QuickActionsControl()
+        AlarmControl()
     }
 }
 
@@ -22,5 +23,18 @@ struct QuickActionsControl: ControlWidget {
         }
         .displayName("Quick actions")
         .description("Open PAI's quick actions menu.")
+    }
+}
+
+/// Opens the Alarm app straight onto its list, where "+" arms a new alarm.
+struct AlarmControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "com.frederikberg.pai.controls.alarm") {
+            ControlWidgetButton(action: OpenAlarmIntent()) {
+                Label("Alarm", systemImage: "alarm.fill")
+            }
+        }
+        .displayName("Alarm")
+        .description("Open PAI's alarm app.")
     }
 }
