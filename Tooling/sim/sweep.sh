@@ -20,7 +20,7 @@ set -o pipefail
 SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscreen-pdf secret-prompt compact-chip mailverdict person-settings playback playback-voice
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
-watch-keys alarm-facts weather-states location-settings"
+watch-keys alarm-facts weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
