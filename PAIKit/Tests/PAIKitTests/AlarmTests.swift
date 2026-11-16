@@ -280,6 +280,29 @@ final class AlarmTests: XCTestCase {
         XCTAssertEqual(keys.map(\.hint), ["pw_aB3x"])
     }
 
+    /// The sheet that shows the plain key reads `justCreated`; the list reload that follows a
+    /// create, and a later revoke with its own reload, must leave it until it is acknowledged.
+    func testTheCreatedKeySurvivesTheReloadsThatFollow() async throws {
+        let api = FakeWatchKeysApi()
+        let store = await WatchKeysStore(api: api)
+        await store.create(name: "fenix 8")
+        await store.load()
+        let listed = await store.keys
+        await store.revoke(try XCTUnwrap(listed.first))
+        let created = await store.justCreated
+        XCTAssertEqual(created?.key, "pw_plain")
+    }
+
+    /// `GET /api/watch-keys?everyone=true` adds `user_id` and `display_name` to each row; a list
+    /// that ever carries them must still decode.
+    func testTheEveryoneListShapeDecodes() throws {
+        let keys = try decode(
+            [WatchKey].self,
+            #"[{"id":"4f0c6a5e-0000-4c1a-8f30-2b7e5c918d01","name":"fenix 8","hint":"pw_aB3x","created_at":"2026-08-20T09:00:00.123456+00:00","last_used_at":null,"user_id":"9b1e0d2a-0000-4c1a-8f30-2b7e5c918d02","display_name":"Chiara"}]"#
+        )
+        XCTAssertEqual(keys.map(\.name), ["fenix 8"])
+    }
+
     func testABlankKeyNameCreatesNothing() async {
         let api = FakeWatchKeysApi()
         let store = await WatchKeysStore(api: api)
