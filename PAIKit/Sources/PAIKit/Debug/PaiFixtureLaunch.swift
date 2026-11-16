@@ -32,6 +32,7 @@
         static let noteRefusedEditFlag = "-PaiFixtureNoteRefusedEdit"
         static let scrollAnchorFlag = "-PaiFixtureScrollTo"
         static let notificationSourceFlag = "-PaiFixtureNotificationSource"
+        static let weatherFlag = "-PaiFixtureWeather"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -188,6 +189,12 @@
         /// target names the spots), because a screenshot shows only what is on screen.
         public static func requestedScrollAnchor(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: scrollAnchorFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureWeather <state>`: which of `PaiFixtures.weatherStates` the Weather screen
+        /// reads. Absent is the showers-approaching answer.
+        public static func requestedWeatherState(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: weatherFlag, in: arguments)
         }
 
         /// `-PaiFixtureNotificationSource only|exclude`: the notification centre opens filtered to

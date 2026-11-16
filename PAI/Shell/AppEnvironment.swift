@@ -122,6 +122,9 @@ final class AppEnvironment {
         /// Grants running after their sheet closed; app-wide because a request outlives the sheet
         /// and the session screen that started it.
         let secretGrants: SecretGrantRunStore
+        /// Which iPhone reports its location for the Weather app, and what its fixes become.
+        /// App-wide because a background relaunch delivers a fix with no screen open.
+        let location: LocationReportStore
     }
 
     nonisolated private static let backendURLKey = "backendURL"
@@ -411,7 +414,12 @@ final class AppEnvironment {
             notifications: NotificationCenterStore(api: client),
             transcriptJumps: TranscriptJumpRequests(),
             decisions: DecisionsStore(api: client, capabilities: { [weak me] in me?.capabilities ?? .unknown }),
-            secretGrants: secretGrants
+            secretGrants: secretGrants,
+            location: LocationReportStore(
+                api: client, userSettings: settingsStore.userSettings, cache: defaults,
+                placeName: { latitude, longitude in
+                    await LocationReporter.placeName(latitude: latitude, longitude: longitude)
+                })
         )
         PlaybackController.shared.configure(
             api: client, transcript: transcript, sessions: sessions, toasts: toasts,
@@ -444,6 +452,11 @@ final class AppEnvironment {
         // The person's own settings (recording mode, e-mail switch, playback speed) are read once
         // per launch; the Settings screen reads them again when it opens.
         await connection.settings.userSettings.load()
+        if connection.me.capabilities.canOpenWeather {
+            await connection.location.resolveCurrentSignIn()
+            LocationReporter.shared.reconcile()
+            LocationReporter.shared.foregroundFix()
+        }
         await connection.machines.refresh()
         await connection.decisions.refresh()
         await connection.staging.loadPersisted()

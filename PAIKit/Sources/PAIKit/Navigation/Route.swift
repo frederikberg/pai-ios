@@ -131,6 +131,8 @@ public enum Route: Hashable, Sendable {
     /// The Alarm app — reached from Apps' "Alarm" row, the Control Center control and a tapped
     /// alarm push. Carries no identity concern of its own, the same reason `.canteen` does not.
     case alarm
+    /// The Weather app — reached from Apps' "Weather" row and `pai://weather`.
+    case weather
 
     /// Ignores `session`'s `messageID` and `notePreview`'s `heading` — see those cases. Everything else is a plain
     /// per-case comparison, same as the synthesized version this replaces.
@@ -162,6 +164,7 @@ public enum Route: Hashable, Sendable {
         case (.browserList, .browserList): return true
         case (.browser(let a), .browser(let b)): return a == b
         case (.alarm, .alarm): return true
+        case (.weather, .weather): return true
         default: return false
         }
     }
@@ -233,6 +236,8 @@ public enum Route: Hashable, Sendable {
             hasher.combine(name)
         case .alarm:
             hasher.combine(26)
+        case .weather:
+            hasher.combine(27)
         }
     }
 }
@@ -250,7 +255,7 @@ extension Route {
         "noteContainers", "notePreview", "notifications", "recordings", "arcSpec", "apps", "arcSpecList", "arcReport",
         "arcOverview",
         "schedulerList", "schedulerTask", "quickActions", "computerCall", "canteen", "usage", "decisions",
-        "subagentSession", "alarm",
+        "subagentSession", "alarm", "weather",
     ]
 
     /// The subagent of the fixture session (`PaiFixtures.sessionSubagent`), what the
@@ -312,6 +317,7 @@ extension Route {
         case "usage": return .usage
         case "decisions": return .decisions
         case "alarm": return .alarm
+        case "weather": return .weather
         default: return nil
         }
     }
@@ -476,7 +482,7 @@ public final class Router {
             case .settings, .createSession, .subagents, .notes, .note, .noteContainers, .notePreview,
                 .notifications, .recordings, .arcSpec, .apps, .arcSpecList, .arcReport, .arcOverview,
                 .schedulerList, .schedulerTask, .quickActions, .computerCall, .canteen, .usage, .decisions,
-                .browserList, .browser, .alarm:
+                .browserList, .browser, .alarm, .weather:
                 continue
             }
         }
@@ -492,7 +498,7 @@ public final class Router {
             case .session, .terminal, .settings, .createSession, .subagents, .notes, .noteContainers,
                 .notifications, .recordings, .arcSpec, .apps, .arcSpecList, .arcReport, .arcOverview,
                 .schedulerList, .schedulerTask, .quickActions, .computerCall, .canteen, .usage, .decisions,
-                .browserList, .browser, .alarm:
+                .browserList, .browser, .alarm, .weather:
                 continue
             }
         }

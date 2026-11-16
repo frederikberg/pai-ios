@@ -32,6 +32,8 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     /// The Alarm app. A tapped alarm push names its alarm (`id`), which opening the link also
     /// dismisses; the Control Center control and a universal link name none.
     case alarm(id: String?)
+    /// The Weather app.
+    case weather
 
     /// The routes this link lands on. Whole paths rather than single routes: a deep link arrives
     /// knowing nothing about what the app was showing, so it replaces the stack, and a note with
@@ -47,6 +49,7 @@ public enum DeepLink: Equatable, Sendable, Hashable {
         case .browser(let name?): return [.browserList, .browser(name: name)]
         case .browser(nil): return [.browserList]
         case .alarm: return [.alarm]
+        case .weather: return [.weather]
         }
     }
 
@@ -61,7 +64,7 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     public var dismissesOverlays: Bool {
         switch self {
         case .quickActions, .alarm: return true
-        case .session, .note, .notesList, .createSession, .notification, .browser: return false
+        case .session, .note, .notesList, .createSession, .notification, .browser, .weather: return false
         }
     }
 }
@@ -114,7 +117,7 @@ extension DeepLink {
     /// through an App Intent.
     ///
     /// `pai://session/<id>`, `pai://note/<id>`, `pai://notes`, `pai://createsession`,
-    /// `pai://quickactions`, `pai://alarm`, `pai://browser` and `pai://browser/<name>`. Rejects
+    /// `pai://quickactions`, `pai://alarm`, `pai://weather`, `pai://browser` and `pai://browser/<name>`. Rejects
     /// anything else rather than guessing, including a well-formed URL with an unknown host — a
     /// link the app does not understand must not silently open some other screen.
     public static func from(url: URL) -> DeepLink? {
@@ -153,6 +156,9 @@ extension DeepLink {
         case "alarm":
             guard segments.count == 1 else { return nil }
             return .alarm(id: nil)
+        case "weather":
+            guard segments.count == 1 else { return nil }
+            return .weather
         case "browser":
             guard segments.count <= 2 else { return nil }
             guard segments.count == 2 else { return .browser(name: nil) }
@@ -177,7 +183,7 @@ extension DeepLink {
     ///
     /// `/session/<id>` (with the web's `?m=<message id>` jump, or `?n=<notification id>` for a
     /// notification whose anchor resolves on read), `/apps/notes` (the list), `/apps/notes/<id>`, including the
-    /// note's `/preview` subpaths, `/apps/alarm` and `/apps/browser[/<name>]`. Anything else is no link: the domain's association file claims
+    /// note's `/preview` subpaths, `/apps/alarm`, `/apps/weather` and `/apps/browser[/<name>]`. Anything else is no link: the domain's association file claims
     /// paths this parser does not know, and those open the app where it already is.
     ///
     /// The host is not checked. iOS delivers a browsing activity only for a domain the app's
@@ -213,6 +219,7 @@ extension DeepLink {
                 }
             }
             if segments.count == 2, segments[1] == "alarm" { return .alarm(id: nil) }
+            if segments.count == 2, segments[1] == "weather" { return .weather }
             if segments.count == 2, segments[1] == "notes" { return .notesList }
             guard segments.count >= 3, segments[1] == "notes", let noteID = id(at: 2) else { return nil }
             guard segments.count == 3 || segments[3] == "preview" else { return nil }
@@ -240,6 +247,7 @@ extension DeepLink {
         case .browser(let name?): return URL(string: "pai://browser/\(Self.escape(name))")
         case .browser(nil): return URL(string: "pai://browser")
         case .alarm: return URL(string: "pai://alarm")
+        case .weather: return URL(string: "pai://weather")
         }
     }
 

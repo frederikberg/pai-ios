@@ -78,6 +78,12 @@ The Alarm app (Apps, or the Alarm control) lists the armed alarms, pins ringing 
 
 The pushes are time-sensitive, so the app declares the Time Sensitive Notifications entitlement in `PAI/PAI.entitlements`. A build signed for TestFlight needs the capability enabled on the App ID and a provisioning profile created after that.
 
+## Weather
+
+The Weather app (Apps, or `pai://weather`) answers two questions in two rows: "Now" is the next hour from the rain radar (a chance, when rain reaches you, how close it is and whether it is closing in) and "Later" is the next twelve hours. The footer names the place, how old the location is and the data sources.
+
+Where you are comes from one iPhone you choose: Settings, Location, "Use this iPhone for weather". That phone asks for location access (while using the app first, then Always), reports through significant-location-change monitoring (low power, moves of about 500 m) and takes one fix each time the app comes to the front, naming the place on the device. Only the latest location is kept on the PAI server. The two purpose strings live in `Config/Info.plist`; the `Mac` workflow asserts both survive into the built app.
+
 ## Notes offline
 
 The notes open without a connection. The index, every note opened on the phone, the favourites,
