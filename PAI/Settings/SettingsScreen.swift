@@ -158,7 +158,7 @@ private struct NotificationsSection: View {
         case .failed:
             "This device could not be registered with Apple. It will try again next launch."
         case .authorized:
-            "Everything is always kept in the notifications screen. These switches decide what this device also gets as a push."
+            "Everything is always kept in the notifications screen. These switches decide what this device also gets as a push. While you are using PAI on any device, nothing is pushed: a short banner at the top of the app shows what arrives."
         default:
             "Get a push on this device when something needs you."
         }
