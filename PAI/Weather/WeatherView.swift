@@ -1,5 +1,6 @@
 import PAIKit
 import SwiftUI
+import UIKit
 
 /// The Weather app: two calm rows answering the two morning questions. "Now" is whether rain
 /// pants are needed for the next hour (radar), "Later" whether to pack them for the next twelve
@@ -53,6 +54,9 @@ struct WeatherView: View {
                         RainRow(title: "Later", row: presenter.laterRow(weather.later), identifier: "weather-later")
                         let bars = presenter.strip(weather.later)
                         if !bars.isEmpty { HourStrip(bars: bars) }
+                    }
+                    if let data = store.radarPicture, let picture = UIImage(data: data) {
+                        RadarPicture(image: picture, data: data, at: weather.radarPictureDate)
                     }
                     Text(presenter.footer(weather))
                         .font(PaiTypography.caption.font)
@@ -112,6 +116,40 @@ private struct RainRow: View {
         case .maybe: PaiPalette.Semantic.warningText
         default: PaiPalette.Semantic.textStrong
         }
+    }
+}
+
+/// The radar about half an hour ahead, drawn by the server from the radar the answer used. A tap
+/// opens it in the viewer.
+private struct RadarPicture: View {
+    let image: UIImage
+    let data: Data
+    let at: Date?
+    @State private var previewTarget: FilePreviewTarget?
+
+    private var title: String {
+        guard let at else { return "RADAR" }
+        return "RADAR AT \(ClockTime.string(at, calendar: .current))"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(PaiTypography.captionEmphasized.font)
+                .foregroundStyle(PaiPalette.Semantic.textMuted)
+            Button {
+                previewTarget = FilePreviewTarget(data: data, filename: "radar.png", kind: .image)
+            } label: {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(1, contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Radar forecast picture")
+            .filePreview($previewTarget)
+        }
+        .accessibilityIdentifier("weather-radar")
     }
 }
 

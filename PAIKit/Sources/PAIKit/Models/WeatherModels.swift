@@ -225,23 +225,30 @@ public struct WeatherResponse: Decodable, Sendable, Equatable {
     public let computedAt: String
     public let now: WeatherNow
     public let later: WeatherLater
+    /// When the radar picture's frame is (about 30 min ahead); nil when there is no picture, and
+    /// from a backend that predates it.
+    public let radarPictureAt: String?
     public let attribution: String
 
     enum CodingKeys: String, CodingKey {
         case location, now, later, attribution
         case computedAt = "computed_at"
+        case radarPictureAt = "radar_picture_at"
     }
 
     public init(
         location: WeatherLocation?, computedAt: String, now: WeatherNow, later: WeatherLater,
-        attribution: String
+        radarPictureAt: String? = nil, attribution: String
     ) {
         self.location = location
         self.computedAt = computedAt
         self.now = now
         self.later = later
+        self.radarPictureAt = radarPictureAt
         self.attribution = attribution
     }
+
+    public var radarPictureDate: Date? { radarPictureAt.flatMap(IsoTimestamp.date(from:)) }
 
     public var computedDate: Date? { IsoTimestamp.date(from: computedAt) }
 }
