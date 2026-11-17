@@ -756,6 +756,18 @@ final class PaiApiClientTests: XCTestCase {
         XCTAssertEqual(error.userMessage, "boom")
     }
 
+    func testGetDraftAttachmentReadsTheRowOfThatDraftAndCarriesItsBytes() async throws {
+        let client = try makeClient()
+        PaiStubURLProtocol.stub = .init(
+            statusCode: 200, headers: ["Content-Type": "image/jpeg"], body: Data("jpg".utf8))
+
+        guard case let .ok(data, _) = try await client.getDraftAttachment(key: "new", attachmentId: "a1") else {
+            return XCTFail("Expected .ok")
+        }
+        XCTAssertEqual(data, Data("jpg".utf8))
+        XCTAssertEqual(PaiStubURLProtocol.capturedRequest?.url?.path, "/api/drafts/new/attachments/a1")
+    }
+
     // MARK: - grantSecretAccess
 
     func testGrantSecretAccessSendsPassphraseTtlSecondsAndScopeToTheContractPath() async throws {

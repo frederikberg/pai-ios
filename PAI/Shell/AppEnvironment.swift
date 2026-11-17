@@ -363,6 +363,7 @@ final class AppEnvironment {
             apiClient: client, storage: defaults, voice: voice, computerCall: computerCall)
 
         let staging = StagedAttachmentStore()
+        staging.watchNetwork()
         draftStore.serverAttachmentsObserved = { [weak staging] key, ids, requestedAt in
             staging?.dropVanishedUploads(for: key, serverIds: ids, requestedAt: requestedAt)
         }

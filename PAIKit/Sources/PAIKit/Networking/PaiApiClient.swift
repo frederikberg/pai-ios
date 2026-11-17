@@ -1805,6 +1805,22 @@ public struct PaiApiClient: Sendable {
         return .ok(data: data, contentType: http.value(forHTTPHeaderField: "Content-Type"))
     }
 
+    /// `GET /api/drafts/{key}/attachments/{id}` — the bytes of a file another device put on a
+    /// draft, so the composer draws its picture as it would one picked here. 404 until the upload
+    /// has landed, and once the row is gone.
+    public func getDraftAttachment(key: String, attachmentId: String) async throws -> PaiAttachmentResult {
+        let request = try requestFactory.makeRequest(path: "/api/drafts/\(key)/attachments/\(attachmentId)")
+        let (data, response) = try await perform(request)
+        guard let http = response as? HTTPURLResponse else {
+            throw PaiError.transport("Response was not HTTP")
+        }
+        if http.statusCode == 404 { return .notFound }
+        guard (200..<300).contains(http.statusCode) else {
+            return .error(PaiError.from(statusCode: http.statusCode, body: data))
+        }
+        return .ok(data: data, contentType: http.value(forHTTPHeaderField: "Content-Type"))
+    }
+
     // MARK: - Devices
 
     /// Tells the backend which device to push a notification to.

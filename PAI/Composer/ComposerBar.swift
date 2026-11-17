@@ -282,7 +282,8 @@ struct ComposerBar: View {
 
             if !displayAttachments.isEmpty {
                 AttachmentPreviewStrip(
-                    attachments: displayAttachments, onRemove: removeAttachment, onRetry: retryAttachment)
+                    draftKey: sessionID, attachments: displayAttachments, onRemove: removeAttachment,
+                    onRetry: retryAttachment)
             }
 
             SkillMentionRow(
@@ -412,6 +413,7 @@ struct ComposerBar: View {
             }
         }
         .task(id: sessionID) { await environment.connection?.skills.load(.session(sessionID)) }
+        .retriesFailedUploads(in: sessionID)
         #if DEBUG
             .task(id: sessionID) { await PlaybackController.shared.applyFixtureLaunch(sessionId: sessionID) }
         #endif
