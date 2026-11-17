@@ -1821,6 +1821,22 @@ public struct PaiApiClient: Sendable {
         return .ok(data: data, contentType: http.value(forHTTPHeaderField: "Content-Type"))
     }
 
+    /// `POST /api/presence` — whether this app is in use right now. While any client of a person
+    /// is, nothing is pushed to that person's devices.
+    public func reportPresence(clientId: String, active: Bool) async throws {
+        struct Body: Encodable {
+            let clientId: String
+            let active: Bool
+
+            enum CodingKeys: String, CodingKey {
+                case active
+                case clientId = "client_id"
+            }
+        }
+        try await sendDiscardingResponse(
+            path: "/api/presence", method: "POST", body: try Self.jsonBody(Body(clientId: clientId, active: active)))
+    }
+
     // MARK: - Devices
 
     /// Tells the backend which device to push a notification to.
