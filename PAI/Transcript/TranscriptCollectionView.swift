@@ -325,11 +325,11 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
         // `sessionID` and `store` are plain `let`s, safe to read synchronously here same as
         // `sseClient` above; everything isolated happens inside the `Task`, so `hasNewer` is
         // read live rather than a moment stale.
-        let client = apiClient
+        let api = apiClient
         let sessionID = sessionID
         let store = store
         Task { @MainActor in
-            Self.sendPendingReadPosition(sessionID: sessionID, store: store, client: client)
+            Self.sendPendingReadPosition(sessionID: sessionID, store: store, client: api)
         }
     }
 
