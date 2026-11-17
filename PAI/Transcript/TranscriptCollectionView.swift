@@ -153,7 +153,6 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
     /// programmatic write below calls `appScrolled()` before moving the viewport.
     private var readerMotion = TranscriptReaderMotion()
     private let holdController = TranscriptHoldController()
-    private var lastRecordedAnchor: TranscriptAnchor?
     private var isLoadingOlder = false
     private var lastMeasuredWidth: Double = -1
     /// Set for the duration of `apply(_:intent:)`'s synchronous work — `apply()` forces a layout
@@ -180,16 +179,13 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
     /// resolve before `viewDidLayoutSubviews` has ever run once (see `apply(_:intent:)`'s
     /// `.initialLoad` case). Whichever of the two runs second is the one that applies it.
     private var pendingInitialLoad: TranscriptRestoreTarget?
-    /// Every session's last recorded read position, kept only for the life of the process — the
+    /// Every session's remembered read position, kept only for the life of the process — the
     /// view controller itself is recreated on every navigation into a session, so an instance
-    /// property alone would forget it on every return. Seeded once per session, on this
-    /// process's first visit, from `persistedReadPosition` — see `bootstrap()`.
-    private static var lastAnchors: [String: TranscriptAnchor] = [:]
-    /// The server's time for this process's last acknowledged read-position save, per session —
-    /// what tells a persisted position saved later, by another device, from this one's own.
-    private static var lastOwnSaves: [String: Date] = [:]
+    /// property alone would forget it on every return. It also decides which scrolls may
+    /// overwrite the position: none before this open has landed, none while the screen leaves.
+    private static let positions = TranscriptReadPositions()
     /// What the server last had for this session, from `Session.readPosition*` — read once, in
-    /// `bootstrap()`, to seed `lastAnchors` the first time this process visits this session.
+    /// `bootstrap()`, to seed `positions` when the server holds a later save than this process.
     /// `nil` both when there has never been a recorded position and when the session was not yet
     /// loaded at the moment this screen was constructed (a cold deep link); either way the
     /// restore falls back to the bottom, same as it already does for an anchor the LRU evicted.
@@ -278,7 +274,7 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
         /// The transcript screen currently on top, if any — how `/transcript/landing` answers
         /// "where did the jump actually land" without scraping a screenshot. `weak`, so a popped
         /// screen needs no explicit cleanup here: this controller is recreated on every
-        /// navigation (see `lastAnchors`'s own doc comment), and a weak reference nils itself the
+        /// navigation (see `positions`'s own doc comment), and a weak reference nils itself the
         /// moment `deinit` runs, with no ordering hazard against the next screen's own assignment.
         static weak var current: TranscriptCollectionViewController?
     #endif
@@ -327,29 +323,19 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
         // doc comment), so `deinit` is exactly the moment the web's own per-session cleanup
         // effect flushes on — leaving these screens, not only quitting the app. `apiClient`,
         // `sessionID` and `store` are plain `let`s, safe to read synchronously here same as
-        // `sseClient` above (a reference, not a call into its `@MainActor` isolation); reading
-        // `store.window(for:)` itself is a call and has to hop, same as `sseClient?.disconnect()`
-        // does — done inside the `Task` below rather than out here, so `hasNewer` is read live
-        // rather than a moment stale.
-        if let anchor = lastRecordedAnchor {
-            let client = apiClient
-            let sessionID = sessionID
-            let store = store
-            Task { @MainActor in
-                let payload = TranscriptAnchor.readPositionPayload(
-                    for: anchor, hasNewer: store.window(for: sessionID).hasNewer)
-                let ack = try? await client.putReadPosition(
-                    sessionId: sessionID, messageId: payload.messageId, offsetPx: payload.offsetPx,
-                    atBottom: payload.atBottom)
-                if let savedAt = ack?.savedAt.flatMap(IsoTimestamp.date(from:)) {
-                    Self.lastOwnSaves[sessionID] = savedAt
-                }
-            }
+        // `sseClient` above; everything isolated happens inside the `Task`, so `hasNewer` is
+        // read live rather than a moment stale.
+        let client = apiClient
+        let sessionID = sessionID
+        let store = store
+        Task { @MainActor in
+            Self.sendPendingReadPosition(sessionID: sessionID, store: store, client: client)
         }
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        Self.positions.beginVisit(sessionId: sessionID)
         #if DEBUG
             Self.current = self
         #endif
@@ -516,6 +502,19 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
         }
     }
 
+    /// The reader's position is what is on screen as the screen starts to leave. The transition
+    /// that follows re-lays the list out, and none of that is the reader moving.
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        recordCurrentAnchor()
+        Self.positions.suspend(sessionId: sessionID)
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        Self.positions.resume(sessionId: sessionID)
+    }
+
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         guard traitCollection.preferredContentSizeCategory != previousTraitCollection?.preferredContentSizeCategory
@@ -616,19 +615,13 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
     }
 
     /// The ordinary open's own target resolution (search-virtualization design: a deep link's
-    /// retry ladder degrades to this once exhausted, never to silently loading nothing). Only
-    /// ever seeds `lastAnchors` when it is an EMPTY slot — a session revisited later in the same
-    /// process already has a more current in-memory anchor than whatever the server held when
-    /// this screen was constructed, and that must win.
+    /// retry ladder degrades to this once exhausted, never to silently loading nothing). The
+    /// process's own position wins unless the server holds one saved later elsewhere.
     private func fallBackToReadPosition() async {
-        let seeded = TranscriptAnchor.seed(
-            current: Self.lastAnchors[sessionID], persisted: persistedReadPosition,
-            lastOwnSave: Self.lastOwnSaves[sessionID])
-        Self.lastAnchors[sessionID] = seeded.anchor
-        Self.lastOwnSaves[sessionID] = seeded.lastOwnSave
+        let anchor = Self.positions.seed(sessionId: sessionID, persisted: persistedReadPosition)
         isResolvingLanding = true
         let target = await store.readPositionLanding(
-            for: seeded.anchor, sessionId: sessionID, fetchAround: fetchAroundPage)
+            for: anchor, sessionId: sessionID, fetchAround: fetchAroundPage)
         isResolvingLanding = false
         guard !Task.isCancelled else { return }
         land(on: target)
@@ -1705,6 +1698,8 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
                     holdController.begin(.bottom)
                 }
             }
+            // The restore is written; from here a scroll is the reader's position.
+            Self.positions.finishLanding(sessionId: sessionID)
             updateJumpToLatestVisibility()
             return
 
@@ -2030,9 +2025,8 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
                 messageId: newest.id, offset: Double(newestTop - collectionView.contentOffset.y))
         }
         let anchor = TranscriptAnchor(messageId: id, offset: Double(viewportOffset), lastSeen: lastSeen)
-        lastRecordedAnchor = anchor
-        // Kept beyond this instance's own lifetime — see `lastAnchors`'s doc comment.
-        Self.lastAnchors[sessionID] = anchor
+        // Refused before the landing and while leaving — see `positions`'s doc comment.
+        guard Self.positions.record(anchor, sessionId: sessionID) else { return }
         scheduleReadPositionSave()
     }
 
@@ -2049,23 +2043,26 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
 
     /// Sends whatever is pending right now rather than waiting out the debounce — for the app
     /// backgrounding, or this controller being torn down, where the window might never otherwise
-    /// elapse. Best-effort: the in-memory anchor and the next successful save stay the source of
-    /// truth for this device: a lost write only costs a relaunch landing one scroll behind.
+    /// elapse. Best-effort: the in-memory position and the next successful save stay the source
+    /// of truth for this device: a lost write only costs a relaunch landing one scroll behind.
     private func flushReadPositionSaveNow() {
         readPositionSaveTask?.cancel()
         readPositionSaveTask = nil
-        guard let anchor = lastRecordedAnchor else { return }
-        // Read live, not from whatever `hasNewer` was when the anchor was recorded — this can
-        // fire well after that scroll, and `loadNewer`'s catch-up can have settled the flag in
-        // between.
+        Self.sendPendingReadPosition(sessionID: sessionID, store: store, client: apiClient)
+    }
+
+    /// Nothing is sent when nothing was recorded since the last send. `hasNewer` is read live,
+    /// not from whatever it was when the position was recorded — this can fire well after that
+    /// scroll, and `loadNewer`'s catch-up can have settled the flag in between.
+    private static func sendPendingReadPosition(sessionID: String, store: TranscriptStore, client: PaiApiClient) {
+        guard let anchor = positions.takePendingSave(sessionId: sessionID) else { return }
         let payload = TranscriptAnchor.readPositionPayload(for: anchor, hasNewer: store.window(for: sessionID).hasNewer)
-        let sessionID = sessionID
-        Task {
-            let ack = try? await apiClient.putReadPosition(
+        Task { @MainActor in
+            let ack = try? await client.putReadPosition(
                 sessionId: sessionID, messageId: payload.messageId, offsetPx: payload.offsetPx,
                 atBottom: payload.atBottom)
             if let savedAt = ack?.savedAt.flatMap(IsoTimestamp.date(from:)) {
-                Self.lastOwnSaves[sessionID] = savedAt
+                positions.recordSave(sessionId: sessionID, savedAt: savedAt)
             }
         }
     }
