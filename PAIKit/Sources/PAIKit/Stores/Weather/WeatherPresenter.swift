@@ -11,6 +11,15 @@ public struct WeatherRow: Equatable, Sendable {
     public let caption: String?
 }
 
+/// One bar of the 12-hour strip: its height is the chance, its colour the intensity, and every
+/// third bar carries the hour it starts as a label.
+public struct WeatherStripBar: Equatable, Sendable, Identifiable {
+    public let id: String
+    public let chance: Int
+    public let intensity: RainIntensity
+    public let label: String?
+}
+
 /// Turns the server's answer into the words on the Weather screen. Times are the server's UTC
 /// instants shown in `calendar`'s time zone on a 24-hour clock.
 public struct WeatherPresenter: Sendable {
@@ -42,8 +51,29 @@ public struct WeatherPresenter: Sendable {
             return WeatherRow(verdict: .dry, value: "dry all day", detail: nil, caption: nil)
         }
         let value = later.chance.map(percent) ?? verdictWord(later.verdict)
-        let detail = later.atDate.map { "around \(dayClock($0))" }
-        return WeatherRow(verdict: later.verdict, value: value, detail: detail, caption: nil)
+        let detail = later.atDate.map { "from ~\(dayClock($0))" }
+        // The headline chance can belong to a later hour than the start, so the caption names
+        // when the rain is heaviest and how much falls.
+        var parts: [String] = []
+        if let heaviest = later.heaviestDate { parts.append("heaviest ~\(dayClock(heaviest))") }
+        if let total = later.totalMm, total >= 0.1 { parts.append("about \(millimetres(total)) in total") }
+        if later.method == "forecast" { parts.append("from the forecast, no radar here") }
+        let caption = parts.isEmpty ? nil : parts.joined(separator: " · ")
+        return WeatherRow(verdict: later.verdict, value: value, detail: detail, caption: caption)
+    }
+
+    /// The 12 hours as bars; empty when the answer has none or there is no answer.
+    public func strip(_ later: WeatherLater) -> [WeatherStripBar] {
+        guard later.verdict != .unknown else { return [] }
+        return later.hours.enumerated().map { index, hour in
+            let label = index % 3 == 0 ? hour.startDate.map { hourOfDay($0) } : nil
+            return WeatherStripBar(id: hour.start, chance: hour.chance, intensity: hour.intensity, label: label)
+        }
+    }
+
+    /// An amount of rain as people say it: whole millimetres from 2 up, one decimal below.
+    public func millimetres(_ amount: Double) -> String {
+        amount >= 2 ? "\(Int(amount.rounded())) mm" : String(format: "%.1f mm", amount)
     }
 
     /// "Aachen · 5 min ago · Radar: DWD · Forecast: Open-Meteo"; just the attribution when no
@@ -126,6 +156,11 @@ public struct WeatherPresenter: Sendable {
     }
 
     private func clock(_ date: Date) -> String { ClockTime.string(date, calendar: calendar) }
+
+    private func hourOfDay(_ date: Date) -> String {
+        let hour = calendar.component(.hour, from: date)
+        return hour < 10 ? "0\(hour)" : "\(hour)"
+    }
 
     /// The clock time, prefixed with "tomorrow" when it falls on another day than now.
     private func dayClock(_ date: Date) -> String {

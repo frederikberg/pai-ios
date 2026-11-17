@@ -147,13 +147,29 @@ final class WeatherTests: XCTestCase {
     func testTheLaterRowShowsAroundTheTimeAndDryAllDay() throws {
         let later = presenter().laterRow(try answer("showersApproaching").later)
         XCTAssertEqual(later.value, "40 %")
-        XCTAssertEqual(later.detail, "around 17:50")
+        XCTAssertEqual(later.detail, "from ~17:50")
         XCTAssertEqual(presenter().laterRow(try answer("dry").later).value, "dry all day")
+    }
+
+    func testTheLaterRowNamesTheHeaviestHourAndTheAmountBesideTheStart() throws {
+        let weather = try answer("showersApproaching")
+        let row = presenter().laterRow(weather.later)
+        XCTAssertEqual(row.caption, "heaviest ~20:00 · about 4 mm in total")
+        let bars = presenter().strip(weather.later)
+        XCTAssertEqual(bars.count, 12)
+        XCTAssertEqual(bars.compactMap(\.label).count, 4)
+        XCTAssertEqual(bars.max { $0.chance < $1.chance }?.chance, weather.later.chance)
+    }
+
+    func testAnAnswerWithoutHoursDecodesWithAnEmptyStrip() throws {
+        let weather = try answer("dry")
+        XCTAssertTrue(weather.later.hours.isEmpty)
+        XCTAssertTrue(presenter().strip(weather.later).isEmpty)
     }
 
     func testALaterTimeOnTheNextDayIsSaidSo() throws {
         let row = presenter().laterRow(try answer("forecastOnly").later)
-        XCTAssertEqual(row.detail, "around tomorrow 06:00")
+        XCTAssertEqual(row.detail, "from ~tomorrow 06:00")
     }
 
     func testUnknownStatesSayWhatToDo() throws {
