@@ -32,7 +32,7 @@ final class ClockTimeTests: XCTestCase {
         let presenter = WeatherPresenter(now: now, calendar: usCalendar)
         let later = WeatherLater(
             chance: 60, verdict: .rain, at: "2026-11-16T16:50:00+00:00")
-        XCTAssertEqual(presenter.laterRow(later).detail, "around 17:50")
+        XCTAssertEqual(presenter.laterRow(later).detail, "from ~17:50")
     }
 
     func testPickerLocaleUsesA24HourClock() {
