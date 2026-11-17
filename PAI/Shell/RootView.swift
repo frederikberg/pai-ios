@@ -18,6 +18,11 @@ struct RootView: View {
     @State private var notificationStream: PaiNotificationStreamClient?
     /// When a notification for the open session counts as seen — see `SessionAttention`.
     @State private var attention = SessionAttention()
+    /// A notification arriving while the app is open: nothing is pushed while it is in use, so this
+    /// shows it instead.
+    @State private var arrivals = ArrivalBannerStore()
+    /// Tells the server while the app is in front, so no device of this person is pushed meanwhile.
+    @State private var presence: PresenceReporter?
 
     /// The parked deep link, if one is waiting. Read through the observable inbox rather than
     /// polled, so a notification tapped while the app is already open navigates immediately
@@ -150,6 +155,9 @@ struct RootView: View {
                     }
                     ToastOverlay(toasts: connection.toasts)
                 }
+                .overlay(alignment: .top) {
+                    ArrivalBannerView(store: arrivals) { environment.router.surface(.notifications) }
+                }
                 // The one page ground for every screen the stack pushes — none of them paint
                 // their own, so this is what stops each one falling through to pure black. See
                 // `paiScreenBackground()`'s own doc comment for why that step matters.
@@ -194,6 +202,9 @@ struct RootView: View {
                     // it can fire before this screen — or any screen — is on top. Set once here,
                     // the same way `PushRegistrar.store` is, and for the same reason.
                     PushRegistrar.notificationsStore = connection.notifications
+                    // The scene was already active before the connection existed, so no phase
+                    // change will report it.
+                    if scenePhase == .active { presenceReporter(connection).setActive(true) }
                 }
                 .environment(\.terminalStreamClientFactory) { sessionID, callbacks in
                     PaiTerminalStreamClient(
@@ -220,6 +231,7 @@ struct RootView: View {
                     switch phase {
                     case .active:
                         attention.setAppActive(true)
+                        presenceReporter(connection).setActive(true)
                         UserActivityRecognizer.installOnAllWindows()
                         AppVoiceDiagnosticsLog.shared.log(.info, .lifecycle, "app active")
                         connectNotificationStream(connection)
@@ -248,6 +260,7 @@ struct RootView: View {
                         }
                     case .background:
                         attention.setAppActive(false)
+                        presence?.setActive(false)
                         // The one place a backgrounding is guaranteed to be observed — flushed here
                         // rather than trusting the periodic loop alone, since a device suspended
                         // for hours right after this could otherwise lose everything since its
@@ -258,6 +271,7 @@ struct RootView: View {
                         notificationStream = nil
                     case .inactive:
                         attention.setAppActive(false)
+                        presence?.setActive(false)
                     @unknown default:
                         break
                     }
@@ -472,8 +486,9 @@ struct RootView: View {
         let client = PaiNotificationStreamClient(
             requestFactory: connection.requestFactory,
             callbacks: PaiNotificationStreamClient.Callbacks(
-                onNotification: { [weak store] event in
+                onNotification: { [weak store, arrivals] event in
                     store?.applyLiveUnread(event.unread)
+                    arrivals.show(event.notification)
                     // Arriving for the session already on screen clears it under the same rule as
                     // reaching the session above: at once while the reader is engaged, otherwise
                     // at the next touch.
@@ -505,6 +520,18 @@ struct RootView: View {
         )
         notificationStream = client
         client.connect()
+    }
+
+    /// Built on first use from the connection's client, then kept for the app's life.
+    private func presenceReporter(_ connection: AppEnvironment.Connection) -> PresenceReporter {
+        if let presence { return presence }
+        let client = connection.apiClient
+        let clientId = PresenceReporter.clientId()
+        let reporter = PresenceReporter(report: { active in
+            try? await client.reportPresence(clientId: clientId, active: active)
+        })
+        presence = reporter
+        return reporter
     }
 
     /// `nil` is "follow the system", which is what an absent override means to SwiftUI too.

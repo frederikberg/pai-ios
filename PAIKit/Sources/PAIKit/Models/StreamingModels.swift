@@ -195,10 +195,26 @@ public struct SseProcessingEvent: Codable, Sendable, Equatable {
 public struct SseNotificationEvent: Codable, Sendable, Equatable {
     public let notification: PaiNotification
     public let unread: Int
+    /// The person is using a PAI client right now, so no device was pushed; an older backend
+    /// sends nothing, read as false.
+    public let inUse: Bool
 
-    public init(notification: PaiNotification, unread: Int) {
+    enum CodingKeys: String, CodingKey {
+        case notification, unread
+        case inUse = "in_use"
+    }
+
+    public init(notification: PaiNotification, unread: Int, inUse: Bool = false) {
         self.notification = notification
         self.unread = unread
+        self.inUse = inUse
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        notification = try container.decode(PaiNotification.self, forKey: .notification)
+        unread = try container.decode(Int.self, forKey: .unread)
+        inUse = try container.decodeIfPresent(Bool.self, forKey: .inUse) ?? false
     }
 }
 
