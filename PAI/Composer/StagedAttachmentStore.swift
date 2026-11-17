@@ -23,6 +23,28 @@ private let manifestFilename = "manifest.json"
 @MainActor
 final class StagedAttachmentStore {
     private var bySession: [String: [StagedAttachment]] = [:]
+    /// Moves on every return of the network, so each composer on screen tries its failed uploads
+    /// again (``RetriesFailedUploads``).
+    private(set) var networkRegained = 0
+    @ObservationIgnored private var pathObserver: NetworkPathObserver?
+
+    /// Starts counting network returns; called once, when the app builds its environment.
+    func watchNetwork() {
+        guard pathObserver == nil else { return }
+        let observer = NetworkPathObserver()
+        observer.onRegained = { [weak self] in
+            Task { @MainActor in self?.networkRegained += 1 }
+        }
+        observer.start()
+        pathObserver = observer
+    }
+
+    /// Tries every failed upload of `sessionID` again without a press.
+    func retryFailed(in sessionID: String, via drafts: DraftStore) {
+        for attachment in attachments(for: sessionID) where attachment.uploadState == .failed {
+            upload(attachment, in: sessionID, via: drafts)
+        }
+    }
 
     func attachments(for sessionID: String) -> [StagedAttachment] {
         bySession[sessionID] ?? []

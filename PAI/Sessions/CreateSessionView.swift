@@ -579,7 +579,8 @@ struct CreateSessionView: View {
 
             if !displayAttachments.isEmpty {
                 AttachmentPreviewStrip(
-                    attachments: displayAttachments, onRemove: removeAttachment, onRetry: retryAttachment)
+                    draftKey: DraftKey.newSession, attachments: displayAttachments, onRemove: removeAttachment,
+                    onRetry: retryAttachment)
             }
 
             SkillMentionRow(
@@ -686,6 +687,7 @@ struct CreateSessionView: View {
         .task(id: skillContext(createSession)) {
             await environment.connection?.skills.load(skillContext(createSession))
         }
+        .retriesFailedUploads(in: DraftKey.newSession)
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task { await environment.connection?.skills.load(skillContext(createSession)) }

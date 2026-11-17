@@ -20,6 +20,8 @@ enum ComposerAttachment: Identifiable {
 /// the web's `X` only appears on hover, which has no touch equivalent, so this deliberately
 /// diverges rather than hiding the only way to undo a pick.
 struct AttachmentPreviewStrip: View {
+    /// The draft the remote rows belong to, which their pictures are read from.
+    let draftKey: String
     let attachments: [ComposerAttachment]
     let onRemove: (ComposerAttachment) -> Void
     var onRetry: (ComposerAttachment) -> Void = { _ in }
@@ -83,11 +85,13 @@ struct AttachmentPreviewStrip: View {
 
     private func chip(_ attachment: ComposerAttachment) -> some View {
         AttachmentChip(
-            attachment: attachment, onRemove: { onRemove(attachment) }, onRetry: { onRetry(attachment) })
+            draftKey: draftKey, attachment: attachment, onRemove: { onRemove(attachment) },
+            onRetry: { onRetry(attachment) })
     }
 }
 
 private struct AttachmentChip: View {
+    let draftKey: String
     let attachment: ComposerAttachment
     let onRemove: () -> Void
     let onRetry: () -> Void
@@ -95,7 +99,7 @@ private struct AttachmentChip: View {
     var body: some View {
         switch attachment {
         case .staged(let staged): StagedAttachmentChip(attachment: staged, onRemove: onRemove, onRetry: onRetry)
-        case .remote(let remote): RemoteAttachmentChip(attachment: remote, onRemove: onRemove)
+        case .remote(let remote): RemoteAttachmentChip(draftKey: draftKey, attachment: remote, onRemove: onRemove)
         }
     }
 }
@@ -197,12 +201,26 @@ private struct StagedAttachmentChip: View {
     }
 }
 
-/// A file another device put on this draft. No thumbnail — its bytes were never downloaded here
-/// — just what the server knows: name and size, plus a glyph marking it as arriving from
-/// elsewhere rather than something this device is about to upload itself.
+/// A file another device put on this draft. A picture that has landed is fetched and drawn like
+/// one picked here, so a paste looks the same whichever device made it; anything else, or a
+/// picture that cannot be loaded, shows what the server knows: name and size, plus a glyph
+/// marking it as arriving from elsewhere.
 private struct RemoteAttachmentChip: View {
+    let draftKey: String
     let attachment: DraftAttachment
     let onRemove: () -> Void
+
+    @Environment(AppEnvironment.self) private var environment
+    @State private var picture: SessionInlineImageCache.Entry?
+    @State private var previewTarget: FilePreviewTarget?
+
+    private var cacheKey: String { "draft\n\(attachment.id)" }
+
+    /// Only a landed file has bytes on the server to fetch.
+    private var drawsPicture: Bool {
+        (attachment.state == "stored" || attachment.state == "unclaimed")
+            && isImageAttachmentPath(attachment.filename)
+    }
 
     /// `unclaimed` is the backend saying a message has already gone without this file. Drawn
     /// identically to a healthy row, the only thing that ever said so was the chip refusing to
@@ -217,25 +235,23 @@ private struct RemoteAttachmentChip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             ZStack(alignment: .topTrailing) {
-                HStack(spacing: 4) {
-                    Image(systemName: problem == nil ? "icloud.and.arrow.down" : "exclamationmark.icloud")
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(attachment.filename)
-                            .font(PaiTypography.caption.font)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        // 0 is "unknown" (a row the server moved back onto the draft), not an empty file.
-                        if attachment.size > 0 {
-                            Text(formatFileSize(attachment.size))
-                                .font(PaiTypography.caption.font)
-                                .foregroundStyle(PaiPalette.Semantic.textMuted)
-                        }
+                if let picture {
+                    Button {
+                        previewTarget = FilePreviewTarget(
+                            data: picture.data, filename: attachment.filename, kind: .image)
+                    } label: {
+                        Image(uiImage: picture.image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 64, height: 64)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("View \(attachment.filename)")
+                    .filePreview($previewTarget)
+                } else {
+                    nameCard
                 }
-                .padding(8)
-                .frame(width: 120, height: 64, alignment: .leading)
-                .background(PaiPalette.Semantic.raisedSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
 
                 Button(action: onRemove) {
                     Image(systemName: "xmark.circle.fill")
@@ -253,5 +269,42 @@ private struct RemoteAttachmentChip: View {
             }
         }
         .frame(maxWidth: 120)
+        .task(id: drawsPicture ? attachment.id : "") { await loadPicture() }
+    }
+
+    private func loadPicture() async {
+        guard drawsPicture, picture == nil else { return }
+        if let cached = SessionInlineImageCache.shared.entry(for: cacheKey) {
+            picture = cached
+            return
+        }
+        guard let client = environment.connection?.apiClient,
+            case .ok(let data, _)? = try? await client.getDraftAttachment(key: draftKey, attachmentId: attachment.id),
+            let entry = await SessionInlineImageCache.Entry.decode(data)
+        else { return }
+        SessionInlineImageCache.shared.insert(entry, for: cacheKey)
+        picture = entry
+    }
+
+    private var nameCard: some View {
+        HStack(spacing: 4) {
+            Image(systemName: problem == nil ? "icloud.and.arrow.down" : "exclamationmark.icloud")
+            VStack(alignment: .leading, spacing: 0) {
+                Text(attachment.filename)
+                    .font(PaiTypography.caption.font)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                // 0 is "unknown" (a row the server moved back onto the draft), not an empty file.
+                if attachment.size > 0 {
+                    Text(formatFileSize(attachment.size))
+                        .font(PaiTypography.caption.font)
+                        .foregroundStyle(PaiPalette.Semantic.textMuted)
+                }
+            }
+        }
+        .padding(8)
+        .frame(width: 120, height: 64, alignment: .leading)
+        .background(PaiPalette.Semantic.raisedSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
