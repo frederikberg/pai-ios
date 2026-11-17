@@ -138,6 +138,38 @@ public struct WeatherNow: Decodable, Sendable, Equatable {
     public var endDate: Date? { endsAt.flatMap(IsoTimestamp.date(from:)) }
 }
 
+/// How much rain an hour holds, by the forecast's amount; the server draws the lines.
+public enum RainIntensity: LenientWireEnum {
+    case none, light, moderate, heavy
+    case unrecognized(String)
+
+    public static let knownValues: [String: RainIntensity] = [
+        "none": .none, "light": .light, "moderate": .moderate, "heavy": .heavy,
+    ]
+}
+
+/// One hour of the 12-hour strip; the first starts now, mid-hour.
+public struct WeatherHour: Decodable, Sendable, Equatable {
+    public let start: String
+    public let chance: Int
+    public let precipitationMm: Double?
+    public let intensity: RainIntensity
+
+    enum CodingKeys: String, CodingKey {
+        case start, chance, intensity
+        case precipitationMm = "precipitation_mm"
+    }
+
+    public init(start: String, chance: Int, precipitationMm: Double?, intensity: RainIntensity) {
+        self.start = start
+        self.chance = chance
+        self.precipitationMm = precipitationMm
+        self.intensity = intensity
+    }
+
+    public var startDate: Date? { IsoTimestamp.date(from: start) }
+}
+
 /// The next 12 hours: radar nowcast first, then the forecast.
 public struct WeatherLater: Decodable, Sendable, Equatable {
     public let chance: Int?
@@ -145,19 +177,46 @@ public struct WeatherLater: Decodable, Sendable, Equatable {
     public let at: String?
     public let method: String
     public let reason: WeatherUnknownReason?
+    /// Empty from a backend that predates the strip.
+    public let hours: [WeatherHour]
+    public let heaviestAt: String?
+    public let totalMm: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case chance, verdict, at, method, reason, hours
+        case heaviestAt = "heaviest_at"
+        case totalMm = "total_mm"
+    }
 
     public init(
         chance: Int?, verdict: RainVerdict, at: String? = nil, method: String = "radar+forecast",
-        reason: WeatherUnknownReason? = nil
+        reason: WeatherUnknownReason? = nil, hours: [WeatherHour] = [], heaviestAt: String? = nil,
+        totalMm: Double? = nil
     ) {
         self.chance = chance
         self.verdict = verdict
         self.at = at
         self.method = method
         self.reason = reason
+        self.hours = hours
+        self.heaviestAt = heaviestAt
+        self.totalMm = totalMm
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        chance = try container.decodeIfPresent(Int.self, forKey: .chance)
+        verdict = try container.decode(RainVerdict.self, forKey: .verdict)
+        at = try container.decodeIfPresent(String.self, forKey: .at)
+        method = try container.decode(String.self, forKey: .method)
+        reason = try container.decodeIfPresent(WeatherUnknownReason.self, forKey: .reason)
+        hours = try container.decodeIfPresent([WeatherHour].self, forKey: .hours) ?? []
+        heaviestAt = try container.decodeIfPresent(String.self, forKey: .heaviestAt)
+        totalMm = try container.decodeIfPresent(Double.self, forKey: .totalMm)
     }
 
     public var atDate: Date? { at.flatMap(IsoTimestamp.date(from:)) }
+    public var heaviestDate: Date? { heaviestAt.flatMap(IsoTimestamp.date(from:)) }
 }
 
 /// `GET /api/weather`.

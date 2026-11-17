@@ -49,7 +49,11 @@ struct WeatherView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     RainRow(title: "Now", row: presenter.nowRow(weather.now), identifier: "weather-now")
-                    RainRow(title: "Later", row: presenter.laterRow(weather.later), identifier: "weather-later")
+                    VStack(alignment: .leading, spacing: 12) {
+                        RainRow(title: "Later", row: presenter.laterRow(weather.later), identifier: "weather-later")
+                        let bars = presenter.strip(weather.later)
+                        if !bars.isEmpty { HourStrip(bars: bars) }
+                    }
                     Text(presenter.footer(weather))
                         .font(PaiTypography.caption.font)
                         .foregroundStyle(PaiPalette.Semantic.textMuted)
@@ -107,6 +111,54 @@ private struct RainRow: View {
         case .rain: PaiPalette.Semantic.accentText
         case .maybe: PaiPalette.Semantic.warningText
         default: PaiPalette.Semantic.textStrong
+        }
+    }
+}
+
+/// The twelve hours as bars: height the chance, colour how much rain the hour holds (pale to
+/// dark, as the radar map draws light to heavy rain), every third hour labelled.
+private struct HourStrip: View {
+    let bars: [WeatherStripBar]
+    private let height: CGFloat = 48
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .bottom, spacing: 2) {
+                ForEach(bars) { bar in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(color(bar.intensity))
+                        .frame(height: barHeight(bar.chance))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: height, alignment: .bottom)
+            HStack(spacing: 2) {
+                ForEach(bars) { bar in
+                    Text(bar.label ?? " ")
+                        .font(PaiTypography.caption.font)
+                        .foregroundStyle(PaiPalette.Semantic.textMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Rain chance per hour for the next 12 hours")
+        .accessibilityIdentifier("weather-hours")
+    }
+
+    private func barHeight(_ chance: Int) -> CGFloat {
+        let share = CGFloat(max(4, min(100, chance))) / 100
+        return height * share
+    }
+
+    private func color(_ intensity: RainIntensity) -> Color {
+        switch intensity {
+        case .light: Color(red: 0.49, green: 0.83, blue: 0.99)
+        case .moderate: Color(red: 0.05, green: 0.65, blue: 0.91)
+        case .heavy: Color(red: 0.11, green: 0.31, blue: 0.85)
+        case .none, .unrecognized: PaiPalette.Semantic.textMuted.opacity(0.3)
         }
     }
 }

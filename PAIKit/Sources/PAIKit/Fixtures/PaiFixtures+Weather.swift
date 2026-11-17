@@ -17,6 +17,16 @@ extension PaiFixtures {
             "accuracy_m": 65, "source": "ios"}
             """
         let attribution = "Radar: DWD · Forecast: Open-Meteo"
+        // Twelve hours: dry, a light start near the third hour, heaviest in the sixth.
+        let amounts = [0.0, 0.0, 0.3, 0.4, 0.8, 1.6, 0.5, 0.2, 0.0, 0.0, 0.0, 0.0]
+        let chances = [5, 10, 40, 40, 35, 40, 30, 20, 10, 5, 5, 5]
+        let strip = zip(amounts, chances).enumerated().map { hour, pair in
+            let intensity = pair.0 >= 1 ? "moderate" : pair.0 >= 0.1 ? "light" : "none"
+            return """
+                {"start": "\(at(hour * 60))", "chance": \(pair.1), "precipitation_mm": \(pair.0), \
+                "intensity": "\(intensity)"}
+                """
+        }.joined(separator: ", ")
         let body: (_ location: String, _ now: String, _ later: String) -> String = { location, now, later in
             """
             {"location": \(location), "computed_at": "\(at(0))", "now": \(now), "later": \(later), \
@@ -88,7 +98,8 @@ extension PaiFixtures {
                 "method": "radar", "reason": null}
                 """,
                 """
-                {"chance": 40, "verdict": "maybe", "at": "\(at(170))", "method": "radar+forecast", "reason": null}
+                {"chance": 40, "verdict": "maybe", "at": "\(at(170))", "method": "radar+forecast", "reason": null, \
+                "hours": [\(strip)], "heaviest_at": "\(at(300))", "total_mm": 3.8}
                 """)
         }
     }
