@@ -184,6 +184,21 @@ final class SessionStoreCreateSessionTests: XCTestCase {
         XCTAssertEqual(store.environmentSessionTypes.map(\.id), ["websearch", "confined"])
     }
 
+    /// The web environment is built into the pod like websearch, so it sinks under Custom too.
+    func testWebSinksAlongsideWebsearch() async {
+        let machineApi = FakeMachineDirectoryApi()
+        await machineApi.setResult(
+            .success([machine(slug: "vm", types: [type("home"), type("fast"), type("web")])]))
+        let machines = MachineStore(api: machineApi)
+        await machines.refresh()
+
+        let store = CreateSessionStore(machines: machines, api: FakeCreateSessionApi())
+        await store.start()
+
+        XCTAssertEqual(store.primarySessionTypes.map(\.id), ["home", "fast"])
+        XCTAssertEqual(store.environmentSessionTypes.map(\.id), ["web"])
+    }
+
     /// The supervisor is opened only from the session it watches — a pill for it here would let
     /// it be launched like an ordinary session. It must never appear, top-level or sunk, even if
     /// the backend lists it as a type.
