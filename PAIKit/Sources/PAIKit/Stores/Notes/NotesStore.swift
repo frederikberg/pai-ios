@@ -369,7 +369,7 @@ public final class NotesStore {
                 notes[index] = NoteSummary(
                     id: n.id, name: n.name, summary: n.summary, containerId: n.containerId,
                     favourite: n.favourite, tags: n.tags, updatedAtMs: n.updatedAtMs, pendingDelete: true,
-                    shared: n.shared)
+                    shared: n.shared, editedAtMs: n.editedAtMs)
             }
             return true
         } catch {

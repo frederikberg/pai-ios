@@ -22,6 +22,7 @@ struct NotePendingEditRecordV1: Codable, Equatable {
         var favourite: Bool?
         var tags: [String]?
         var updatedAtMs: Int?
+        var editedAtMs: Int?
         var pendingDelete: Bool?
         var frontmatter: String?
         var body: String
@@ -35,6 +36,7 @@ struct NotePendingEditRecordV1: Codable, Equatable {
             case id, name, summary, favourite, tags, frontmatter, body, shared
             case containerId = "container_id"
             case updatedAtMs = "updated_at_ms"
+            case editedAtMs = "edited_at_ms"
             case pendingDelete = "pending_delete"
             case contentHash = "content_hash"
             case createdAt = "created_at"
@@ -85,7 +87,8 @@ struct NotePendingEditRecordV1: Codable, Equatable {
         base = Base(
             id: detail.id, name: detail.name, summary: detail.summary, containerId: detail.containerId,
             favourite: detail.favourite, tags: detail.tags, updatedAtMs: detail.updatedAtMs,
-            pendingDelete: detail.pendingDelete, frontmatter: detail.frontmatter, body: detail.body,
+            editedAtMs: detail.editedAtMs, pendingDelete: detail.pendingDelete, frontmatter: detail.frontmatter,
+            body: detail.body,
             contentHash: detail.contentHash, createdAt: detail.createdAt, createdAtMs: detail.createdAtMs,
             lastWriteSource: detail.lastWriteSource, shared: detail.shared)
         editedAtMs = edit.editedAtMs
@@ -114,7 +117,7 @@ struct NotePendingEditRecordV1: Codable, Equatable {
             updatedAtMs: base.updatedAtMs ?? 0, pendingDelete: base.pendingDelete ?? false,
             frontmatter: base.frontmatter, body: base.body, contentHash: base.contentHash,
             createdAt: base.createdAt, createdAtMs: base.createdAtMs, lastWriteSource: base.lastWriteSource,
-            shared: base.shared)
+            shared: base.shared, editedAtMs: base.editedAtMs)
         let conflict = raisedConflict.flatMap { raised in
             raised.currentHash.map {
                 NoteConflict(

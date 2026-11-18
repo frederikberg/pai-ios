@@ -73,7 +73,7 @@ struct NoteEntityQuery: EntityQuery, EntityStringQuery {
             notes
             .sorted { lhs, rhs in
                 if lhs.favourite != rhs.favourite { return lhs.favourite }
-                return lhs.updatedAtMs > rhs.updatedAtMs
+                return lhs.lastEditedMs > rhs.lastEditedMs
             }
             .map(NoteEntity.init)
     }

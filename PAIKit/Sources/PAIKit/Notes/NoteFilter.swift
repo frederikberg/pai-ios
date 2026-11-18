@@ -119,21 +119,21 @@ public enum NoteSortOrder: String, Codable, Sendable, CaseIterable, Identifiable
 }
 
 /// Orders an already-filtered slice of the index. Every case breaks its own ties on
-/// `updatedAtMs` descending, so the list never looks unordered within a tied group. `.name`
+/// `lastEditedMs` descending, so the list never looks unordered within a tied group. `.name`
 /// folds case and diacritics the same way `noteMatchesQuery` above does, so "müller" and
 /// "Müller" sit together rather than split across an upper/lower-case boundary.
 public func sortNotes(_ notes: [NoteSummary], order: NoteSortOrder) -> [NoteSummary] {
     switch order {
     case .modified:
-        return notes.sorted { $0.updatedAtMs > $1.updatedAtMs }
+        return notes.sorted { $0.lastEditedMs > $1.lastEditedMs }
     case .name:
         return notes.sorted { a, b in
             let (na, nb) = (normalizeForNoteSearch(a.name), normalizeForNoteSearch(b.name))
-            return na != nb ? na < nb : a.updatedAtMs > b.updatedAtMs
+            return na != nb ? na < nb : a.lastEditedMs > b.lastEditedMs
         }
     case .favouritesFirst:
         return notes.sorted { a, b in
-            a.favourite != b.favourite ? a.favourite : a.updatedAtMs > b.updatedAtMs
+            a.favourite != b.favourite ? a.favourite : a.lastEditedMs > b.lastEditedMs
         }
     }
 }

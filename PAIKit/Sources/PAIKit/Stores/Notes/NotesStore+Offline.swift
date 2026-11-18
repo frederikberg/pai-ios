@@ -163,14 +163,16 @@ extension NotesStore {
     func overlay(_ row: NoteSummary) -> NoteSummary {
         let patch = pendingFieldPatches[row.id]
         var updatedAtMs = row.updatedAtMs
-        if awaitingSync.contains(row.id), let edited = editedAtMs[row.id], edited > updatedAtMs {
-            updatedAtMs = edited
+        var lastEditedMs = row.editedAtMs
+        if awaitingSync.contains(row.id), let edited = editedAtMs[row.id] {
+            if edited > updatedAtMs { updatedAtMs = edited }
+            if edited > row.lastEditedMs { lastEditedMs = edited }
         }
-        guard patch != nil || updatedAtMs != row.updatedAtMs else { return row }
+        guard patch != nil || updatedAtMs != row.updatedAtMs || lastEditedMs != row.editedAtMs else { return row }
         return NoteSummary(
             id: row.id, name: patch?.name ?? row.name, summary: row.summary, containerId: row.containerId,
             favourite: patch?.favourite ?? row.favourite, tags: row.tags, updatedAtMs: updatedAtMs,
-            pendingDelete: row.pendingDelete, shared: row.shared)
+            pendingDelete: row.pendingDelete, shared: row.shared, editedAtMs: lastEditedMs)
     }
 
     func reoverlayRow(id: String, base: NoteSummary? = nil) {
@@ -833,6 +835,6 @@ extension NoteSummary {
     fileprivate func renamed(_ name: String) -> NoteSummary {
         NoteSummary(
             id: id, name: name, summary: summary, containerId: containerId, favourite: favourite, tags: tags,
-            updatedAtMs: updatedAtMs, pendingDelete: pendingDelete, shared: shared)
+            updatedAtMs: updatedAtMs, pendingDelete: pendingDelete, shared: shared, editedAtMs: editedAtMs)
     }
 }
