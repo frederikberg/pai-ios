@@ -334,6 +334,7 @@ struct TaskEditorView: View {
                 Text("Home").tag("home")
                 Text("Fast").tag("fast")
                 Text("Web Search").tag("websearch")
+                Text("Web").tag("web")
                 Text("Confined").tag("confined")
             }
             .pickerStyle(.navigationLink)
@@ -349,6 +350,10 @@ struct TaskEditorView: View {
                     Spacer()
                     Button("Browse") { showingDirectoryBrowser = true }
                 }
+            case "web":
+                Text("(sandboxed — its own folder per run)")
+                    .font(PaiTypography.caption.font)
+                    .foregroundStyle(PaiPalette.Semantic.textFaint)
             case "websearch":
                 Text("(confined — no working directory)")
                     .font(PaiTypography.caption.font)

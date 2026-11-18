@@ -59,7 +59,7 @@ public final class CreateSessionStore {
     /// below Favourites listing these instead. A deny list rather than an allow list, mirroring
     /// the web's own `sessionTypes.ts` exactly: every ConfigMap-defined type (not just `home`)
     /// stays at the top level automatically, so adding a second one there needs no change here.
-    public static let sunkSessionTypeIds: Set<String> = ["websearch", "confined", "mailverdict"]
+    public static let sunkSessionTypeIds: Set<String> = ["websearch", "web", "confined", "mailverdict"]
 
     /// Never offered as something to start, top-level or sunk — mirrors the web's
     /// `EXCLUDED_SESSION_TYPE_IDS`. `supervisor` is an internal conversation kind attached from a
