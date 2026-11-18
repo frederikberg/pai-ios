@@ -492,7 +492,8 @@ private struct NoteInfoTab: View {
                 }
                 Section {
                     LabeledContent("Created", value: formatted(note.createdAtMs))
-                    LabeledContent("Last modified", value: formatted(note.updatedAtMs))
+                    LabeledContent("Last edited", value: formatted(note.editedAtMs ?? note.updatedAtMs))
+                    LabeledContent("Last change of any kind", value: formatted(note.updatedAtMs))
                     LabeledContent(
                         "Last change from",
                         value: note.lastWriteSource.map(NoteWriteSource.infoLabel)

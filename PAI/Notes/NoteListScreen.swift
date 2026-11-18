@@ -505,7 +505,7 @@ struct NoteListScreen: View {
     /// not rank it. The window was applied by the server, before its result cap.
     private var fullTextVisible: [NoteSearchHit] {
         let kept = searchResults.filter { noteHasAllTags($0.note, selected: selectedTags) }
-        return kept.sorted { $0.note.updatedAtMs > $1.note.updatedAtMs }
+        return kept.sorted { $0.note.lastEditedMs > $1.note.lastEditedMs }
     }
 
     /// The note the "Less likely" divider sits above: the first tier-2 hit that is still visible
@@ -538,7 +538,7 @@ struct NoteListScreen: View {
         let tagged = scoped.filter { noteHasAllTags($0.note, selected: selectedTags) }
         var windowed = tagged
         if let bounds = timeWindow?.bounds(now: Date()) {
-            windowed = tagged.filter { bounds.contains(epochMilliseconds: $0.note.updatedAtMs) }
+            windowed = tagged.filter { bounds.contains(epochMilliseconds: $0.note.lastEditedMs) }
         }
         return searchAndSortNotes(windowed, query: filterText, order: browse.sortOrder)
     }
@@ -594,8 +594,8 @@ private struct SemanticNoteHit: Identifiable {
 /// (see that type's own doc comment). Mirrors the session list's own `SessionTimeFormat` rather
 /// than a third convention, since both read the same three buckets.
 private enum NoteTimeFormat {
-    static func text(for updatedAtMs: Int) -> String {
-        let date = Date(timeIntervalSince1970: Double(updatedAtMs) / 1000)
+    static func text(for epochMs: Int) -> String {
+        let date = Date(timeIntervalSince1970: Double(epochMs) / 1000)
         switch SessionListFormat.timeBucket(for: date) {
         case .today:
             return date.formatted(date: .omitted, time: .shortened)
@@ -617,7 +617,7 @@ private struct NoteRow: View {
                     .font(PaiTypography.bodyEmphasized.font)
                     .foregroundStyle(PaiPalette.Semantic.textPrimary)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(NoteTimeFormat.text(for: note.updatedAtMs))
+                    Text(NoteTimeFormat.text(for: note.lastEditedMs))
                         .font(PaiTypography.caption.font)
                         .foregroundStyle(PaiPalette.Semantic.textFaint)
                     if let summary = note.summary, !summary.isEmpty {

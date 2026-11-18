@@ -89,6 +89,32 @@ final class NoteFilterTests: XCTestCase {
         XCTAssertEqual(sortNotes(notes, order: .modified).map(\.id), ["new", "old"])
     }
 
+    /// A summary or `uuid` written into the frontmatter moves `updatedAtMs` but not the text, so
+    /// it must not move the note; a row from before `edited_at_ms` existed still sorts by its one
+    /// time.
+    func testModifiedOrdersByLastEditNotByLastWrite() {
+        let notes = [
+            NoteSummary(
+                id: "summarised", name: "a", summary: nil, containerId: nil, favourite: false, tags: [],
+                updatedAtMs: 900, pendingDelete: false, editedAtMs: 100),
+            NoteSummary(
+                id: "edited", name: "b", summary: nil, containerId: nil, favourite: false, tags: [],
+                updatedAtMs: 300, pendingDelete: false, editedAtMs: 300),
+            makeNote(id: "cached-before-the-field", name: "c", updatedAtMs: 200),
+        ]
+        XCTAssertEqual(
+            sortNotes(notes, order: .modified).map(\.id), ["edited", "cached-before-the-field", "summarised"])
+    }
+
+    /// An index cached on disk, or served by a backend, without `edited_at_ms` still decodes.
+    func testARowWithoutEditedAtDecodes() throws {
+        let json = Data(
+            (#"{"id":"1","name":"n","summary":null,"container_id":null,"favourite":false,"tags":[],"#
+                + #""updated_at_ms":5,"pending_delete":false}"#).utf8)
+        let row = try JSONDecoder().decode(NoteSummary.self, from: json)
+        XCTAssertEqual(row.lastEditedMs, 5)
+    }
+
     func testNameOrdersAlphabeticallyFoldingCase() {
         let notes = [
             makeNote(id: "b", name: "banana"),

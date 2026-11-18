@@ -15,7 +15,11 @@ public struct NoteSummary: Codable, Sendable, Equatable, Identifiable, Hashable 
     public let containerId: String?
     public let favourite: Bool
     public let tags: [String]
+    /// Moves on any write, a frontmatter-only one included.
     public let updatedAtMs: Int
+    /// When the text below the frontmatter last changed, from any side. `nil` from a backend or a
+    /// cached index that predates it; read through ``lastEditedMs``.
+    public let editedAtMs: Int?
     /// Marked for deletion and still recoverable. The list keeps showing it, dimmed, because
     /// undelete is a route and a note that vanished has no affordance to bring it back.
     public let pendingDelete: Bool
@@ -25,7 +29,7 @@ public struct NoteSummary: Codable, Sendable, Equatable, Identifiable, Hashable 
 
     public init(
         id: String, name: String, summary: String?, containerId: String?, favourite: Bool,
-        tags: [String], updatedAtMs: Int, pendingDelete: Bool, shared: Bool? = nil
+        tags: [String], updatedAtMs: Int, pendingDelete: Bool, shared: Bool? = nil, editedAtMs: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -34,22 +38,29 @@ public struct NoteSummary: Codable, Sendable, Equatable, Identifiable, Hashable 
         self.favourite = favourite
         self.tags = tags
         self.updatedAtMs = updatedAtMs
+        self.editedAtMs = editedAtMs
         self.pendingDelete = pendingDelete
         self.shared = shared
     }
+
+    /// What the list sorts and its time filter windows by: when the note's text last changed,
+    /// so a frontmatter-only write (a summary, a `uuid`) does not move it.
+    public var lastEditedMs: Int { editedAtMs ?? updatedAtMs }
 
     /// The same row with the share mark set — what creating or deleting a link changes locally,
     /// before the next index fetch confirms it.
     public func withShared(_ shared: Bool) -> NoteSummary {
         NoteSummary(
             id: id, name: name, summary: summary, containerId: containerId, favourite: favourite,
-            tags: tags, updatedAtMs: updatedAtMs, pendingDelete: pendingDelete, shared: shared)
+            tags: tags, updatedAtMs: updatedAtMs, pendingDelete: pendingDelete, shared: shared,
+            editedAtMs: editedAtMs)
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, summary, favourite, tags, shared
         case containerId = "container_id"
         case updatedAtMs = "updated_at_ms"
+        case editedAtMs = "edited_at_ms"
         case pendingDelete = "pending_delete"
     }
 }
@@ -65,12 +76,16 @@ public struct NoteDetail: Codable, Sendable, Equatable, Identifiable, Hashable {
     public let favourite: Bool
     public let tags: [String]
     public let updatedAtMs: Int
+    /// See ``NoteSummary/editedAtMs``.
+    public let editedAtMs: Int?
     public let pendingDelete: Bool
     public let frontmatter: String?
     public let body: String
     /// What a conditional save must send back as `expectedHash`. The server compares it against
     /// what it holds and answers 409 rather than overwriting — see ``NoteConflict``.
     public let contentHash: String
+    /// The frontmatter `date:` day where it predates the row, else when the row was created — a
+    /// vault note's row dates from its folder's first sync.
     public let createdAt: String?
     public let createdAtMs: Int?
     /// Which side wrote this note last (`"ui"`, `"agent"`, …). Nil on a row written before the
@@ -83,7 +98,7 @@ public struct NoteDetail: Codable, Sendable, Equatable, Identifiable, Hashable {
         id: String, name: String, summary: String?, containerId: String?, favourite: Bool,
         tags: [String], updatedAtMs: Int, pendingDelete: Bool, frontmatter: String?, body: String,
         contentHash: String, createdAt: String?, createdAtMs: Int?, lastWriteSource: String?,
-        shared: Bool? = nil
+        shared: Bool? = nil, editedAtMs: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -92,6 +107,7 @@ public struct NoteDetail: Codable, Sendable, Equatable, Identifiable, Hashable {
         self.favourite = favourite
         self.tags = tags
         self.updatedAtMs = updatedAtMs
+        self.editedAtMs = editedAtMs
         self.pendingDelete = pendingDelete
         self.frontmatter = frontmatter
         self.body = body
@@ -109,7 +125,7 @@ public struct NoteDetail: Codable, Sendable, Equatable, Identifiable, Hashable {
             id: id, name: name, summary: summary, containerId: containerId, favourite: favourite,
             tags: tags, updatedAtMs: updatedAtMs, pendingDelete: pendingDelete, frontmatter: frontmatter,
             body: body, contentHash: contentHash, createdAt: createdAt, createdAtMs: createdAtMs,
-            lastWriteSource: lastWriteSource, shared: shared)
+            lastWriteSource: lastWriteSource, shared: shared, editedAtMs: editedAtMs)
     }
 
     /// The same note, holding the version the server reported in a conflict rather than the one
@@ -126,7 +142,7 @@ public struct NoteDetail: Codable, Sendable, Equatable, Identifiable, Hashable {
             tags: tags, updatedAtMs: conflict.updatedAtMs, pendingDelete: pendingDelete,
             frontmatter: conflict.frontmatter, body: conflict.body ?? body,
             contentHash: conflict.currentHash, createdAt: createdAt, createdAtMs: createdAtMs,
-            lastWriteSource: lastWriteSource, shared: shared)
+            lastWriteSource: lastWriteSource, shared: shared, editedAtMs: editedAtMs)
     }
 
     /// The same version of the note's content with the fields `other` reports around it: name,
@@ -139,13 +155,15 @@ public struct NoteDetail: Codable, Sendable, Equatable, Identifiable, Hashable {
             id: id, name: other.name, summary: other.summary, containerId: other.containerId,
             favourite: other.favourite, tags: other.tags, updatedAtMs: updatedAtMs, pendingDelete: other.pendingDelete,
             frontmatter: frontmatter, body: body, contentHash: contentHash, createdAt: createdAt,
-            createdAtMs: createdAtMs, lastWriteSource: lastWriteSource, shared: other.shared)
+            createdAtMs: createdAtMs, lastWriteSource: lastWriteSource, shared: other.shared,
+            editedAtMs: editedAtMs)
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, summary, favourite, tags, frontmatter, body, shared
         case containerId = "container_id"
         case updatedAtMs = "updated_at_ms"
+        case editedAtMs = "edited_at_ms"
         case pendingDelete = "pending_delete"
         case contentHash = "content_hash"
         case createdAt = "created_at"
@@ -158,7 +176,8 @@ public struct NoteDetail: Codable, Sendable, Equatable, Identifiable, Hashable {
     public var summaryRow: NoteSummary {
         NoteSummary(
             id: id, name: name, summary: summary, containerId: containerId, favourite: favourite,
-            tags: tags, updatedAtMs: updatedAtMs, pendingDelete: pendingDelete, shared: shared)
+            tags: tags, updatedAtMs: updatedAtMs, pendingDelete: pendingDelete, shared: shared,
+            editedAtMs: editedAtMs)
     }
 }
 
