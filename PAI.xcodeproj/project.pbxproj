@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		1A0000000000000000000012 /* PAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1A0000000000000000000011 /* PAIKit */; };
-		1A0000000000000000000017 /* LiveKitWakeWord in Frameworks */ = {isa = PBXBuildFile; productRef = 1A0000000000000000000016 /* LiveKitWakeWord */; };
 		1A0000000000000000000019 /* PAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1A000000000000000000001F /* PAIKit */; };
 		1A000000000000000000001A /* PAIShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1A000000000000000000001B /* PAIShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1A0000000000000000000029 /* PAIControls.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1A0000000000000000000028 /* PAIControls.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -83,7 +82,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				1A0000000000000000000012 /* PAIKit in Frameworks */,
-				1A0000000000000000000017 /* LiveKitWakeWord in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -147,7 +145,6 @@
 				1A0000000000000000000008 /* Frameworks */,
 				1A0000000000000000000009 /* Resources */,
 				1A0000000000000000000024 /* Embed Foundation Extensions */,
-				1A0000000000000000000018 /* Stamp Package Framework Minimum OS */,
 			);
 			buildRules = (
 			);
@@ -162,7 +159,6 @@
 			name = PAI;
 			packageProductDependencies = (
 				1A0000000000000000000011 /* PAIKit */,
-				1A0000000000000000000016 /* LiveKitWakeWord */,
 			);
 			productName = PAI;
 			productReference = 1A0000000000000000000003 /* PAI.app */;
@@ -247,7 +243,6 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				1A0000000000000000000010 /* XCLocalSwiftPackageReference "PAIKit" */,
-				1A0000000000000000000015 /* XCRemoteSwiftPackageReference "livekit-wakeword" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1A0000000000000000000005 /* Products */;
@@ -284,28 +279,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		1A0000000000000000000018 /* Stamp Package Framework Minimum OS */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Stamp Package Framework Minimum OS";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -e\n# onnxruntime's package framework ships a MinimumOSVersion that is empty or below the\n# deployment target it is linked against, which App Store Connect rejects (ITMS-90208).\n# Raise every embedded framework's value to the app's deployment target.\nframeworks=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}\"\n[ -d \"$frameworks\" ] || exit 0\nfor plist in \"$frameworks\"/*.framework/Info.plist; do\n  [ -f \"$plist\" ] || continue\n  current=$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' \"$plist\" 2>/dev/null || true)\n  lowest=$(printf '%s\\n%s\\n' \"$current\" \"${IPHONEOS_DEPLOYMENT_TARGET}\" | sort -V | head -1)\n  if [ -z \"$current\" ] || [ \"$current\" != \"${IPHONEOS_DEPLOYMENT_TARGET}\" -a \"$lowest\" = \"$current\" ]; then\n    /usr/libexec/PlistBuddy -c 'Delete :MinimumOSVersion' \"$plist\" 2>/dev/null || true\n    /usr/libexec/PlistBuddy -c \"Add :MinimumOSVersion string ${IPHONEOS_DEPLOYMENT_TARGET}\" \"$plist\"\n    echo \"stamped MinimumOSVersion ${IPHONEOS_DEPLOYMENT_TARGET} into $plist\"\n  fi\ndone\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1A0000000000000000000007 /* Sources */ = {
@@ -582,26 +555,10 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		1A0000000000000000000015 /* XCRemoteSwiftPackageReference "livekit-wakeword" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/livekit/livekit-wakeword";
-			requirement = {
-				kind = revision;
-				revision = 95448a7559c453fcd87645bd67b247ffb45f85b0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
 		1A0000000000000000000011 /* PAIKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PAIKit;
-		};
-		1A0000000000000000000016 /* LiveKitWakeWord */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1A0000000000000000000015 /* XCRemoteSwiftPackageReference "livekit-wakeword" */;
-			productName = LiveKitWakeWord;
 		};
 		1A000000000000000000001F /* PAIKit */ = {
 			isa = XCSwiftPackageProductDependency;
