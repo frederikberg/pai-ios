@@ -2,7 +2,7 @@ import PAIKit
 import SwiftUI
 
 /// Where the top bar's "Apps" button leads — a small picker over Quick Actions, Arc, Notes, the
-/// Scheduler, the Alarm, the Weather, the Canteen, Usage, Decisions and the Browser, each shown to those whose
+/// Scheduler, the Alarm, the Weather, the Canteen, Camera Import, Usage, Decisions and the Browser, each shown to those whose
 /// capabilities admit it.
 /// Mirrors the web's own `AppsFlyout`/`AppsHome` pairing (a modal listing every registered app),
 /// minus Memory and Notifications: PAI Cloud's Memory app is notes plus projects/phases/search,
@@ -64,6 +64,12 @@ struct AppsHomeSheet: View {
                     }
                     .accessibilityIdentifier("apps-open-canteen")
                 }
+                // No capability: it reads the phone's own files and writes its own photo library,
+                // so the server has nothing to admit or refuse.
+                Button(action: openCameraImport) {
+                    Label("Camera Import", systemImage: "camera.on.rectangle")
+                }
+                .accessibilityIdentifier("apps-open-camera-import")
                 Button(action: openUsage) {
                     Label("Usage", systemImage: "gauge.with.dots.needle.33percent")
                 }
@@ -141,6 +147,11 @@ struct AppsHomeSheet: View {
 
     private func openCanteen() {
         environment.router.push(.canteen)
+        dismiss()
+    }
+
+    private func openCameraImport() {
+        environment.router.push(.cameraImport)
         dismiss()
     }
 

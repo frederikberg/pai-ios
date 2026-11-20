@@ -13,6 +13,11 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>PAI stores only your latest location on your own PAI server, so the weather answer follows you without opening the app.</string>
 
+	<!-- Camera Import adds to the photo library with add-only access; without this key iOS kills
+	     the app the moment that access is requested. -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Adding the photos and videos from a camera you plug in to your photo library.</string>
+
 	<!-- The Keychain group holding what the app shares with its extensions, read at runtime. -->
 	<key>PAISharedKeychainGroup</key>
 	<string>$(PAI_SHARED_KEYCHAIN_GROUP)</string>

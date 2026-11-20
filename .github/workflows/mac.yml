@@ -115,9 +115,10 @@ jobs:
           grep -q 'NSCameraUsageDescription' /tmp/built-info.txt \
             || { echo '::error::NSCameraUsageDescription is missing — iOS kills the app when the camera opens'; \
                  cat /tmp/built-info.txt; exit 1; }
-          for key in NSLocationWhenInUseUsageDescription NSLocationAlwaysAndWhenInUseUsageDescription; do
+          for key in NSLocationWhenInUseUsageDescription NSLocationAlwaysAndWhenInUseUsageDescription \
+            NSPhotoLibraryAddUsageDescription; do
             grep -q "$key" /tmp/built-info.txt \
-              || { echo "::error::$key is missing — iOS kills the app when the location permission is requested"; \
+              || { echo "::error::$key is missing — iOS kills the app when that permission is requested"; \
                    cat /tmp/built-info.txt; exit 1; }
           done
           grep -q '"pai"' /tmp/built-info.txt \

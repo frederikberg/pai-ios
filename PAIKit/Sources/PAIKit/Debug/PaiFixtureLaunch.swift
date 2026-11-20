@@ -34,6 +34,7 @@
         static let notificationSourceFlag = "-PaiFixtureNotificationSource"
         static let weatherFlag = "-PaiFixtureWeather"
         static let watchKeysFlag = "-PaiFixtureWatchKeys"
+        static let cameraImportFlag = "-PaiFixtureCameraImport"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -203,6 +204,12 @@
         /// reads. Absent is the showers-approaching answer.
         public static func requestedWeatherState(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: weatherFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureCameraImport`: the Camera Import screen runs at once over
+        /// ``CameraImportFixture``'s folder and library instead of the real ones.
+        public static func runsCameraImport(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains(cameraImportFlag)
         }
 
         /// `-PaiFixtureNotificationSource only|exclude`: the notification centre opens filtered to

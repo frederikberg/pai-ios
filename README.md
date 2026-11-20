@@ -84,6 +84,14 @@ The Weather app (Apps, or `pai://weather`) answers two questions in two rows: "N
 
 Where you are comes from one iPhone you choose: Settings, Location, "Use this iPhone for weather". That phone asks for location access (while using the app first, then Always), reports through significant-location-change monitoring (low power, moves of about 500 m) and takes one fix each time the app comes to the front, naming the place on the device. Only the latest location is kept on the PAI server. The two purpose strings live in `Config/Info.plist`; the `Mac` workflow asserts both survive into the built app.
 
+## Camera Import
+
+Camera Import (Apps) copies the photos and videos of a camera plugged in by USB-C into the photo library, so whatever backs up the library (the Immich app, iCloud) takes them from there. "Import from Camera" reads the folder picked last time; when there is none, or it no longer opens or lists nothing (a folder grant onto an external drive may not survive unplugging it), the folder picker opens instead. Any folder of the camera works, the volume root included: everything below it is read. "Choose Folder" picks another one.
+
+JPEG, DNG, HEIC, MP4 and MOV files are imported, each as its own asset under its own file name; video proxies (`.lrv`), thumbnails (`.thm`) and everything else are skipped. Files are handed to Photos one at a time by file URL, so the camera's bytes and metadata arrive unchanged and memory stays flat for long videos; a file Photos cannot take where it lies is copied into the app's temporary folder first. The creation date is the one Photos reads from the file.
+
+The app remembers every file it added, by name and size, in its own storage: add-only access to the library, the only permission it asks for, cannot read the library back. A second run adds only what is new, a file that failed is tried again, and "Stop" ends a run after the file in hand. The screen stays awake while a run is going; leaving the screen stops the run. The purpose string (`NSPhotoLibraryAddUsageDescription`) lives in `Config/Info.plist` and the `Mac` workflow asserts it.
+
 ## Notes offline
 
 The notes open without a connection. The index, every note opened on the phone, the favourites,
