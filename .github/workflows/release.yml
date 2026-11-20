@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-26
+    runs-on: xcode-27
     # The 6-hour default would hold a scarce Mac runner for a whole afternoon before failing.
     # Sized so a slow runner still finishes: the upload is the last step and the longest, and a
     # ceiling that lands on it reports as `cancelled`, which reads as someone having stopped the
@@ -49,7 +49,7 @@ jobs:
       # The runner image's default Xcode changes underneath you; pin it.
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.6'
+          xcode-version: '27.1'
 
       # fastlane is pinned in the Gemfile rather than installed via brew, so CI and the rented
       # Mac resolve the same versions.
