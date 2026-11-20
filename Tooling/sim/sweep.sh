@@ -20,7 +20,8 @@ set -o pipefail
 SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscreen-pdf secret-prompt compact-chip mailverdict person-settings playback playback-voice
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
-watch-keys alarm-facts weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke"
+watch-keys alarm-facts weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke
+camera-import-result"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
@@ -335,6 +336,14 @@ if want weather-states; then
   weather_state noLocation unknown unknown
   weather_state sourceUnavailable unknown unknown
   weather_state forecastOnly unlikely rain
+fi
+
+if want camera-import-result; then
+  # A whole run over the fixture camera folder and library, finished: three added, one imported
+  # before, the video proxy skipped, one file the library refused.
+  screenshot camera-import-result -PaiFixtureRoute cameraImport -PaiFixtureCameraImport
+  fact_assert camera-import-result cameraImport "finished imported=3 already=1 ignored=1 failed=1"
+  xcrun simctl terminate "$udid" "$bundle" || true
 fi
 
 if want location-settings; then

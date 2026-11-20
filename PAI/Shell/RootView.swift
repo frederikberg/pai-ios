@@ -383,6 +383,8 @@ struct RootView: View {
             AlarmView()
         case .weather:
             WeatherView()
+        case .cameraImport:
+            CameraImportView()
         case .usage:
             UsageView()
         case .decisions:
