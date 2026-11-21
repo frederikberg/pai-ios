@@ -103,10 +103,6 @@ public struct TranscriptCardPlan: Equatable, Sendable {
         /// ``TranscriptCardPlan/blocks`` leave the `pai-file:` lines out
         /// (``TranscriptCardPlan/slots``).
         case assistantBubble(text: String)
-        /// The decisions placed under an assistant message that has no prose of its own to carry
-        /// them (``TranscriptRowPlan/cards(for:isRevealed:trailingDecisions:)``): nothing but its
-        /// ``TranscriptCardPlan/decisionSlots``.
-        case decisionCards
         case agentMessage(sender: String, body: String)
         /// `args` is nil when nothing but attachments followed the name; `attachmentPaths` are the
         /// files that rode at the end of the arguments.
@@ -145,8 +141,7 @@ public struct TranscriptCardPlan: Equatable, Sendable {
     public let header: String?
     /// What a reply draws between and after its ``blocks``, in the order it is drawn: one per
     /// `{{D<n>}}` line (``DecisionMarkers``) and per `pai-file:` line (``FileMarkers``), whose lines
-    /// are not among the blocks, then the decisions placed under this message because no reply
-    /// embeds them. Empty for every other card.
+    /// are not among the blocks. Empty for every other card.
     public let slots: [ReplySlot]
 
     /// The decision places among ``slots``, in order.
@@ -213,13 +208,8 @@ public enum TranscriptRowPlan {
     /// key. An assistant turn's thought, its tool calls and its reply are separately openable for
     /// the same reason they are separate rows on the web: opening one to read a result should not
     /// unfold the thought above it. The caller binds the message id.
-    ///
-    /// `trailingDecisions` are the open decisions drawn under this assistant message because no
-    /// reply embeds them (``DecisionMarkers/placeUnembedded(messages:decisions:embedded:hasOlder:)``).
-    /// They are appended after everything else, so a caller that passes none (the search index)
-    /// plans the same cards and blocks at every index it can reach.
     public static func cards(
-        for message: Message, isRevealed: (Int) -> Bool, trailingDecisions: [Int] = []
+        for message: Message, isRevealed: (Int) -> Bool
     ) -> [TranscriptCardPlan] {
         switch MessageRouting.route(for: message) {
         case .system:
@@ -335,14 +325,14 @@ public enum TranscriptRowPlan {
             ]
 
         case .assistant:
-            return assistantCards(for: message, isRevealed: isRevealed, trailingDecisions: trailingDecisions)
+            return assistantCards(for: message, isRevealed: isRevealed)
         }
     }
 
     // MARK: - Assistant turns
 
     private static func assistantCards(
-        for message: Message, isRevealed: (Int) -> Bool, trailingDecisions: [Int]
+        for message: Message, isRevealed: (Int) -> Bool
     ) -> [TranscriptCardPlan] {
         var cards: [TranscriptCardPlan] = []
 
@@ -379,12 +369,8 @@ public enum TranscriptRowPlan {
             cards.append(toolCallCard(call, index: index, isRevealed: isRevealed))
         }
 
-        let trailing = trailingDecisions.map { ReplySlot.decision(DecisionSlot(position: 0, number: $0)) }
         if let content = message.content, !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let (blocks, embedded) = replyBlocks(content)
-            let slots =
-                embedded
-                + trailingDecisions.map { ReplySlot.decision(DecisionSlot(position: blocks.count, number: $0)) }
             cards.append(
                 TranscriptCardPlan(
                     kind: .assistantBubble(text: content),
@@ -392,12 +378,7 @@ public enum TranscriptRowPlan {
                     preview: .full(totalLines: lineCount(content)),
                     isRevealed: true,
                     blocks: blocks,
-                    slots: slots))
-        } else if !trailing.isEmpty {
-            cards.append(
-                TranscriptCardPlan(
-                    kind: .decisionCards, register: .prose, preview: .full(totalLines: 0), isRevealed: true,
-                    blocks: [], slots: trailing))
+                    slots: embedded))
         }
 
         return cards

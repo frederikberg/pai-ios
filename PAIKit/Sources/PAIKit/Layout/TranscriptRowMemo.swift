@@ -27,25 +27,22 @@ public final class TranscriptRowMemo {
         public let environment: MeasurementEnvironment
         public let revealedCards: Set<Int>
         public let hasTimeSeparator: Bool
-        /// What each decision this row draws shows right now, by number — its embedded ones and
-        /// its trailing ones alike. Empty for a row that draws none.
+        /// What each decision this row embeds shows right now, by number. Empty for a row that
+        /// draws none.
         public let decisions: [Int: InlineDecisionDisplay]
-        /// The decisions placed under this message because no reply embeds them.
-        public let trailingDecisions: [Int]
 
         /// `width` is rounded to the point for the same reason ``BlockHeightCache`` rounds it: two
         /// layout passes report one visual width a few ULPs apart, and an exact key would miss on
         /// every pass for a width that never changed.
         public init(
             width: Double, environment: MeasurementEnvironment, revealedCards: Set<Int>, hasTimeSeparator: Bool,
-            decisions: [Int: InlineDecisionDisplay] = [:], trailingDecisions: [Int] = []
+            decisions: [Int: InlineDecisionDisplay] = [:]
         ) {
             self.width = width.rounded()
             self.environment = environment
             self.revealedCards = revealedCards
             self.hasTimeSeparator = hasTimeSeparator
             self.decisions = decisions
-            self.trailingDecisions = trailingDecisions
         }
     }
 

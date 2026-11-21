@@ -286,13 +286,6 @@ struct TranscriptCardKindView: View {
                     items: card.items, decisions: card.decisions, decisionActions: decisionActions)
             }
 
-        case .decisionCards:
-            ProseRowView {
-                ProseWithSlotsView(
-                    blocks: [], items: card.items, decisions: card.decisions, highlights: [:],
-                    sessionID: sessionID, apiClient: apiClient, actions: decisionActions)
-            }
-
         case .agentMessage(let sender, _):
             activity(icon: "bubble.left.and.bubble.right", label: sender) {
                 MarkdownContentView(blocks: card.plan.blocks, highlights: highlightsByBlockIndex)

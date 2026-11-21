@@ -223,11 +223,9 @@ public enum TranscriptRowLayout {
         cache: BlockHeightCache,
         metrics: MessageLayoutMetrics,
         hasTimeSeparator: Bool = false,
-        decisionDisplays: [Int: InlineDecisionDisplay] = [:],
-        trailingDecisions: [Int] = []
+        decisionDisplays: [Int: InlineDecisionDisplay] = [:]
     ) -> [MeasuredCard] {
-        let cards = TranscriptRowPlan.cards(
-            for: message, isRevealed: isRevealed, trailingDecisions: trailingDecisions)
+        let cards = TranscriptRowPlan.cards(for: message, isRevealed: isRevealed)
         var measured: [MeasuredCard] = []
         measured.reserveCapacity(cards.count)
 
@@ -348,14 +346,12 @@ public enum TranscriptRowLayout {
         cache: BlockHeightCache,
         metrics: MessageLayoutMetrics,
         hasTimeSeparator: Bool = false,
-        decisionDisplays: [Int: InlineDecisionDisplay] = [:],
-        trailingDecisions: [Int] = []
+        decisionDisplays: [Int: InlineDecisionDisplay] = [:]
     ) -> Double? {
         height(
             of: measure(
                 for: message, width: width, environment: environment, isRevealed: isRevealed, measurer: measurer,
-                cache: cache, metrics: metrics, hasTimeSeparator: hasTimeSeparator, decisionDisplays: decisionDisplays,
-                trailingDecisions: trailingDecisions),
+                cache: cache, metrics: metrics, hasTimeSeparator: hasTimeSeparator, decisionDisplays: decisionDisplays),
             hasTimeSeparator: hasTimeSeparator, metrics: metrics)
     }
 
@@ -394,13 +390,11 @@ public enum TranscriptRowLayout {
         cache: BlockHeightCache,
         metrics: MessageLayoutMetrics,
         hasTimeSeparator: Bool = false,
-        decisionDisplays: [Int: InlineDecisionDisplay] = [:],
-        trailingDecisions: [Int] = []
+        decisionDisplays: [Int: InlineDecisionDisplay] = [:]
     ) -> Double? {
         let cards = measure(
             for: message, width: width, environment: environment, isRevealed: isRevealed, measurer: measurer,
-            cache: cache, metrics: metrics, hasTimeSeparator: hasTimeSeparator, decisionDisplays: decisionDisplays,
-            trailingDecisions: trailingDecisions)
+            cache: cache, metrics: metrics, hasTimeSeparator: hasTimeSeparator, decisionDisplays: decisionDisplays)
         guard cards.indices.contains(cardIndex) else { return nil }
 
         let card = cards[cardIndex]

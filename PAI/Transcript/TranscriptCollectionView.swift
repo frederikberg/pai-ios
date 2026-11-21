@@ -62,12 +62,10 @@ private struct TranscriptRow: Equatable {
     let decisions: RowDecisions
 }
 
-/// The decisions one row draws: what each shows, by number, and which are placed under it because
-/// no reply embeds them. Part of the row's identity, so a pick that changes a card without
-/// changing its height still redraws the cell.
+/// The decisions one row draws: what each embedded one shows, by number. Part of the row's
+/// identity, so a pick that changes a card without changing its height still redraws the cell.
 private struct RowDecisions: Equatable {
     var displays: [Int: InlineDecisionDisplay] = [:]
-    var trailing: [Int] = []
 
     static let empty = RowDecisions()
 }
@@ -987,12 +985,12 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
     ) -> [MeasuredCard] {
         let inputs = TranscriptRowMemo.Inputs(
             width: width, environment: environment, revealedCards: revealedCards, hasTimeSeparator: hasTimeSeparator,
-            decisions: decisions.displays, trailingDecisions: decisions.trailing)
+            decisions: decisions.displays)
         return rowMemo.cards(for: message, inputs: inputs) {
             TranscriptRowLayout.measure(
                 for: message, width: width, environment: environment, isRevealed: { revealedCards.contains($0) },
                 measurer: measurer, cache: cache, metrics: metrics, hasTimeSeparator: hasTimeSeparator,
-                decisionDisplays: decisions.displays, trailingDecisions: decisions.trailing)
+                decisionDisplays: decisions.displays)
         }
     }
 
@@ -1082,8 +1080,7 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
     }
 
     /// A card changing height is a height change like any other: anchored on the row at the top
-    /// of the viewport, or kept on the bottom for a reader following the live edge, where an
-    /// unembedded decision appears under the turn that just ended.
+    /// of the viewport, or kept on the bottom for a reader following the live edge.
     private func decisionsChanged() {
         recomputeRows(applying: edgeFollow.isPinned ? .stickToBottomIfPinned : .compensateFromTopVisibleRow)
     }
@@ -1103,11 +1100,9 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
         recomputeRows(applying: .compensateFromTopVisibleRow)
     }
 
-    /// What each loaded row's decisions show: the ones its reply embeds, and the open ones placed
-    /// under it because no loaded reply embeds them (`DecisionMarkers.placeUnembedded`).
+    /// What each loaded row's decisions show: the ones its reply embeds.
     private func rowDecisions(for messages: [Message]) -> [Int: RowDecisions] {
         var embeddedByMessage: [Int: [Int]] = [:]
-        var embedded = Set<Int>()
         for message in messages where message.type == .assistant {
             guard let content = message.content else { continue }
             let numbers: [Int]
@@ -1119,7 +1114,6 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
             }
             guard !numbers.isEmpty else { continue }
             embeddedByMessage[message.id] = numbers
-            embedded.formUnion(numbers)
         }
 
         let context = inlineDecisionContext()
@@ -1127,16 +1121,6 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
         var result: [Int: RowDecisions] = [:]
         for (id, numbers) in embeddedByMessage {
             var row = RowDecisions()
-            for number in numbers { row.displays[number] = display(number) }
-            result[id] = row
-        }
-        guard let listed = context?.listed else { return result }
-        let placed = DecisionMarkers.placeUnembedded(
-            messages: messages, decisions: listed, embedded: embedded,
-            hasOlder: store.window(for: sessionID).hasOlder)
-        for (id, numbers) in placed {
-            var row = result[id] ?? RowDecisions()
-            row.trailing = numbers
             for number in numbers { row.displays[number] = display(number) }
             result[id] = row
         }
@@ -1527,8 +1511,7 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
                 environment: environment, isRevealed: revealResolver(forMessageId: hit.messageId),
                 measurer: measurer, cache: cache, metrics: metrics,
                 hasTimeSeparator: rows[index].timeSeparator != nil,
-                decisionDisplays: rows[index].decisions.displays,
-                trailingDecisions: rows[index].decisions.trailing) ?? 0
+                decisionDisplays: rows[index].decisions.displays) ?? 0
         // A row can run to thousands of points and one block inside it can run to hundreds of
         // lines on its own — landing on the block's own top still leaves a hit on line 300 far
         // below the viewport. A code block (never wraps) adds its hit line's offset; an expanded
@@ -2125,7 +2108,7 @@ final class TranscriptCollectionViewController: UIViewController, UICollectionVi
                         for: row.message, width: width, environment: environment,
                         isRevealed: revealResolver(forMessageId: row.id), measurer: measurer, cache: cache,
                         metrics: metrics, hasTimeSeparator: row.timeSeparator != nil,
-                        decisionDisplays: row.decisions.displays, trailingDecisions: row.decisions.trailing)
+                        decisionDisplays: row.decisions.displays)
                 else { return nil }
 
                 let content = TranscriptRowContent(
