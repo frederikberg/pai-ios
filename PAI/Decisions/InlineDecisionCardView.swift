@@ -19,7 +19,7 @@ struct InlineDecisionActions {
     let toggleReopened: @MainActor (Int) -> Void
 }
 
-/// One decision where a reply embeds it, or where an unembedded one is placed: while open, the
+/// One decision where a reply embeds it: while open, the
 /// card the pin opens to (title, recommendation, context, its answers, Other…, Dismiss, Add to
 /// message), answered through the session's shared picks; once resolved, one line with its answer or that
 /// it was withdrawn, which a tap opens to the read-only card and closes again; for a guest or a

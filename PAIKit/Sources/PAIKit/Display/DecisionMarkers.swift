@@ -65,66 +65,6 @@ public enum DecisionMarkers {
         return embeddedNumbers(in: content)
     }
 
-    // MARK: - Placing the decisions no reply embeds
-
-    /// Where the open decisions no loaded message embeds are drawn instead: under the last
-    /// assistant message of the turn that created them, once that turn has ended, so a forgotten
-    /// marker never leaves a question only in the pin. Keyed by message id, numbers ascending.
-    ///
-    /// A turn is the run of rows after a prompt; it has ended at its `duration` row (written once
-    /// at the end of every main-agent turn) or at the next prompt. The turn creating a decision
-    /// runs on from the last row timestamped at or before the decision's `createdAt`. Nothing is
-    /// placed while that turn still runs, nor when the loaded window may not hold its start
-    /// (`hasOlder` with no loaded row before the decision); an end beyond the loaded rows reads as
-    /// a turn still running. A card appears once the rows that decide its place are there, rather
-    /// than in a place it would later leave.
-    ///
-    /// `embedded` is what every loaded message embeds (``embeddedNumbers(of:)`` over the window),
-    /// passed in so a caller can remember it per message instead of scanning every reply again.
-    public static func placeUnembedded(
-        messages: [Message], decisions: [Decision], embedded: Set<Int>, hasOlder: Bool
-    ) -> [Int: [Int]] {
-        var placed: [Int: [Int]] = [:]
-        let waiting = decisions.filter { $0.state == .open && !embedded.contains($0.number) }
-        guard !waiting.isEmpty, !messages.isEmpty else { return placed }
-        let times = messages.map { $0.timestamp.flatMap(IsoTimestamp.date(from:)) }
-
-        for decision in waiting {
-            guard let created = IsoTimestamp.date(from: decision.createdAt) else { continue }
-            var start = -1
-            for index in messages.indices {
-                if let time = times[index], time <= created { start = index }
-            }
-            if start == -1, hasOlder { continue }
-            var last: Message?
-            var ended = false
-            for index in max(start, 0)..<messages.count {
-                let message = messages[index]
-                if endsTurn(message) || (index > start && startsTurn(message)) {
-                    ended = true
-                    break
-                }
-                if message.type == .assistant { last = message }
-            }
-            guard ended, let last else { continue }
-            placed[last.id, default: []].append(decision.number)
-        }
-        return placed.mapValues { $0.sorted() }
-    }
-
-    /// The `user` subtypes that put something in front of the agent and so start a turn.
-    private static let promptSubtypes: Set<String?> = [
-        nil, "resent", "pai_message", "agent_message", "scheduled", "command", "interrupt",
-    ]
-
-    private static func startsTurn(_ message: Message) -> Bool {
-        message.type == .user && promptSubtypes.contains(message.subtype)
-    }
-
-    private static func endsTurn(_ message: Message) -> Bool {
-        message.type == .system && message.subtype == "duration"
-    }
-
     // MARK: - Line grammar
 
     /// The number of a line that is exactly `{{D<n>}}`, trailing spaces or tabs allowed.

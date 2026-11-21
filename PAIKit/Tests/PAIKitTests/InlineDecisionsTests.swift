@@ -2,8 +2,7 @@ import XCTest
 
 @testable import PAIKit
 
-/// Decisions drawn inside replies: which lines are markers, where an unembedded decision goes,
-/// what each place shows, and the room a card takes in its row.
+/// Decisions drawn inside replies: which lines are markers, what each place shows, and the room a card takes in its row.
 final class InlineDecisionsTests: XCTestCase {
 
     // MARK: - Fixtures
@@ -48,51 +47,6 @@ final class InlineDecisionsTests: XCTestCase {
         XCTAssertEqual(DecisionMarkers.split(reply).prefix(2), [.markdown("Intro line"), .decision(1)])
     }
 
-    // MARK: - Placing the decisions no reply embeds
-
-    /// Three turns; the second runs a tool between two replies and ends with its duration row, the
-    /// third is still running.
-    private func threeTurns(withDurationRow: Bool = true) -> [Message] {
-        var messages = [
-            message(1, .user, at: "10:00:00", content: "first prompt"),
-            message(2, .assistant, at: "10:01:00", content: "first reply"),
-            message(3, .system, subtype: "duration", at: "10:02:00"),
-            message(4, .user, at: "10:05:00", content: "second prompt"),
-            message(5, .assistant, at: "10:06:00", content: "looking"),
-            message(6, .toolResult, at: "10:06:30"),
-            message(7, .assistant, at: "10:07:00", content: "here is what I found"),
-            message(8, .system, subtype: "duration", at: "10:08:00"),
-            message(9, .user, at: "10:10:00", content: "third prompt"),
-            message(10, .assistant, at: "10:11:00", content: "working on it"),
-        ]
-        if !withDurationRow { messages.removeAll { $0.id == 8 } }
-        return messages
-    }
-
-    func testAnUnembeddedOpenDecisionGoesUnderTheLastReplyOfTheTurnThatAskedItOnceThatTurnEnded() {
-        let decisions = [
-            decision(1, createdAt: "10:05:30"),  // before either reply of the second turn
-            decision(2, createdAt: "10:10:30"),  // the third turn is still running
-            decision(3, createdAt: "10:06:10"),  // embedded by a reply
-            decision(4, createdAt: "10:06:20", state: .answered, answer: "yes"),
-        ]
-        let placed = DecisionMarkers.placeUnembedded(
-            messages: threeTurns(), decisions: decisions, embedded: [3], hasOlder: false)
-        XCTAssertEqual(placed, [7: [1]])
-
-        let endedByTheNextPrompt = DecisionMarkers.placeUnembedded(
-            messages: threeTurns(withDurationRow: false), decisions: decisions, embedded: [3], hasOlder: false)
-        XCTAssertEqual(endedByTheNextPrompt, [7: [1]])
-    }
-
-    func testNothingIsPlacedWhenTheLoadedRowsMayNotReachBackToTheDecision() {
-        let early = [decision(1, createdAt: "09:00:00")]
-        // The window starts mid-turn, on a reply: its prompt is in the unloaded page above.
-        let placed = DecisionMarkers.placeUnembedded(
-            messages: Array(threeTurns().dropFirst(4)), decisions: early, embedded: [], hasOlder: true)
-        XCTAssertEqual(placed, [:])
-    }
-
     // MARK: - What a place shows
 
     func testAPlaceShowsTheMarkerToAGuestNothingUntilReadAndTheDecisionOnceRead() {
@@ -134,12 +88,12 @@ final class InlineDecisionsTests: XCTestCase {
         blockSpacing: 4, activityLineHeight: 17, proseLineHeight: 21, trailerLineHeight: 15)
 
     private func cards(
-        _ content: String, displays: [Int: InlineDecisionDisplay] = [:], trailing: [Int] = []
+        _ content: String, displays: [Int: InlineDecisionDisplay] = [:]
     ) -> [MeasuredCard] {
         TranscriptRowLayout.measure(
             for: message(1, .assistant, at: "10:00:00", content: content), width: 400, environment: environment,
             isRevealed: { _ in true }, measurer: StubBlockMeasurer(), cache: BlockHeightCache(), metrics: metrics,
-            decisionDisplays: displays, trailingDecisions: trailing)
+            decisionDisplays: displays)
     }
 
     /// Until the session's decisions are read a marker draws nothing, and its row is exactly the
@@ -167,15 +121,14 @@ final class InlineDecisionsTests: XCTestCase {
         XCTAssertEqual(drawn.height, waiting.height + card.measured.height + 4, accuracy: 0.001)
     }
 
-    /// The search index plans a row without decisions; a row drawn with one placed under it must
-    /// still have the same blocks at the same indices, or a hit would land on the wrong text.
-    func testATrailingDecisionLeavesTheReplysBlocksWhereTheSearchIndexPlansThem() throws {
+    /// The search index plans a row without decision displays; a row drawn with them must still
+    /// have the same blocks at the same indices, or a hit would land on the wrong text.
+    func testDrawingTheDecisionsLeavesTheReplysBlocksWhereTheSearchIndexPlansThem() throws {
         let reply = "Para one.\n{{D3}}\n\nPara two."
         let planned = TranscriptRowPlan.cards(for: message(1, .assistant, at: "10:00:00", content: reply)) { _ in true }
-        let drawn = try XCTUnwrap(cards(reply, displays: [3: .loading, 5: .marker(number: 5)], trailing: [5]).first)
+        let drawn = try XCTUnwrap(cards(reply, displays: [3: .loading]).first)
         XCTAssertEqual(planned.count, 1)
         XCTAssertEqual(drawn.plan.blocks, planned[0].blocks)
-        XCTAssertEqual(drawn.plan.decisionSlots.map(\.number), [3, 5])
-        XCTAssertEqual(drawn.plan.decisionSlots.last?.position, drawn.plan.blocks.count)
+        XCTAssertEqual(drawn.plan.decisionSlots.map(\.number), [3])
     }
 }
