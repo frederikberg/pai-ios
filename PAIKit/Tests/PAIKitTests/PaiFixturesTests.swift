@@ -502,5 +502,8 @@ final class PaiFixturesTests: XCTestCase {
         let voice = try decoder.decode(SpokenVoiceSettings.self, from: Data(PaiFixtures.spokenVoiceSettings.utf8))
         XCTAssertEqual(voice.sttKeyterms, ["Computer", "PAI"])
         XCTAssertEqual(voice.sttBatchPauseS, 15)
+        XCTAssertEqual(voice.computerEngine, "claude")
+        XCTAssertEqual(voice.computerTurnTunables, ["end_wait_s": .number(4), "turn_cue": .flag(false)])
+        XCTAssertEqual(voice.computerChoices?.turnPresets["explicit"]?["end_wait_s"], ComputerTunableValue.never)
     }
 }

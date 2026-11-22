@@ -28,8 +28,8 @@ struct ComputerSection: View {
     }
 }
 
-/// The synced voice settings, in three groups — one per engine the backend drives, since each
-/// takes different knobs: Computer (OpenAI Realtime), call mode (ElevenLabs text-to-speech reading a
+/// The synced voice settings, in four groups — Computer's engine choice, then one per engine the
+/// backend drives, since each takes different knobs: Computer (OpenAI Realtime), call mode (ElevenLabs text-to-speech reading a
 /// session's replies during a call), and dictation (ElevenLabs Scribe). One Save for all three: they are one row on the backend.
 struct SpokenVoiceSection: View {
     let store: SpokenVoiceSettingsStore
@@ -41,6 +41,9 @@ struct SpokenVoiceSection: View {
 
     var body: some View {
         if store.draft != nil {
+            if let choices = store.loaded?.computerChoices {
+                engineGroup(choices)
+            }
             computerGroup
             callGroup
             dictationGroup
@@ -68,6 +71,74 @@ struct SpokenVoiceSection: View {
             }
             .task { if store.loaded == nil { await store.load() } }
         }
+    }
+
+    /// Every option and default comes from the backend's `computer_choices`; an empty selection
+    /// is "the default" and goes out as `null`.
+    private func engineGroup(_ choices: ComputerChoices) -> some View {
+        let defaults = choices.defaults
+        return Section {
+            Picker("Engine", selection: field(\.computerEngine)) {
+                Text("Default (\(Self.engineName(defaults.computerEngine)))").tag("")
+                ForEach(choices.engines, id: \.self) { Text(Self.engineName($0)).tag($0) }
+            }
+            .accessibilityIdentifier("computer-engine")
+            Picker("Claude model", selection: modelBinding(choices)) {
+                Text("Default (\(defaults.computerClaudeModel))").tag("")
+                ForEach(choices.modelIds, id: \.self) { Text($0).tag($0) }
+            }
+            .accessibilityIdentifier("computer-claude-model")
+            Picker("Claude effort", selection: field(\.computerClaudeEffort)) {
+                Text("Default (\(defaults.computerClaudeEffort))").tag("")
+                ForEach(choices.efforts(forModel: store.draft?.computerClaudeModel ?? ""), id: \.self) {
+                    Text($0).tag($0)
+                }
+            }
+            .accessibilityIdentifier("computer-claude-effort")
+            Picker("Turn taking", selection: field(\.computerTurnPreset)) {
+                Text("Default (\(defaults.computerTurnPreset))").tag("")
+                ForEach(choices.presetNames, id: \.self) { Text($0).tag($0) }
+            }
+            .accessibilityIdentifier("computer-turn-preset")
+            Text(choices.summary(ofPreset: store.draft?.computerTurnPreset ?? ""))
+                .font(PaiTypography.caption.font)
+            DisclosureGroup("Advanced") {
+                TextField(
+                    "Turn tunables as JSON, e.g. {\"end_wait_s\": 2}", text: field(\.computerTurnTunables),
+                    axis: .vertical
+                )
+                .lineLimit(2...8)
+                .font(.system(.footnote, design: .monospaced))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("computer-turn-tunables")
+                if !store.isTunablesValid {
+                    invalid("The turn tunables must be a JSON object, or empty.")
+                }
+            }
+        } header: {
+            Text("Computer — engine")
+        } footer: {
+            Text(
+                "What listens, thinks and speaks in a Computer call; the engine, model and effort apply from the next call, the turn taking from the next turn. The model and effort only matter on the Claude engine. A tunable name the server does not know is refused when you save."
+            )
+        }
+    }
+
+    private static func engineName(_ engine: String) -> String {
+        switch engine {
+        case "openai_realtime": "OpenAI Realtime"
+        case "claude": "Claude"
+        default: engine
+        }
+    }
+
+    /// Choosing a model puts back an effort the new model does not accept.
+    private func modelBinding(_ choices: ComputerChoices) -> Binding<String> {
+        Binding(
+            get: { store.draft?.computerClaudeModel ?? "" },
+            set: { store.draft?.chooseModel($0, choices: choices) }
+        )
     }
 
     private var computerGroup: some View {

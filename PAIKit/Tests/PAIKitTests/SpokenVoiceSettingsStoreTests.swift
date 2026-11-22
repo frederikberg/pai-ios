@@ -210,4 +210,86 @@ final class SpokenVoiceSettingsStoreTests: XCTestCase {
         XCTAssertTrue(isDirty)
         XCTAssertFalse(canSave, "a dirty draft with an unusable speed must not be savable")
     }
+
+    // MARK: - Computer engine
+
+    private func choices() throws -> ComputerChoices {
+        let voice = try JSONDecoder().decode(
+            SpokenVoiceSettings.self, from: Data(PaiFixtures.spokenVoiceSettings.utf8))
+        return try XCTUnwrap(voice.computerChoices)
+    }
+
+    /// Unset engine fields are "the default" and have to go out as `null` — an omitted key would
+    /// leave a stored choice in force, so a choice reset to the default would never reset.
+    func testAnUnsetEngineChoiceIsSentAsNullAndASetOneAsItself() throws {
+        var draft = SpokenVoiceSettingsDraft(loaded: loaded())
+        let unset = try JSONSerialization.jsonObject(with: JSONEncoder().encode(XCTUnwrap(draft.asUpdate())))
+        let object = try XCTUnwrap(unset as? [String: Any])
+        for key in [
+            "computer_engine", "computer_claude_model", "computer_claude_effort", "computer_turn_preset",
+            "computer_turn_tunables",
+        ] {
+            XCTAssertTrue(object.keys.contains(key), key)
+            XCTAssertTrue(object[key] is NSNull, key)
+        }
+
+        draft.computerEngine = "claude"
+        draft.computerTurnPreset = "explicit"
+        XCTAssertEqual(draft.asUpdate()?.computerEngine, "claude")
+        XCTAssertEqual(draft.asUpdate()?.computerTurnPreset, "explicit")
+    }
+
+    /// The backend refuses a model and effort that do not go together, so a model change that
+    /// strands the effort has to take the effort back rather than offer a Save that 400s.
+    func testChoosingAModelThatCannotTakeTheEffortResetsIt() throws {
+        let sonnetLimited = ComputerChoices(
+            engines: ["claude"],
+            claudeModels: ["big": ["low", "high"], "small": ["low"]], turnPresets: [:],
+            defaults: .init(
+                computerEngine: "claude", computerClaudeModel: "big", computerClaudeEffort: "low",
+                computerTurnPreset: "normal"))
+        var draft = SpokenVoiceSettingsDraft(loaded: loaded())
+        draft.computerClaudeEffort = "high"
+        XCTAssertTrue(draft.isClaudeChoiceValid(sonnetLimited))
+
+        draft.chooseModel("small", choices: sonnetLimited)
+        XCTAssertEqual(draft.computerClaudeModel, "small")
+        XCTAssertEqual(draft.computerClaudeEffort, "")
+
+        draft.computerClaudeEffort = "high"
+        XCTAssertFalse(draft.isClaudeChoiceValid(sonnetLimited))
+    }
+
+    func testTunablesRoundTripAndOnlyAJSONObjectCanBeSaved() throws {
+        var draft = SpokenVoiceSettingsDraft(loaded: loaded())
+        XCTAssertEqual(draft.computerTurnTunables, "")
+        XCTAssertNotNil(draft.asUpdate())
+
+        draft.computerTurnTunables = #"{"end_wait_s": null, "interrupt_min_words": 3, "turn_cue": false}"#
+        XCTAssertEqual(
+            draft.asUpdate()?.computerTurnTunables,
+            ["end_wait_s": .never, "interrupt_min_words": .number(3), "turn_cue": .flag(false)])
+
+        let reread = SpokenVoiceSettingsDraft(
+            loaded: SpokenVoiceSettings(
+                computerTurnTunables: ["end_wait_s": .number(2)], computerVoice: nil, computerDelivery: nil,
+                computerSpeed: nil, callVoiceId: nil, callSpeed: 1, sttKeyterms: [], sttLanguage: nil,
+                sttNoVerbatim: false, sttBatchPauseS: nil, debugRecordingsEnabled: true, updatedAt: ""))
+        XCTAssertEqual(reread.asUpdate()?.computerTurnTunables, ["end_wait_s": .number(2)])
+
+        for bad in ["{", "[1]", "3", "{\"end_wait_s\": \"2\"}"] {
+            draft.computerTurnTunables = bad
+            XCTAssertNil(draft.asUpdate(), "expected no update for \(bad.debugDescription)")
+        }
+        draft.computerTurnTunables = "{}"
+        XCTAssertNil(draft.asUpdate()?.computerTurnTunables)
+        XCTAssertNotNil(draft.asUpdate())
+    }
+
+    func testPresetSummaryReadsTheBackendsNumbers() throws {
+        let choices = try choices()
+        XCTAssertTrue(choices.summary(ofPreset: "patient").contains("3"))
+        XCTAssertTrue(choices.summary(ofPreset: "").contains("1.2"), "empty means the default preset")
+        XCTAssertTrue(choices.summary(ofPreset: "explicit").contains("computer start"))
+    }
 }

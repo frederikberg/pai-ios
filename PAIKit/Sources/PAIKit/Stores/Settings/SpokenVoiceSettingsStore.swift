@@ -9,6 +9,13 @@ import Observation
 /// happen once, at the edges (`init(loaded:)`, `asUpdate()`), rather than at every call site.
 /// Same shape as `SmtpSettingsDraft`.
 public struct SpokenVoiceSettingsDraft: Sendable, Equatable {
+    /// The engine choices; an empty string is "the backend's default", sent as `null`.
+    public var computerEngine: String
+    public var computerClaudeModel: String
+    public var computerClaudeEffort: String
+    public var computerTurnPreset: String
+    /// A JSON object laid over the preset; empty is none.
+    public var computerTurnTunables: String
     public var computerVoice: String
     public var computerDelivery: String
     public var computerSpeed: String
@@ -23,6 +30,11 @@ public struct SpokenVoiceSettingsDraft: Sendable, Equatable {
     public var sttBatchPauseS: String
 
     public init(loaded: SpokenVoiceSettings) {
+        computerEngine = loaded.computerEngine ?? ""
+        computerClaudeModel = loaded.computerClaudeModel ?? ""
+        computerClaudeEffort = loaded.computerClaudeEffort ?? ""
+        computerTurnPreset = loaded.computerTurnPreset ?? ""
+        computerTurnTunables = Self.formatTunables(loaded.computerTurnTunables)
         computerVoice = loaded.computerVoice ?? ""
         computerDelivery = loaded.computerDelivery ?? ""
         computerSpeed = loaded.computerSpeed.map(Self.format) ?? ""
@@ -60,6 +72,31 @@ public struct SpokenVoiceSettingsDraft: Sendable, Equatable {
         return .some(value)
     }
 
+    /// `.some(nil)` for no overrides, `nil` for text that is not a JSON object of tunables. Names
+    /// and ranges are the backend's to check; its refusal names the tunable.
+    var tunablesValue: [String: ComputerTunableValue]?? {
+        let trimmed = computerTurnTunables.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return .some(nil) }
+        guard let parsed = try? JSONDecoder().decode([String: ComputerTunableValue].self, from: Data(trimmed.utf8))
+        else { return nil }
+        return .some(parsed.isEmpty ? nil : parsed)
+    }
+
+    /// Whether the chosen model accepts the chosen effort — the backend refuses the pair
+    /// otherwise. `choices` is the list the backend sent; without it nothing can be checked and
+    /// the engine group is not shown at all.
+    func isClaudeChoiceValid(_ choices: ComputerChoices?) -> Bool {
+        guard let choices else { return true }
+        let model = computerClaudeModel.isEmpty ? choices.defaults.computerClaudeModel : computerClaudeModel
+        return computerClaudeEffort.isEmpty || choices.efforts(forModel: model).contains(computerClaudeEffort)
+    }
+
+    /// A model change that leaves the effort unacceptable puts the effort back to the default.
+    public mutating func chooseModel(_ model: String, choices: ComputerChoices?) {
+        computerClaudeModel = model
+        if !isClaudeChoiceValid(choices) { computerClaudeEffort = "" }
+    }
+
     var keyterms: [String] {
         sttKeyterms.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
@@ -73,10 +110,15 @@ public struct SpokenVoiceSettingsDraft: Sendable, Equatable {
 
     func asUpdate() -> SpokenVoiceSettingsUpdate? {
         guard let speed, let computerSpeed = computerSpeedValue, let batchPause = batchPauseValue,
-            keytermProblem == nil
+            let tunables = tunablesValue, keytermProblem == nil
         else { return nil }
         let language = sttLanguage.trimmingCharacters(in: .whitespaces).lowercased()
         return SpokenVoiceSettingsUpdate(
+            computerEngine: computerEngine.isEmpty ? nil : computerEngine,
+            computerClaudeModel: computerClaudeModel.isEmpty ? nil : computerClaudeModel,
+            computerClaudeEffort: computerClaudeEffort.isEmpty ? nil : computerClaudeEffort,
+            computerTurnPreset: computerTurnPreset.isEmpty ? nil : computerTurnPreset,
+            computerTurnTunables: tunables,
             computerVoice: computerVoice.isEmpty ? nil : computerVoice,
             computerDelivery: computerDelivery.isEmpty ? nil : computerDelivery,
             computerSpeed: computerSpeed,
@@ -87,6 +129,13 @@ public struct SpokenVoiceSettingsDraft: Sendable, Equatable {
             sttNoVerbatim: sttNoVerbatim,
             sttBatchPauseS: batchPause
         )
+    }
+
+    private static func formatTunables(_ tunables: [String: ComputerTunableValue]?) -> String {
+        guard let tunables, !tunables.isEmpty else { return "" }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return (try? encoder.encode(tunables)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
     }
 
     /// Locale-independent, because this string is parsed back with `Double(_:)`, which only ever
@@ -131,12 +180,20 @@ public final class SpokenVoiceSettingsStore {
         draft?.computerSpeedValue != nil
     }
 
+    public var isTunablesValid: Bool {
+        draft?.tunablesValue != nil
+    }
+
+    public var isClaudeChoiceValid: Bool {
+        draft?.isClaudeChoiceValid(loaded?.computerChoices) ?? true
+    }
+
     public var isBatchPauseValid: Bool {
         draft?.batchPauseValue != nil
     }
 
     public var canSave: Bool {
-        loaded != nil && isDirty && draft?.asUpdate() != nil && !isSaving
+        loaded != nil && isDirty && draft?.asUpdate() != nil && isClaudeChoiceValid && !isSaving
     }
 
     public func load() async {
