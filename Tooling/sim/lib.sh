@@ -20,6 +20,22 @@ for runtime in sorted(devices, reverse=True):
 "
 }
 
+# `simctl io screenshot` refuses a device with more than one display (a foldable's two panels) and
+# lists them as `--display=<id>  <name> (<role>) <w>x<h>`. Photograph the one marked `(primary)`;
+# a device with a single display needs no flag, so the plain call comes first. The simulator's
+# own listing goes to the log so the chosen display can be checked against it.
+sim_screenshot() {
+  local udid=$1 file=$2 out display
+  out=$(xcrun simctl io "$udid" screenshot "$file" 2>&1) && return 0
+  display=$(printf '%s\n' "$out" | sed -n 's/^ *--display=\([0-9][0-9]*\)  *.*(primary) [0-9x]*$/\1/p' | head -1)
+  if [ -z "$display" ]; then
+    printf '%s\n' "$out" >&2
+    return 1
+  fi
+  echo "screenshot: $udid has several displays, using --display=$display" >&2
+  xcrun simctl io "$udid" screenshot --display="$display" "$file" > /dev/null
+}
+
 # `bootstatus -b` can wait forever on a simulator that hung during boot, so it runs in the
 # background under a deadline. Returns non-zero when the deadline passes.
 sim_wait_booted() {
