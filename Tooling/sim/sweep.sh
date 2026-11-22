@@ -91,7 +91,7 @@ screenshot() {
   # occasionally loses, producing a black PNG that is indistinguishable from a genuinely
   # broken screen and costs an investigation to dismiss.
   sleep 6
-  xcrun simctl io "$udid" screenshot "artifacts/screen-$name.png"
+  sim_screenshot "$udid" "artifacts/screen-$name.png"
   # Asked of every screen rather than of one guessed to be a transcript: the endpoint
   # answers with an empty list anywhere else, and the evaluation below takes whichever
   # report actually has rows in it. Guessing which screenshot leaves a transcript on top
@@ -105,7 +105,7 @@ screenshot() {
   # whole run to tell apart. One retake settles it: a real blank screen is blank twice.
   if [ "$(stat -f %z "artifacts/screen-$name.png")" -le 100000 ]; then
     sleep 5
-    xcrun simctl io "$udid" screenshot "artifacts/screen-$name.png"
+    sim_screenshot "$udid" "artifacts/screen-$name.png"
   fi
   # Read AFTER the screenshot, not with the health probe: the bridge answers the moment
   # it is listening, which is before the screen has fetched, measured or drawn anything
@@ -217,7 +217,7 @@ if want note-bench; then
       -o "artifacts/note-editor-bench-$name.json" || true
     cat "artifacts/note-editor-bench-$name.json" || true
     echo
-    xcrun simctl io "$udid" screenshot "artifacts/screen-note-bench-$name-after.png" || true
+    sim_screenshot "$udid" "artifacts/screen-note-bench-$name-after.png" || true
     xcrun simctl terminate "$udid" "$bundle" || true
   }
   bench plain lineNumbers=0
@@ -487,7 +487,7 @@ PY
   notes_assert note-offline-synced artifacts/notes-cache-note-offline-synced.json \
     "s['pending'] == []" "s['lastSyncReport']['replayed'] == 1"
   sleep 3
-  xcrun simctl io "$udid" screenshot artifacts/screen-note-offline-synced.png || true
+  sim_screenshot "$udid" artifacts/screen-note-offline-synced.png || true
   xcrun simctl terminate "$udid" "$bundle" || true
 
   # The conflict policy: the first save meets a 409 with a different body, and the edit is
@@ -503,7 +503,7 @@ PY
   grep -q 'source=offline' artifacts/logs-note-offline-conflict-synced.json \
     || { echo "::error::note-offline-conflict: no log line for the write carrying source=offline"; fail=1; }
   sleep 3
-  xcrun simctl io "$udid" screenshot artifacts/screen-note-offline-conflict-synced.png || true
+  sim_screenshot "$udid" artifacts/screen-note-offline-conflict-synced.png || true
   xcrun simctl terminate "$udid" "$bundle" || true
 
   # A note never opened on this phone, opened without a connection.
@@ -583,7 +583,7 @@ sys.exit(0 if s['deepLinkLandedMessageId'] == 9020 and 9001 <= top <= 9020 else 
     # right after landing cannot see that drift; only a read after it has had time to
     # happen can.
     sleep 5
-    xcrun simctl io "$udid" screenshot artifacts/screen-deep-link-landing-settled.png || true
+    sim_screenshot "$udid" artifacts/screen-deep-link-landing-settled.png || true
     curl -sS --max-time 3 "http://127.0.0.1:8765/transcript/landing" -o artifacts/deep-link-landing-settled.json || true
     python3 -c "
 import json, sys
@@ -620,7 +620,7 @@ if want warm-jump; then
   else
     curl -sS --max-time 3 -X POST "http://127.0.0.1:8765/transcript/jump?messageId=9850" || true
     sleep 10
-    xcrun simctl io "$udid" screenshot artifacts/screen-warm-jump-settled.png || true
+    sim_screenshot "$udid" artifacts/screen-warm-jump-settled.png || true
     curl -sS --max-time 3 "http://127.0.0.1:8765/transcript/landing" -o artifacts/warm-jump-settled.json || true
     python3 -c "
 import json, sys

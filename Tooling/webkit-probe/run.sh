@@ -33,7 +33,7 @@ curl -sf "http://127.0.0.1:$PORT/index.html" > /dev/null || { echo '::error::pro
 
 idb_() { idb "$@" --udid "$udid" 2>> "$OUT/idb-errors.log"; }
 mark() { curl -sf -X POST "http://127.0.0.1:$PORT/mark?step=$1" > /dev/null; }
-shot() { xcrun simctl io "$udid" screenshot "$OUT/$round-$mode-$1.png" > /dev/null 2>&1; mark "$round-$mode-$1"; }
+shot() { sim_screenshot "$udid" "$OUT/$round-$mode-$1.png" > /dev/null 2>&1; mark "$round-$mode-$1"; }
 
 # frame <label> → "x y w h" of the first accessibility element with that label, in points. Safari
 # exposes its own controls this way, and the software keyboard's keys, but not the page.
@@ -49,7 +49,7 @@ for e in json.load(sys.stdin):
 
 # composer → "x y w h" in points of the composer as it is drawn right now.
 composer() {
-  xcrun simctl io "$udid" screenshot "$OUT/.locate.png" > /dev/null 2>&1
+  sim_screenshot "$udid" "$OUT/.locate.png" > /dev/null 2>&1
   python3 "$HERE/locate.py" "$OUT/.locate.png"
 }
 
@@ -111,7 +111,7 @@ open_mode() {
 open_mode B
 sleep 5
 dismiss_tips
-xcrun simctl io "$udid" screenshot "$OUT/warmup.png" > /dev/null 2>&1
+sim_screenshot "$udid" "$OUT/warmup.png" > /dev/null 2>&1
 
 round=0
 for mode in $MODES; do

@@ -264,7 +264,8 @@ jobs:
           xcrun simctl launch "$udid" com.frederikberg.pai
           # launch returns once the process exists, which is before it has drawn anything.
           sleep 8
-          xcrun simctl io "$udid" screenshot artifacts/screen.png
+          . Tooling/sim/lib.sh
+          sim_screenshot "$udid" artifacts/screen.png
           bytes=$(stat -f %z artifacts/screen.png)
           echo "screenshot is $bytes bytes"
           [ "$bytes" -gt 20000 ] || { echo 'suspiciously small — the screen may be blank'; exit 1; }
