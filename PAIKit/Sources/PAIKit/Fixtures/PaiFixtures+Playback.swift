@@ -11,13 +11,12 @@ extension PaiFixtures {
           "message_id": 9054, "voice_id": null, "model": "eleven_flash_v2_5",
           "segments": [
             { "index": 0, "chars": 180, "est_ms": 2000, "duration_ms": null, "ready": false,
-              "provider": null, "fallback": false },
+              "provider": null },
             { "index": 1, "chars": 160, "est_ms": 2000, "duration_ms": null, "ready": false,
-              "provider": null, "fallback": false }
+              "provider": null }
           ],
           "usage": {
-            "credits_used": 1200, "daily_credit_cap": 5000, "resets_at": "2026-08-30T00:00:00+00:00",
-            "backup": { "available": true, "budget_cents": 200, "spent_cents": 0 }
+            "credits_used": 1200, "daily_credit_cap": 5000, "resets_at": "2026-08-30T00:00:00+00:00"
           }
         }
         """#
@@ -31,8 +30,7 @@ extension PaiFixtures {
             { "voice_id": "nztoarMvjgs3c0c5DINJ", "name": "Oma Elisabeth", "language": "de", "gender": "female" },
             { "voice_id": "EXAVITQu4vr4xnSDxMaL", "name": "Sarah", "language": null, "gender": "female" }
           ],
-          "default_voice_id": "JBFqnCBsd6RMkjVDRZzb", "builtin_voice_id": "JBFqnCBsd6RMkjVDRZzb",
-          "backup": ["marin", "cedar", "alloy"], "backup_voice": "marin"
+          "default_voice_id": "JBFqnCBsd6RMkjVDRZzb", "builtin_voice_id": "JBFqnCBsd6RMkjVDRZzb"
         }
         """#
 

@@ -3,7 +3,7 @@ import Foundation
 /// Where the engine gets a reply's manifest and segment files; `PaiApiClient` conforms.
 public protocol PlaybackSource: Sendable {
     func getPlaybackManifest(sessionId: String, messageId: Int) async throws -> PlaybackManifest
-    func fetchPlaybackSegment(sessionId: String, messageId: Int, index: Int) async throws -> PlaybackSegmentAudio
+    func fetchPlaybackSegment(sessionId: String, messageId: Int, index: Int) async throws -> Data
 }
 
 extension PaiApiClient: PlaybackSource {}
@@ -36,8 +36,6 @@ public protocol PlaybackOutput: AnyObject {
 /// this class holds the segments and the intent. Port of the web's `engine.ts`.
 @MainActor
 public final class PlaybackEngine {
-    /// Said in the player's own line when the backup voice starts speaking after another voice.
-    public static let backupVoiceNotice = "Backup voice: ElevenLabs is saving credits."
     /// Said once per reply when a part its voice could not read was left out.
     public static let skippedPartNotice = "A part of this reply could not be read aloud and was skipped."
     public static let nothingToReadNotice = "There is nothing to read aloud in this reply."
@@ -50,13 +48,12 @@ public final class PlaybackEngine {
         let manifest: PlaybackManifest
         var index = 0
         var segments: [Int: Data] = [:]
-        var inflight: [Int: Task<PlaybackSegmentAudio, Error>] = [:]
+        var inflight: [Int: Task<Data, Error>] = [:]
         var failed: Set<Int> = []
         /// Parts their voice refused on their own text; asking again would fail the same way.
         var unreadable: Set<Int> = []
         var skipNoted = false
         var measured: [Int: Int] = [:]
-        var providers: [Int: PlaybackProvider] = [:]
 
         init(sessionId: String, messageId: Int, title: String, manifest: PlaybackManifest) {
             self.sessionId = sessionId
@@ -77,8 +74,6 @@ public final class PlaybackEngine {
     /// Whether the loaded segment is the one the track points at.
     private var loaded = false
     private var intentToPlay = false
-    /// The voice last heard, until the player goes idle.
-    private var lastVoice: PlaybackProvider?
     /// Bumped by every start, seek and stop; an answer that finds it moved is stale and dropped.
     private var epoch = 0
 
@@ -212,7 +207,6 @@ public final class PlaybackEngine {
         epoch += 1
         retry = nil
         intentToPlay = false
-        lastVoice = nil
         releaseTrack()
         store.setCurrent(nil)
         store.setQueue([])
@@ -237,7 +231,6 @@ public final class PlaybackEngine {
         store.patchCurrent {
             $0.status = .loading
             $0.notice = nil
-            $0.voiceNote = nil
         }
         let data: Data
         do {
@@ -269,21 +262,8 @@ public final class PlaybackEngine {
         }
         if intentToPlay {
             tryPlay(epoch: mine)
-            if mine == epoch, intentToPlay { announceVoice(track.providers[index]) }
         } else {
             store.patchCurrent { $0.status = .paused }
-        }
-    }
-
-    /// Says once, when the backup voice starts speaking after another voice was heard, that it is
-    /// the backup, in the player's own line until the next segment starts. Silent when nothing was
-    /// playing before: the first voice heard is not a switch.
-    private func announceVoice(_ voice: PlaybackProvider?) {
-        guard let voice else { return }
-        let before = lastVoice
-        lastVoice = voice
-        if voice == .openai, let before, before != .openai {
-            store.patchCurrent { $0.voiceNote = Self.backupVoiceNotice }
         }
     }
 
@@ -303,7 +283,7 @@ public final class PlaybackEngine {
 
     private func loadSegment(_ track: Track, _ index: Int) async throws -> Data {
         if let have = track.segments[index] { return have }
-        if let pending = track.inflight[index] { return try await pending.value.data }
+        if let pending = track.inflight[index] { return try await pending.value }
         track.failed.remove(index)
         let source = self.source
         let sessionId = track.sessionId
@@ -314,12 +294,9 @@ public final class PlaybackEngine {
         track.inflight[index] = work
         do {
             let audio = try await work.value
-            if self.track === track {
-                track.segments[index] = audio.data
-                if let provider = audio.provider { track.providers[index] = provider }
-            }
+            if self.track === track { track.segments[index] = audio }
             track.inflight[index] = nil
-            return audio.data
+            return audio
         } catch {
             track.failed.insert(index)
             if (error as? PlaybackRefusal)?.isPartFailure == true { track.unreadable.insert(index) }
@@ -404,7 +381,6 @@ public final class PlaybackEngine {
         releaseTrack()
         store.setCurrent(nil)
         await startNext()
-        if store.current == nil { lastVoice = nil }
     }
 
     private func interrupted() {

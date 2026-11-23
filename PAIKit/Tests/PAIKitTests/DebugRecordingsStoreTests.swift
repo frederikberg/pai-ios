@@ -115,4 +115,15 @@ final class DebugRecordingsStoreTests: XCTestCase {
             runId: "r", takeId: "t", wav: Data([0, 0]), index: 1, recordedAt: "2026-10-03T10:00:00Z", durationMs: 1)
         XCTAssertEqual(outcome, .runGone)
     }
+
+    /// Rows recorded before the OpenAI engine and the phone line went away still list, with a
+    /// label for a value this build has no name for.
+    func testARetiredEngineAndTransportStillDisplay() throws {
+        let list = try JSONDecoder().decode(DebugRecordingList.self, from: Data(PaiFixtures.debugRecordings.utf8))
+        let old = try XCTUnwrap(list.recordings.first { $0.engine == "openai_realtime" })
+        XCTAssertEqual(old.engineLabel, "openai realtime")
+        XCTAssertEqual(old.transportLabel, "twilio")
+        let current = try XCTUnwrap(list.recordings.first { $0.engine == "elevenlabs_realtime" })
+        XCTAssertEqual(current.engineLabel, "ElevenLabs")
+    }
 }

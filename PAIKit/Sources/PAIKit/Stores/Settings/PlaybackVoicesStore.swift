@@ -4,7 +4,7 @@ import Observation
 /// What `PlaybackVoicesStore` needs from the API; `PaiApiClient` conforms structurally.
 public protocol PlaybackVoicesApiClient: Sendable {
     func getPlaybackVoices() async throws -> PlaybackVoices
-    func fetchPlaybackVoiceSample(provider: PlaybackProvider, voiceId: String) async throws -> Data
+    func fetchPlaybackVoiceSample(voiceId: String) async throws -> Data
 }
 
 extension PaiApiClient: PlaybackVoicesApiClient {}
@@ -85,7 +85,7 @@ public final class PlaybackVoicesStore {
         sampleState = .loading
         sampleError = nil
         do {
-            let data = try await api.fetchPlaybackVoiceSample(provider: .elevenlabs, voiceId: id)
+            let data = try await api.fetchPlaybackVoiceSample(voiceId: id)
             guard mine == epoch else { return }
             guard let player else { throw PaiError.transport("There is no speaker for the sample.") }
             try player.play(data)

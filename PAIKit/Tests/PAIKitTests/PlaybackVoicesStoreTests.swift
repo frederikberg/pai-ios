@@ -16,8 +16,8 @@ private actor FakeVoicesApi: PlaybackVoicesApiClient {
         return list
     }
 
-    func fetchPlaybackVoiceSample(provider: PlaybackProvider, voiceId: String) async throws -> Data {
-        sampled.append("\(provider.rawValue):\(voiceId)")
+    func fetchPlaybackVoiceSample(voiceId: String) async throws -> Data {
+        sampled.append(voiceId)
         if let sampleError { throw sampleError }
         return Data([1, 2, 3])
     }
@@ -66,7 +66,7 @@ final class PlaybackVoicesStoreTests: XCTestCase {
 
         await store.tryVoice(nil)
         let sampled = await api.sampled
-        XCTAssertEqual(sampled, ["elevenlabs:nztoarMvjgs3c0c5DINJ", "elevenlabs:JBFqnCBsd6RMkjVDRZzb"])
+        XCTAssertEqual(sampled, ["nztoarMvjgs3c0c5DINJ", "JBFqnCBsd6RMkjVDRZzb"])
     }
 
     func testPressingTryWhilePlayingStopsTheSample() async {

@@ -159,11 +159,9 @@ extension PaiFixtures {
     /// and the one every fallback has to work from.
     public static let spokenVoiceSettings: String = #"""
         {
-          "computer_engine": "claude", "computer_claude_model": null, "computer_claude_effort": null,
+          "computer_claude_model": null, "computer_claude_effort": null,
           "computer_turn_preset": "patient", "computer_turn_tunables": {"end_wait_s": 4.0, "turn_cue": false},
-          "computer_credit_cap": null,
           "computer_choices": {
-            "engines": ["openai_realtime", "claude"],
             "claude_models": {"claude-opus-5-5": ["low", "medium", "high"],
                               "claude-sonnet-5-5": ["low", "medium", "high"]},
             "turn_presets": {
@@ -172,10 +170,8 @@ extension PaiFixtures {
               "patient": {"end_wait_s": 3.0, "open_wait_s": 6.0, "interrupt_min_words": 3, "turn_cue": true},
               "explicit": {"end_wait_s": null, "open_wait_s": null, "interrupt_min_words": 2, "turn_cue": true}},
             "tunable_bounds": {"end_wait_s": [0.3, 15.0], "interrupt_min_words": [1, 10]},
-            "defaults": {"computer_engine": "openai_realtime", "computer_claude_model": "claude-opus-5-5",
-                         "computer_claude_effort": "low", "computer_turn_preset": "normal",
-                         "computer_credit_cap": 30000}},
-          "computer_voice": "cedar", "computer_delivery": null, "computer_speed": 1.25,
+            "defaults": {"computer_claude_model": "claude-opus-5-5",
+                         "computer_claude_effort": "low", "computer_turn_preset": "normal"}},
           "call_voice_id": null, "call_speed": 1.2,
           "stt_keyterms": ["Computer", "PAI"], "stt_language": null, "stt_no_verbatim": false,
           "stt_batch_pause_s": 15,

@@ -1114,10 +1114,10 @@ public struct SecretStatusMap: Codable, Sendable, Equatable {
 // MARK: - Voice settings
 //
 // Synced to the backend, which is the only thing that speaks or transcribes — one row read by
-// every transport, three groups: Computer (OpenAI Realtime: a voice name, a speed, and a voice
-// instruction told to the model as words), session replies (ElevenLabs text-to-speech: a voice
-// id and a speed, no style text — the API has none), and dictation (ElevenLabs Scribe: key terms,
-// language, filler-word removal). A `nil` means unset: whatever speaks picks its own.
+// every transport, three groups: Computer (the Claude model, its effort and the turn taking),
+// session replies (ElevenLabs text-to-speech: a voice id and a speed, no style text — the API has
+// none), and dictation (ElevenLabs Scribe: key terms, language, filler-word removal). A `nil`
+// means unset: whatever speaks picks its own.
 //
 // The ranges below are what the inputs offer. The backend validates the real bounds and answers
 // 400 outside them; there is no OpenAPI schema to share one constant from, the same duplication
@@ -1125,8 +1125,6 @@ public struct SecretStatusMap: Codable, Sendable, Equatable {
 
 /// ElevenLabs' own `voice_settings.speed` range.
 public let callSpeedRange: ClosedRange<Double> = 0.7...1.2
-/// OpenAI Realtime's `audio.output.speed` range.
-public let computerSpeedRange: ClosedRange<Double> = 0.25...1.5
 
 /// Seconds of silence after which a batch take is transcribed in the background.
 public let sttBatchPauseRange: ClosedRange<Int> = 5...120
@@ -1182,33 +1180,27 @@ public enum ComputerTunableValue: Codable, Sendable, Equatable {
 }
 
 /// What the backend offers for the `computer_*` voice fields (`computer_choices`), with the
-/// default each `null` stands for. A client lists these instead of keeping its own copy.
+/// default each `null` stands for. A client lists these instead of keeping its own copy. Keys the
+/// backend no longer sends (the engine list and its default) are not read.
 public struct ComputerChoices: Codable, Sendable, Equatable {
     public struct Defaults: Codable, Sendable, Equatable {
-        public let computerEngine: String
         public let computerClaudeModel: String
         public let computerClaudeEffort: String
         public let computerTurnPreset: String
 
         enum CodingKeys: String, CodingKey {
-            case computerEngine = "computer_engine"
             case computerClaudeModel = "computer_claude_model"
             case computerClaudeEffort = "computer_claude_effort"
             case computerTurnPreset = "computer_turn_preset"
         }
 
-        public init(
-            computerEngine: String, computerClaudeModel: String, computerClaudeEffort: String,
-            computerTurnPreset: String
-        ) {
-            self.computerEngine = computerEngine
+        public init(computerClaudeModel: String, computerClaudeEffort: String, computerTurnPreset: String) {
             self.computerClaudeModel = computerClaudeModel
             self.computerClaudeEffort = computerClaudeEffort
             self.computerTurnPreset = computerTurnPreset
         }
     }
 
-    public let engines: [String]
     /// Each Computer model and the efforts it accepts, cheapest first.
     public let claudeModels: [String: [String]]
     /// Every preset's tunables; a `null` silence wait means "never".
@@ -1218,7 +1210,6 @@ public struct ComputerChoices: Codable, Sendable, Equatable {
     public let defaults: Defaults
 
     enum CodingKeys: String, CodingKey {
-        case engines
         case claudeModels = "claude_models"
         case turnPresets = "turn_presets"
         case tunableBounds = "tunable_bounds"
@@ -1226,11 +1217,10 @@ public struct ComputerChoices: Codable, Sendable, Equatable {
     }
 
     public init(
-        engines: [String], claudeModels: [String: [String]],
+        claudeModels: [String: [String]],
         turnPresets: [String: [String: ComputerTunableValue]], tunableBounds: [String: [Double]] = [:],
         defaults: Defaults
     ) {
-        self.engines = engines
         self.claudeModels = claudeModels
         self.turnPresets = turnPresets
         self.tunableBounds = tunableBounds
@@ -1260,21 +1250,13 @@ public struct ComputerChoices: Codable, Sendable, Equatable {
 }
 
 public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
-    /// Which engine runs a Computer call; `nil` is the backend's default.
-    public let computerEngine: String?
     public let computerClaudeModel: String?
     public let computerClaudeEffort: String?
     public let computerTurnPreset: String?
     /// Overrides laid over the preset; `nil` is none.
     public let computerTurnTunables: [String: ComputerTunableValue]?
-    /// ElevenLabs credits the Claude engine may spend per month; `nil` is the backend's default.
-    /// Read only — the phone has no field for it.
-    public let computerCreditCap: Int?
-    /// `nil` from a backend that predates the engine setting, which hides its group.
+    /// `nil` from a backend that predates the Computer settings, which hides their group.
     public let computerChoices: ComputerChoices?
-    public let computerVoice: String?
-    public let computerDelivery: String?
-    public let computerSpeed: Double?
     public let callVoiceId: String?
     public let callSpeed: Double
     public let sttKeyterms: [String]
@@ -1290,16 +1272,11 @@ public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
     public let updatedAt: String
 
     enum CodingKeys: String, CodingKey {
-        case computerEngine = "computer_engine"
         case computerClaudeModel = "computer_claude_model"
         case computerClaudeEffort = "computer_claude_effort"
         case computerTurnPreset = "computer_turn_preset"
         case computerTurnTunables = "computer_turn_tunables"
-        case computerCreditCap = "computer_credit_cap"
         case computerChoices = "computer_choices"
-        case computerVoice = "computer_voice"
-        case computerDelivery = "computer_delivery"
-        case computerSpeed = "computer_speed"
         case callVoiceId = "call_voice_id"
         case callSpeed = "call_speed"
         case sttKeyterms = "stt_keyterms"
@@ -1311,24 +1288,18 @@ public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
     }
 
     public init(
-        computerEngine: String? = nil, computerClaudeModel: String? = nil,
+        computerClaudeModel: String? = nil,
         computerClaudeEffort: String? = nil, computerTurnPreset: String? = nil,
-        computerTurnTunables: [String: ComputerTunableValue]? = nil, computerCreditCap: Int? = nil,
+        computerTurnTunables: [String: ComputerTunableValue]? = nil,
         computerChoices: ComputerChoices? = nil,
-        computerVoice: String?, computerDelivery: String?, computerSpeed: Double?, callVoiceId: String?,
-        callSpeed: Double, sttKeyterms: [String], sttLanguage: String?, sttNoVerbatim: Bool,
+        callVoiceId: String?, callSpeed: Double, sttKeyterms: [String], sttLanguage: String?, sttNoVerbatim: Bool,
         sttBatchPauseS: Int?, debugRecordingsEnabled: Bool, updatedAt: String
     ) {
-        self.computerEngine = computerEngine
         self.computerClaudeModel = computerClaudeModel
         self.computerClaudeEffort = computerClaudeEffort
         self.computerTurnPreset = computerTurnPreset
         self.computerTurnTunables = computerTurnTunables
-        self.computerCreditCap = computerCreditCap
         self.computerChoices = computerChoices
-        self.computerVoice = computerVoice
-        self.computerDelivery = computerDelivery
-        self.computerSpeed = computerSpeed
         self.callVoiceId = callVoiceId
         self.callSpeed = callSpeed
         self.sttKeyterms = sttKeyterms
@@ -1345,14 +1316,10 @@ public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
 /// which a selective patch cannot express. `debug_recordings_enabled` is not in here — it is its
 /// own toggle with its own PUT.
 public struct SpokenVoiceSettingsUpdate: Encodable, Sendable, Equatable {
-    public var computerEngine: String?
     public var computerClaudeModel: String?
     public var computerClaudeEffort: String?
     public var computerTurnPreset: String?
     public var computerTurnTunables: [String: ComputerTunableValue]?
-    public var computerVoice: String?
-    public var computerDelivery: String?
-    public var computerSpeed: Double?
     public var callVoiceId: String?
     public var callSpeed: Double
     public var sttKeyterms: [String]
@@ -1361,14 +1328,10 @@ public struct SpokenVoiceSettingsUpdate: Encodable, Sendable, Equatable {
     public var sttBatchPauseS: Int?
 
     enum CodingKeys: String, CodingKey {
-        case computerEngine = "computer_engine"
         case computerClaudeModel = "computer_claude_model"
         case computerClaudeEffort = "computer_claude_effort"
         case computerTurnPreset = "computer_turn_preset"
         case computerTurnTunables = "computer_turn_tunables"
-        case computerVoice = "computer_voice"
-        case computerDelivery = "computer_delivery"
-        case computerSpeed = "computer_speed"
         case callVoiceId = "call_voice_id"
         case callSpeed = "call_speed"
         case sttKeyterms = "stt_keyterms"
@@ -1378,21 +1341,16 @@ public struct SpokenVoiceSettingsUpdate: Encodable, Sendable, Equatable {
     }
 
     public init(
-        computerEngine: String? = nil, computerClaudeModel: String? = nil,
+        computerClaudeModel: String? = nil,
         computerClaudeEffort: String? = nil, computerTurnPreset: String? = nil,
         computerTurnTunables: [String: ComputerTunableValue]? = nil,
-        computerVoice: String?, computerDelivery: String?, computerSpeed: Double?, callVoiceId: String?,
-        callSpeed: Double, sttKeyterms: [String], sttLanguage: String?, sttNoVerbatim: Bool,
+        callVoiceId: String?, callSpeed: Double, sttKeyterms: [String], sttLanguage: String?, sttNoVerbatim: Bool,
         sttBatchPauseS: Int?
     ) {
-        self.computerEngine = computerEngine
         self.computerClaudeModel = computerClaudeModel
         self.computerClaudeEffort = computerClaudeEffort
         self.computerTurnPreset = computerTurnPreset
         self.computerTurnTunables = computerTurnTunables
-        self.computerVoice = computerVoice
-        self.computerDelivery = computerDelivery
-        self.computerSpeed = computerSpeed
         self.callVoiceId = callVoiceId
         self.callSpeed = callSpeed
         self.sttKeyterms = sttKeyterms
@@ -1405,14 +1363,10 @@ public struct SpokenVoiceSettingsUpdate: Encodable, Sendable, Equatable {
     /// leave a `nil` out, and an omitted key is "leave as-is" to the backend, not "clear".
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(computerEngine, forKey: .computerEngine)
         try container.encode(computerClaudeModel, forKey: .computerClaudeModel)
         try container.encode(computerClaudeEffort, forKey: .computerClaudeEffort)
         try container.encode(computerTurnPreset, forKey: .computerTurnPreset)
         try container.encode(computerTurnTunables, forKey: .computerTurnTunables)
-        try container.encode(computerVoice, forKey: .computerVoice)
-        try container.encode(computerDelivery, forKey: .computerDelivery)
-        try container.encode(computerSpeed, forKey: .computerSpeed)
         try container.encode(callVoiceId, forKey: .callVoiceId)
         try container.encode(callSpeed, forKey: .callSpeed)
         try container.encode(sttKeyterms, forKey: .sttKeyterms)

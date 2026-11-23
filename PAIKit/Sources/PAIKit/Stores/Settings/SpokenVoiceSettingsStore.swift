@@ -9,16 +9,12 @@ import Observation
 /// happen once, at the edges (`init(loaded:)`, `asUpdate()`), rather than at every call site.
 /// Same shape as `SmtpSettingsDraft`.
 public struct SpokenVoiceSettingsDraft: Sendable, Equatable {
-    /// The engine choices; an empty string is "the backend's default", sent as `null`.
-    public var computerEngine: String
+    /// An empty string is "the backend's default", sent as `null`.
     public var computerClaudeModel: String
     public var computerClaudeEffort: String
     public var computerTurnPreset: String
     /// A JSON object laid over the preset; empty is none.
     public var computerTurnTunables: String
-    public var computerVoice: String
-    public var computerDelivery: String
-    public var computerSpeed: String
     public var callVoiceId: String
     public var callSpeed: String
     public var sttKeyterms: String
@@ -30,14 +26,10 @@ public struct SpokenVoiceSettingsDraft: Sendable, Equatable {
     public var sttBatchPauseS: String
 
     public init(loaded: SpokenVoiceSettings) {
-        computerEngine = loaded.computerEngine ?? ""
         computerClaudeModel = loaded.computerClaudeModel ?? ""
         computerClaudeEffort = loaded.computerClaudeEffort ?? ""
         computerTurnPreset = loaded.computerTurnPreset ?? ""
         computerTurnTunables = Self.formatTunables(loaded.computerTurnTunables)
-        computerVoice = loaded.computerVoice ?? ""
-        computerDelivery = loaded.computerDelivery ?? ""
-        computerSpeed = loaded.computerSpeed.map(Self.format) ?? ""
         callVoiceId = loaded.callVoiceId ?? ""
         callSpeed = Self.format(loaded.callSpeed)
         sttKeyterms = loaded.sttKeyterms.joined(separator: ", ")
@@ -53,14 +45,6 @@ public struct SpokenVoiceSettingsDraft: Sendable, Equatable {
     var speed: Double? {
         guard let value = Double(callSpeed), callSpeedRange.contains(value) else { return nil }
         return value
-    }
-
-    /// `.some(nil)` for an empty field (unset), `nil` for one that cannot be sent.
-    var computerSpeedValue: Double?? {
-        let trimmed = computerSpeed.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty { return .some(nil) }
-        guard let value = Double(trimmed), computerSpeedRange.contains(value) else { return nil }
-        return .some(value)
     }
 
     /// `.some(nil)` when the setting is off, `nil` for seconds that cannot be sent.
@@ -84,7 +68,7 @@ public struct SpokenVoiceSettingsDraft: Sendable, Equatable {
 
     /// Whether the chosen model accepts the chosen effort — the backend refuses the pair
     /// otherwise. `choices` is the list the backend sent; without it nothing can be checked and
-    /// the engine group is not shown at all.
+    /// the Computer group is not shown at all.
     func isClaudeChoiceValid(_ choices: ComputerChoices?) -> Bool {
         guard let choices else { return true }
         let model = computerClaudeModel.isEmpty ? choices.defaults.computerClaudeModel : computerClaudeModel
@@ -109,19 +93,15 @@ public struct SpokenVoiceSettingsDraft: Sendable, Equatable {
     }
 
     func asUpdate() -> SpokenVoiceSettingsUpdate? {
-        guard let speed, let computerSpeed = computerSpeedValue, let batchPause = batchPauseValue,
+        guard let speed, let batchPause = batchPauseValue,
             let tunables = tunablesValue, keytermProblem == nil
         else { return nil }
         let language = sttLanguage.trimmingCharacters(in: .whitespaces).lowercased()
         return SpokenVoiceSettingsUpdate(
-            computerEngine: computerEngine.isEmpty ? nil : computerEngine,
             computerClaudeModel: computerClaudeModel.isEmpty ? nil : computerClaudeModel,
             computerClaudeEffort: computerClaudeEffort.isEmpty ? nil : computerClaudeEffort,
             computerTurnPreset: computerTurnPreset.isEmpty ? nil : computerTurnPreset,
             computerTurnTunables: tunables,
-            computerVoice: computerVoice.isEmpty ? nil : computerVoice,
-            computerDelivery: computerDelivery.isEmpty ? nil : computerDelivery,
-            computerSpeed: computerSpeed,
             callVoiceId: callVoiceId.isEmpty ? nil : callVoiceId,
             callSpeed: speed,
             sttKeyterms: keyterms,
@@ -174,10 +154,6 @@ public final class SpokenVoiceSettingsStore {
 
     public var isSpeedValid: Bool {
         draft?.speed != nil
-    }
-
-    public var isComputerSpeedValid: Bool {
-        draft?.computerSpeedValue != nil
     }
 
     public var isTunablesValid: Bool {

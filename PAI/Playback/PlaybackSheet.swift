@@ -54,10 +54,6 @@ struct PlaybackSheet: View {
                     Text(notice)
                         .font(PaiTypography.caption.font)
                         .foregroundStyle(PaiPalette.Semantic.warningText)
-                } else if let voiceNote = current.voiceNote {
-                    Text(voiceNote)
-                        .font(PaiTypography.caption.font)
-                        .foregroundStyle(PaiPalette.Semantic.textSecondary)
                 }
             } else {
                 Text(modeOn ? "Nothing playing. Pick a reply below." : "Playback is off for this session.")

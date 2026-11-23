@@ -18,13 +18,11 @@ public struct PlaybackCurrent: Sendable, Equatable {
     public var durationMs: Int
     /// A refusal's message or a failure, shown in the bar while `status` is `.error`.
     public var notice: String?
-    /// Said once while the part now playing is read by the backup voice; gone at the next segment.
-    public var voiceNote: String?
     public var usage: PlaybackUsage?
 
     public init(
         sessionId: String, messageId: Int, title: String, status: PlaybackStatus = .loading, positionMs: Int = 0,
-        durationMs: Int = 0, notice: String? = nil, voiceNote: String? = nil, usage: PlaybackUsage? = nil
+        durationMs: Int = 0, notice: String? = nil, usage: PlaybackUsage? = nil
     ) {
         self.sessionId = sessionId
         self.messageId = messageId
@@ -33,7 +31,6 @@ public struct PlaybackCurrent: Sendable, Equatable {
         self.positionMs = positionMs
         self.durationMs = durationMs
         self.notice = notice
-        self.voiceNote = voiceNote
         self.usage = usage
     }
 

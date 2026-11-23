@@ -1456,17 +1456,15 @@ public struct PaiApiClient: Sendable {
         }
     }
 
-    /// One segment's audio and the voice that made it. Synthesised on this request when nobody ever
+    /// One segment's audio. Synthesised on this request when nobody ever
     /// asked for that text, so it can be refused (the ceiling, the gate, a failed voice). Fetched
     /// whole with the bearer rather than streamed, because a stream cannot carry the header and a
     /// refusal has to be readable.
     public func fetchPlaybackSegment(sessionId: String, messageId: Int, index: Int) async throws
-        -> PlaybackSegmentAudio
+        -> Data
     {
-        let (data, http) = try await fetchPlaybackAudio(
+        try await fetchPlaybackAudio(
             path: "/api/session/\(sessionId)/playback/\(messageId)/segments/\(index)/audio", query: [])
-        let provider = http.value(forHTTPHeaderField: "X-Playback-Provider").flatMap(PlaybackProvider.init)
-        return PlaybackSegmentAudio(data: data, provider: provider)
     }
 
     /// `GET /api/playback/voices` — the voices a person can pick from, for any signed-in person.
@@ -1474,20 +1472,18 @@ public struct PaiApiClient: Sendable {
         try await send(path: "/api/playback/voices")
     }
 
-    /// `GET /api/playback/voices/sample` — a short mp3 of one voice: an ElevenLabs voice's own free
-    /// preview (404 when it has none), or the backup voice reading one sentence, made once and
-    /// charged to the caller's backup budget.
-    public func fetchPlaybackVoiceSample(provider: PlaybackProvider, voiceId: String) async throws -> Data {
+    /// `GET /api/playback/voices/sample` — a short mp3 of one ElevenLabs voice: its own free
+    /// preview (404 when it has none). The route takes a `provider` query naming the voice source.
+    public func fetchPlaybackVoiceSample(voiceId: String) async throws -> Data {
         try await fetchPlaybackAudio(
             path: "/api/playback/voices/sample",
             query: [
-                URLQueryItem(name: "provider", value: provider.rawValue),
+                URLQueryItem(name: "provider", value: "elevenlabs"),
                 URLQueryItem(name: "voice_id", value: voiceId),
-            ]
-        ).0
+            ])
     }
 
-    private func fetchPlaybackAudio(path: String, query: [URLQueryItem]) async throws -> (Data, HTTPURLResponse) {
+    private func fetchPlaybackAudio(path: String, query: [URLQueryItem]) async throws -> Data {
         let request = try requestFactory.makeRequest(
             path: path, method: "GET", query: query, body: nil, contentType: nil)
         let (data, response) = try await perform(request)
@@ -1499,7 +1495,7 @@ public struct PaiApiClient: Sendable {
             try checkStatus(response: response, data: data)
             throw PlaybackRefusal.parse(status: http.statusCode, body: data)
         }
-        return (data, http)
+        return data
     }
 
     // MARK: Per-person settings

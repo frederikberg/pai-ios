@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Debug recordings
 //
-// What the backend itself handed to each engine — ElevenLabs realtime, OpenAI Realtime, the
+// What the backend itself handed to each engine — ElevenLabs realtime and batch, the
 // wake-word classifier — stored byte for byte, one recording per stint. Mirrors
 // `web/src/api/types.ts`' `DebugRecording`.
 
@@ -47,7 +47,8 @@ public struct DebugRecording: Codable, Sendable, Equatable, Identifiable {
     /// `dictation` | `call_dictation` | `wake` | `computer` — kept as the wire string, so a kind a
     /// newer backend adds still lists rather than failing the whole response.
     public let kind: String
-    /// `elevenlabs_realtime` | `elevenlabs_batch` (an uploaded take) | `openai_realtime` | `wake_word`.
+    /// `elevenlabs_realtime` | `elevenlabs_batch` (an uploaded take) | `wake_word`. Rows recorded
+    /// before the OpenAI engine went away can still carry `openai_realtime`.
     public let engine: String
     public let model: String
     public let transport: String
@@ -95,6 +96,24 @@ public struct DebugRecording: Codable, Sendable, Equatable, Identifiable {
     }
 
     public var isStillRecording: Bool { status == "recording" }
+
+    /// What the list calls the engine. A value this build has no name for shows as its own words
+    /// rather than failing the row.
+    public var engineLabel: String {
+        switch engine {
+        case "elevenlabs_realtime", "elevenlabs_batch": "ElevenLabs"
+        case "wake_word": "Wake word"
+        default: Self.readable(engine)
+        }
+    }
+
+    /// What the list calls the transport; an unknown one shows as its own words.
+    public var transportLabel: String { Self.readable(transport) }
+
+    /// `snake_case` as a sentence: "openai realtime" reads where "openai_realtime" looks broken.
+    static func readable(_ raw: String) -> String {
+        raw.replacingOccurrences(of: "_", with: " ")
+    }
 
     /// Whether the list marks this recording as clipping.
     public var showsClippingBadge: Bool { clipping == true }
