@@ -1260,6 +1260,9 @@ public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
     public let callVoiceId: String?
     public let callSpeed: Double
     public let sttKeyterms: [String]
+    /// Key terms for call mode and Computer, apart from dictation's. Decoded only: the phone has
+    /// no field for it, and the update leaves the key out, which the backend reads as unchanged.
+    public let callSttKeyterms: [String]?
     /// ISO 639 code; `nil` auto-detects.
     public let sttLanguage: String?
     public let sttNoVerbatim: Bool
@@ -1280,6 +1283,7 @@ public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
         case callVoiceId = "call_voice_id"
         case callSpeed = "call_speed"
         case sttKeyterms = "stt_keyterms"
+        case callSttKeyterms = "call_stt_keyterms"
         case sttLanguage = "stt_language"
         case sttNoVerbatim = "stt_no_verbatim"
         case sttBatchPauseS = "stt_batch_pause_s"
@@ -1292,7 +1296,8 @@ public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
         computerClaudeEffort: String? = nil, computerTurnPreset: String? = nil,
         computerTurnTunables: [String: ComputerTunableValue]? = nil,
         computerChoices: ComputerChoices? = nil,
-        callVoiceId: String?, callSpeed: Double, sttKeyterms: [String], sttLanguage: String?, sttNoVerbatim: Bool,
+        callVoiceId: String?, callSpeed: Double, sttKeyterms: [String], callSttKeyterms: [String]? = nil,
+        sttLanguage: String?, sttNoVerbatim: Bool,
         sttBatchPauseS: Int?, debugRecordingsEnabled: Bool, updatedAt: String
     ) {
         self.computerClaudeModel = computerClaudeModel
@@ -1303,6 +1308,7 @@ public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
         self.callVoiceId = callVoiceId
         self.callSpeed = callSpeed
         self.sttKeyterms = sttKeyterms
+        self.callSttKeyterms = callSttKeyterms
         self.sttLanguage = sttLanguage
         self.sttNoVerbatim = sttNoVerbatim
         self.sttBatchPauseS = sttBatchPauseS
