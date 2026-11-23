@@ -308,11 +308,12 @@ final class SpokenVoiceSettingsStoreTests: XCTestCase {
                             "computer_turn_preset": "normal"}},
              "call_voice_id": null, "call_speed": 1.0, "stt_keyterms": [], "stt_language": null,
              "stt_no_verbatim": false, "stt_batch_pause_s": null, "debug_recordings_enabled": false,
-             "updated_at": "2026-11-23T12:00:00+00:00"}
+             "call_stt_keyterms": ["Computer"], "updated_at": "2026-11-23T12:00:00+00:00"}
             """
         let settings = try JSONDecoder().decode(SpokenVoiceSettings.self, from: Data(json.utf8))
         XCTAssertEqual(settings.computerChoices?.modelIds, ["m"])
         XCTAssertEqual(settings.computerClaudeEffort, "low")
+        XCTAssertEqual(settings.callSttKeyterms, ["Computer"])
     }
 
     /// A payload from before the engine went away still decodes: the extra keys are ignored.
