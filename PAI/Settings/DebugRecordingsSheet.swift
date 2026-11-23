@@ -2,8 +2,8 @@
 import PAIKit
 import SwiftUI
 
-/// What the backend actually handed to each engine — ElevenLabs while dictating, OpenAI while
-/// talking to Computer, the wake-word classifier in a call's quiet phase — byte for byte, so a
+/// What the backend actually handed to each engine — ElevenLabs while dictating or talking to
+/// Computer, the wake-word classifier in a call's quiet phase — byte for byte, so a
 /// headset or a conversion that distorts the audio can be heard rather than guessed at. The
 /// newest few per kind, kept on the backend, so every device lists the same ones.
 ///
@@ -250,21 +250,14 @@ private struct DebugRecordingRow: View {
     }
 
     private var engineLine: String {
-        let engine =
-            switch recording.engine {
-            case "elevenlabs_realtime", "elevenlabs_batch": "ElevenLabs"
-            case "openai_realtime": "OpenAI"
-            case "wake_word": "Wake word"
-            default: recording.engine
-            }
-        var parts = ["\(engine) · \(recording.sampleRate / 1000) kHz"]
+        var parts = ["\(recording.engineLabel) · \(recording.sampleRate / 1000) kHz"]
         if let peak = recording.peakDbfs { parts.append("peak \(String(format: "%.0f", peak)) dBFS") }
         if let session = recording.sessionTitle { parts.append(session) }
         return parts.joined(separator: " · ")
     }
 
     private var deviceLine: String {
-        var parts = [recording.transport]
+        var parts = [recording.transportLabel]
         if let device = recording.device { parts.append(device) }
         if !recording.mics.isEmpty { parts.append(recording.mics.joined(separator: " → ")) }
         return parts.joined(separator: " · ")

@@ -17,7 +17,7 @@ func playbackManifest(messageId: Int = 1, estMs: [Int], durationsMs: [Int?]? = n
                 index: index, chars: 100, estMs: est, durationMs: durationsMs?[index],
                 ready: durationsMs?[index] != nil)
         },
-        usage: PlaybackUsage(creditsUsed: 0, dailyCreditCap: 1000, resetsAt: "2026-11-05T00:00:00Z", backup: nil))
+        usage: PlaybackUsage(creditsUsed: 0, dailyCreditCap: 1000, resetsAt: "2026-11-05T00:00:00Z"))
 }
 
 extension PlaybackManifest {
@@ -33,7 +33,7 @@ extension PlaybackManifest {
 }
 
 extension PlaybackUsage {
-    init(creditsUsed: Int, dailyCreditCap: Int?, resetsAt: String, backup: PlaybackBackupUsage?) {
+    init(creditsUsed: Int, dailyCreditCap: Int?, resetsAt: String) {
         let object: [String: Any] = [
             "credits_used": creditsUsed, "daily_credit_cap": dailyCreditCap as Any, "resets_at": resetsAt,
         ]
@@ -109,33 +109,43 @@ final class PlaybackModelTests: XCTestCase {
         XCTAssertEqual(PlaybackRefusal.parse(status: 502, body: Data()).message, "HTTP 502")
     }
 
-    func testTheManifestDecodesTheContractShapeAndAnUnknownVoiceReadsAsNone() throws {
+    func testTheManifestDecodesTheContractShape() throws {
         let json = """
             {"message_id": 9, "voice_id": null, "model": "eleven_flash_v2_5",
              "segments": [
-               {"index": 0, "chars": 120, "est_ms": 8000, "duration_ms": 7900, "ready": true, "provider": "openai", "fallback": true},
-               {"index": 1, "chars": 90, "est_ms": 6000, "duration_ms": null, "ready": false, "provider": "someone-new", "fallback": false}],
-             "usage": {"credits_used": 12, "daily_credit_cap": 5000, "allowance_limited": true, "allowance_credits": 800,
-                       "available_credits": 640, "resets_at": "2026-11-05T00:00:00+00:00",
+               {"index": 0, "chars": 120, "est_ms": 8000, "duration_ms": 7900, "ready": true, "provider": "elevenlabs"},
+               {"index": 1, "chars": 90, "est_ms": 6000, "duration_ms": null, "ready": false, "provider": null}],
+             "usage": {"credits_used": 12, "daily_credit_cap": 5000, "resets_at": "2026-11-05T00:00:00+00:00"}}
+            """
+        let manifest = try JSONDecoder().decode(PlaybackManifest.self, from: Data(json.utf8))
+        XCTAssertEqual(manifest.segments.map(\.index), [0, 1])
+        XCTAssertEqual(manifest.segments[0].durationMs, 7900)
+        XCTAssertEqual(manifest.usage.dailyCreditCap, 5000)
+    }
+
+    /// A manifest from before the backup voice went away still decodes: its extra keys are ignored.
+    func testAnOlderManifestWithBackupKeysStillDecodes() throws {
+        let json = """
+            {"message_id": 9, "voice_id": null, "model": "m",
+             "segments": [{"index": 0, "chars": 1, "est_ms": 1, "duration_ms": null, "ready": false,
+                           "provider": "openai", "fallback": true}],
+             "usage": {"credits_used": 1, "daily_credit_cap": null, "resets_at": "2026-11-05T00:00:00+00:00",
                        "backup": {"available": true, "budget_cents": 200, "spent_cents": 10}}}
             """
         let manifest = try JSONDecoder().decode(PlaybackManifest.self, from: Data(json.utf8))
-        XCTAssertEqual(manifest.segments.map(\.provider), [.openai, nil])
-        XCTAssertTrue(manifest.segments[0].fallback)
-        XCTAssertEqual(manifest.usage.dailyCreditCap, 5000, "the allowance keys an older server sends are ignored")
-        XCTAssertEqual(manifest.usage.backup?.budgetCents, 200)
+        XCTAssertEqual(manifest.segments.count, 1)
+        XCTAssertNil(manifest.usage.dailyCreditCap)
     }
 
     func testUsageDecodesWithoutTheRemovedKeysAndWithANullCeiling() throws {
         let json = #"{"credits_used": 0, "daily_credit_cap": null, "resets_at": "2026-11-05T00:00:00+00:00"}"#
         let usage = try JSONDecoder().decode(PlaybackUsage.self, from: Data(json.utf8))
         XCTAssertNil(usage.dailyCreditCap)
-        XCTAssertNil(usage.backup)
     }
 
     func testOnlyThePartFailuresAreRefusalsAboutOnePart() {
         func refusal(_ code: String?) -> PlaybackRefusal { PlaybackRefusal(status: 502, code: code, message: "m") }
-        XCTAssertTrue(refusal("playback_backup_failed").isPartFailure)
+        XCTAssertFalse(refusal("playback_backup_failed").isPartFailure, "no backup voice exists to fail")
         XCTAssertTrue(refusal("playback_synthesis_failed").isPartFailure)
         for other in ["playback_saving_credits", "playback_cap_reached", nil] {
             XCTAssertFalse(refusal(other).isPartFailure, "\(other ?? "no code") is a limit, not one part")
@@ -146,7 +156,16 @@ final class PlaybackModelTests: XCTestCase {
         let voices = try JSONDecoder().decode(PlaybackVoices.self, from: Data(PaiFixtures.playbackVoices.utf8))
         XCTAssertEqual(voices.elevenlabs.map(\.label), ["George (en)", "Oma Elisabeth (de)", "Sarah"])
         XCTAssertEqual(voices.defaultVoiceLabel, "George (en)")
-        XCTAssertEqual(voices.backup, ["marin", "cedar", "alloy"])
+    }
+
+    /// An older backend still lists the backup voices; the keys are ignored.
+    func testAVoiceListCarryingBackupKeysStillDecodes() throws {
+        let json = """
+            {"elevenlabs": [], "default_voice_id": "d", "builtin_voice_id": "b",
+             "backup": ["marin"], "backup_voice": "marin"}
+            """
+        let voices = try JSONDecoder().decode(PlaybackVoices.self, from: Data(json.utf8))
+        XCTAssertEqual(voices.defaultVoiceId, "d")
     }
 
     func testAVoiceValueStandsOnTheDefaultAListedVoiceOrACustomId() throws {

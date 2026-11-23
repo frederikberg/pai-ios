@@ -34,23 +34,21 @@ private actor FakeSource: PlaybackSource {
     var manifests: [Int: PlaybackManifest] = [:]
     var refusals: [Int: PlaybackRefusal] = [:]
     var segmentRefusals: [Int: PlaybackRefusal] = [:]
-    var providers: [Int: PlaybackProvider] = [:]
     private(set) var fetched: [String] = []
 
     func set(manifest: PlaybackManifest, for id: Int) { manifests[id] = manifest }
     func refuse(_ id: Int, _ refusal: PlaybackRefusal) { refusals[id] = refusal }
     func refuseSegment(_ index: Int, _ refusal: PlaybackRefusal) { segmentRefusals[index] = refusal }
-    func provider(_ index: Int, _ provider: PlaybackProvider) { providers[index] = provider }
 
     func getPlaybackManifest(sessionId: String, messageId: Int) async throws -> PlaybackManifest {
         if let refusal = refusals[messageId] { throw refusal }
         return manifests[messageId] ?? playbackManifest(messageId: messageId, estMs: [10_000])
     }
 
-    func fetchPlaybackSegment(sessionId: String, messageId: Int, index: Int) async throws -> PlaybackSegmentAudio {
+    func fetchPlaybackSegment(sessionId: String, messageId: Int, index: Int) async throws -> Data {
         fetched.append("\(messageId):\(index)")
         if let refusal = segmentRefusals[index] { throw refusal }
-        return PlaybackSegmentAudio(data: Data(repeating: UInt8(index), count: 4), provider: providers[index])
+        return Data(repeating: UInt8(index), count: 4)
     }
 }
 
@@ -162,7 +160,7 @@ final class PlaybackEngineTests: XCTestCase {
         rig.output.lengthMs = 5_000
         await rig.source.set(manifest: playbackManifest(messageId: 1, estMs: [5_000, 5_000, 5_000]), for: 1)
         await rig.source.refuseSegment(
-            1, PlaybackRefusal(status: 502, code: "playback_backup_failed", message: "The backup voice failed."))
+            1, PlaybackRefusal(status: 502, code: "playback_synthesis_failed", message: "The voice failed."))
         await rig.engine.start(sessionId: "s1", messageId: 1, title: "T")
 
         rig.output.onFinished?()
@@ -199,32 +197,6 @@ final class PlaybackEngineTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(100))
         XCTAssertEqual(rig.store.current?.status, .error)
         XCTAssertEqual(rig.store.current?.notice, "Saving credits.")
-    }
-
-    func testTheBackupVoiceIsAnnouncedOnlyWhenItFollowsAnotherVoice() async {
-        let rig = makeRig()
-        rig.output.lengthMs = 5_000
-        await rig.source.set(manifest: playbackManifest(messageId: 1, estMs: [5_000, 5_000, 5_000]), for: 1)
-        await rig.source.provider(0, .elevenlabs)
-        await rig.source.provider(1, .openai)
-        await rig.engine.start(sessionId: "s1", messageId: 1, title: "T")
-        XCTAssertNil(rig.store.current?.voiceNote, "the first voice heard is not a switch")
-
-        rig.output.onFinished?()
-        try? await Task.sleep(for: .milliseconds(100))
-        XCTAssertEqual(rig.store.current?.voiceNote, PlaybackEngine.backupVoiceNotice)
-
-        await rig.source.provider(2, .openai)
-        rig.output.onFinished?()
-        try? await Task.sleep(for: .milliseconds(100))
-        XCTAssertNil(rig.store.current?.voiceNote, "gone at the next segment")
-    }
-
-    func testBackupVoiceFirstIsNotAnnounced() async {
-        let rig = makeRig()
-        await rig.source.provider(0, .openai)
-        await rig.engine.start(sessionId: "s1", messageId: 1, title: "T")
-        XCTAssertNil(rig.store.current?.voiceNote)
     }
 
     func testPauseAndTheSystemPausingKeepTheReplyAndPlayResumesIt() async {

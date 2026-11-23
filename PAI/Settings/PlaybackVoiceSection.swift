@@ -2,7 +2,7 @@ import PAIKit
 import SwiftUI
 
 /// The voice and speed replies are read aloud with: the person's own, the same on every device.
-/// The owner's default voice, the backup voice and its budget are set on the web.
+/// The owner's default voice is set on the web.
 ///
 /// Hidden until the backend has answered with both the person's settings and the voice list
 /// (`SettingsScreen` loads the list), so it never shows a state the server does not have.

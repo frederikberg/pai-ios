@@ -1,11 +1,5 @@
 import Foundation
 
-/// The voice that made a segment's file.
-public enum PlaybackProvider: String, Codable, Sendable, Equatable {
-    case elevenlabs
-    case openai
-}
-
 /// One cut of a reply, synthesised on demand. `durationMs` is exact once `ready`, else `nil` and
 /// `estMs` is the estimate.
 public struct PlaybackSegment: Codable, Sendable, Equatable {
@@ -14,67 +8,30 @@ public struct PlaybackSegment: Codable, Sendable, Equatable {
     public let estMs: Int
     public let durationMs: Int?
     public let ready: Bool
-    /// Which voice made the stored file; `nil` until someone has asked for it.
-    public let provider: PlaybackProvider?
-    /// True when the backup voice made it.
-    public let fallback: Bool
 
     enum CodingKeys: String, CodingKey {
-        case index, chars, ready, provider, fallback
+        case index, chars, ready
         case estMs = "est_ms"
         case durationMs = "duration_ms"
     }
 
-    public init(
-        index: Int, chars: Int, estMs: Int, durationMs: Int? = nil, ready: Bool = false,
-        provider: PlaybackProvider? = nil, fallback: Bool = false
-    ) {
+    public init(index: Int, chars: Int, estMs: Int, durationMs: Int? = nil, ready: Bool = false) {
         self.index = index
         self.chars = chars
         self.estMs = estMs
         self.durationMs = durationMs
         self.ready = ready
-        self.provider = provider
-        self.fallback = fallback
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        index = try container.decode(Int.self, forKey: .index)
-        chars = try container.decode(Int.self, forKey: .chars)
-        estMs = try container.decode(Int.self, forKey: .estMs)
-        durationMs = try container.decodeIfPresent(Int.self, forKey: .durationMs)
-        ready = try container.decode(Bool.self, forKey: .ready)
-        // A voice this client does not know reads as none rather than failing the manifest.
-        provider = (try? container.decodeIfPresent(String.self, forKey: .provider)).flatMap(PlaybackProvider.init)
-        fallback = try container.decodeIfPresent(Bool.self, forKey: .fallback) ?? false
-    }
-}
-
-/// The backup voice's month for this person, in euro cents. `available` is false when it is off or
-/// has no key.
-public struct PlaybackBackupUsage: Codable, Sendable, Equatable {
-    public let available: Bool
-    public let budgetCents: Int
-    public let spentCents: Int
-
-    enum CodingKeys: String, CodingKey {
-        case available
-        case budgetCents = "budget_cents"
-        case spentCents = "spent_cents"
     }
 }
 
 /// This person's ElevenLabs credits today against their daily ceiling (`nil` until the month has
-/// been read once), and their backup voice month. Keys beyond these are ignored.
+/// been read once). Keys beyond these are ignored.
 public struct PlaybackUsage: Codable, Sendable, Equatable {
     public let creditsUsed: Int
     public let dailyCreditCap: Int?
     public let resetsAt: String
-    public let backup: PlaybackBackupUsage?
 
     enum CodingKeys: String, CodingKey {
-        case backup
         case creditsUsed = "credits_used"
         case dailyCreditCap = "daily_credit_cap"
         case resetsAt = "resets_at"
@@ -116,7 +73,7 @@ public struct PlaybackRefusal: Error, Sendable, Equatable {
 
     /// Refusals about one part alone (its voice failed on that text): the player skips the part and
     /// plays on. Every other refusal is a limit that would refuse the next part too, so it stops.
-    public static let partFailureCodes: Set<String> = ["playback_backup_failed", "playback_synthesis_failed"]
+    public static let partFailureCodes: Set<String> = ["playback_synthesis_failed"]
 
     public var isPartFailure: Bool { code.map(Self.partFailureCodes.contains) ?? false }
 
@@ -162,18 +119,6 @@ public struct PlaybackRefusal: Error, Sendable, Equatable {
     }
 }
 
-/// One segment's audio and the voice that made it (the `X-Playback-Provider` header, the exact
-/// moment a switch to the backup voice happens).
-public struct PlaybackSegmentAudio: Sendable, Equatable {
-    public let data: Data
-    public let provider: PlaybackProvider?
-
-    public init(data: Data, provider: PlaybackProvider?) {
-        self.data = data
-        self.provider = provider
-    }
-}
-
 /// One voice of the ElevenLabs account, as `GET /api/playback/voices` lists it.
 public struct PlaybackVoiceChoice: Codable, Sendable, Equatable, Identifiable {
     public let voiceId: String
@@ -207,25 +152,17 @@ public struct PlaybackVoices: Codable, Sendable, Equatable {
     /// The voice of everyone who has not picked their own.
     public let defaultVoiceId: String
     public let builtinVoiceId: String
-    public let backup: [String]
-    public let backupVoice: String
 
     enum CodingKeys: String, CodingKey {
-        case elevenlabs, backup
+        case elevenlabs
         case defaultVoiceId = "default_voice_id"
         case builtinVoiceId = "builtin_voice_id"
-        case backupVoice = "backup_voice"
     }
 
-    public init(
-        elevenlabs: [PlaybackVoiceChoice], defaultVoiceId: String, builtinVoiceId: String, backup: [String],
-        backupVoice: String
-    ) {
+    public init(elevenlabs: [PlaybackVoiceChoice], defaultVoiceId: String, builtinVoiceId: String) {
         self.elevenlabs = elevenlabs
         self.defaultVoiceId = defaultVoiceId
         self.builtinVoiceId = builtinVoiceId
-        self.backup = backup
-        self.backupVoice = backupVoice
     }
 
     /// What the default voice is called: its name from the list, else its id.

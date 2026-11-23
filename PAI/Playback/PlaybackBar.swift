@@ -111,12 +111,6 @@ struct PlaybackBar: View {
                 .font(PaiTypography.caption.font)
                 .foregroundStyle(PaiPalette.Semantic.warningText)
                 .lineLimit(2)
-        } else if let voiceNote = current.voiceNote {
-            Text(voiceNote)
-                .font(PaiTypography.caption.font)
-                .foregroundStyle(PaiPalette.Semantic.textSecondary)
-                .lineLimit(2)
-                .accessibilityIdentifier("playback-voice-note")
         } else {
             Text(
                 current.status == .loading && current.durationMs == 0

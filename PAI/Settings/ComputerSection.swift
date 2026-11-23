@@ -1,11 +1,11 @@
 import PAIKit
 import SwiftUI
 
-/// What Computer speaks with and what it acts through.
+/// What Computer acts through.
 ///
-/// Every value here is one backend setting read by every transport — the phone, the browser and
-/// a plain phone call all get whatever is set here, because the backend is the only thing that
-/// speaks. There is deliberately no per-client override.
+/// Every value here is one backend setting read by every client — the phone, the browser and
+/// the watch all get whatever is set here, because the backend is the only thing that speaks.
+/// There is deliberately no per-client override.
 struct ComputerSection: View {
     let settings: SettingsStore
 
@@ -28,23 +28,19 @@ struct ComputerSection: View {
     }
 }
 
-/// The synced voice settings, in four groups — Computer's engine choice, then one per engine the
-/// backend drives, since each takes different knobs: Computer (OpenAI Realtime), call mode (ElevenLabs text-to-speech reading a
-/// session's replies during a call), and dictation (ElevenLabs Scribe). One Save for all three: they are one row on the backend.
+/// The synced voice settings, in three groups: Computer's model and turn taking, call mode
+/// (ElevenLabs text-to-speech reading a session's replies during a call) and dictation
+/// (ElevenLabs Scribe). One Save for all of them: they are one row on the backend.
 struct SpokenVoiceSection: View {
     let store: SpokenVoiceSettingsStore
 
-    private static let openAIVoicesURL = URL(
-        string: "https://developers.openai.com/api/docs/guides/realtime-conversations#voice-options")!
-    private static let openAIListenURL = URL(string: "https://openai.fm")!
     private static let elevenLabsVoicesURL = URL(string: "https://elevenlabs.io/app/voice-library")!
 
     var body: some View {
         if store.draft != nil {
             if let choices = store.loaded?.computerChoices {
-                engineGroup(choices)
+                computerGroup(choices)
             }
-            computerGroup
             callGroup
             dictationGroup
             Section {
@@ -75,14 +71,9 @@ struct SpokenVoiceSection: View {
 
     /// Every option and default comes from the backend's `computer_choices`; an empty selection
     /// is "the default" and goes out as `null`.
-    private func engineGroup(_ choices: ComputerChoices) -> some View {
+    private func computerGroup(_ choices: ComputerChoices) -> some View {
         let defaults = choices.defaults
         return Section {
-            Picker("Engine", selection: field(\.computerEngine)) {
-                Text("Default (\(Self.engineName(defaults.computerEngine)))").tag("")
-                ForEach(choices.engines, id: \.self) { Text(Self.engineName($0)).tag($0) }
-            }
-            .accessibilityIdentifier("computer-engine")
             Picker("Claude model", selection: modelBinding(choices)) {
                 Text("Default (\(defaults.computerClaudeModel))").tag("")
                 ForEach(choices.modelIds, id: \.self) { Text($0).tag($0) }
@@ -117,19 +108,11 @@ struct SpokenVoiceSection: View {
                 }
             }
         } header: {
-            Text("Computer — engine")
+            Text("Computer")
         } footer: {
             Text(
-                "What listens, thinks and speaks in a Computer call; the engine, model and effort apply from the next call, the turn taking from the next turn. The model and effort only matter on the Claude engine. A tunable name the server does not know is refused when you save."
+                "The model and effort apply from the next call, the turn taking from the next turn. A tunable name the server does not know is refused when you save."
             )
-        }
-    }
-
-    private static func engineName(_ engine: String) -> String {
-        switch engine {
-        case "openai_realtime": "OpenAI Realtime"
-        case "claude": "Claude"
-        default: engine
         }
     }
 
@@ -139,33 +122,6 @@ struct SpokenVoiceSection: View {
             get: { store.draft?.computerClaudeModel ?? "" },
             set: { store.draft?.chooseModel($0, choices: choices) }
         )
-    }
-
-    private var computerGroup: some View {
-        Section {
-            TextField("OpenAI voice name, e.g. cedar", text: field(\.computerVoice))
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .accessibilityIdentifier("computer-voice")
-            Link("Voice list", destination: Self.openAIVoicesURL)
-            Link("Listen to the voices", destination: Self.openAIListenURL)
-            LabeledContent("Speed") {
-                TextField("default", text: field(\.computerSpeed))
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .accessibilityIdentifier("computer-speed")
-            }
-            if !store.isComputerSpeedValid {
-                invalid("Speed must be empty or a number between \(bounds(computerSpeedRange)).")
-            }
-            TextField("Voice instruction — how Computer should sound", text: field(\.computerDelivery), axis: .vertical)
-                .lineLimit(2...6)
-                .accessibilityIdentifier("computer-delivery")
-        } header: {
-            Text("Computer — OpenAI Realtime")
-        } footer: {
-            Text("The voice cannot change once Computer has spoken in a call; a change applies from the next call.")
-        }
     }
 
     private var callGroup: some View {
@@ -185,10 +141,10 @@ struct SpokenVoiceSection: View {
                 invalid("Speed must be a number between \(bounds(callSpeedRange)).")
             }
         } header: {
-            Text("Call mode — ElevenLabs")
+            Text("Call voice")
         } footer: {
             Text(
-                "Reads a session's replies to you during a call. Empty is the built-in voice. Replies read aloud outside a call use the playback voices below. ElevenLabs takes no style text, only a voice and a speed."
+                "Reads a session's replies to you during a call. Empty is the built-in voice. Replies read aloud outside a call use the playback voices below."
             )
         }
     }
@@ -225,7 +181,7 @@ struct SpokenVoiceSection: View {
                 }
             }
         } header: {
-            Text("Dictation — ElevenLabs Scribe")
+            Text("Dictation")
         } footer: {
             Text(
                 "Applies to every dictation: the composer, a call, the laptop, and re-transcribing a recording. "
