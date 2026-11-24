@@ -125,6 +125,10 @@ final class AppEnvironment {
         /// Which iPhone reports its location for the Weather app, and what its fixes become.
         /// App-wide because a background relaunch delivers a fix with no screen open.
         let location: LocationReportStore
+        /// The Me diary, composer draft and the outbox of entries not yet sent. App-wide because
+        /// the launcher's tile and the Me screens write into the same draft, and a waiting entry
+        /// must go out whichever screen is open.
+        let selfReports: SelfReportStore
     }
 
     nonisolated private static let backendURLKey = "backendURL"
@@ -311,6 +315,7 @@ final class AppEnvironment {
                 for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
             ))?.appendingPathComponent("Outbox", isDirectory: true) ?? FileManager.default.temporaryDirectory
         let outbox = OutboxStore(api: client, storage: FileOutboxStorage(rootURL: outboxRoot))
+        let selfReports = SelfReportStore(api: client, storage: defaults)
         let notesStore = Self.makeNotesStore(client: client, budgetBytes: settingsStore.notesCacheBudgetBytes)
         let sessions = SessionListStore(api: client)
         // What happens the moment the server has the row lives in `installHandover` rather than
@@ -325,6 +330,7 @@ final class AppEnvironment {
         // loop.
         pathObserver.onRegained = {
             Task { @MainActor [weak outbox] in outbox?.retryNow() }
+            Task { @MainActor [weak selfReports] in await selfReports?.flush() }
             Task { @MainActor [weak notesStore] in
                 notesStore?.setPathSatisfied(Self.pathSatisfied(true))
                 await notesStore?.resumeSync()
@@ -420,7 +426,8 @@ final class AppEnvironment {
                 api: client, userSettings: settingsStore.userSettings, cache: defaults,
                 placeName: { latitude, longitude in
                     await LocationReporter.placeName(latitude: latitude, longitude: longitude)
-                })
+                }),
+            selfReports: selfReports
         )
         PlaybackController.shared.configure(
             api: client, transcript: transcript, sessions: sessions, toasts: toasts,
@@ -441,6 +448,8 @@ final class AppEnvironment {
         // not in the store's initializer because this runs only for the environment that is
         // installed in the view tree.
         connection.outbox.resume()
+        // Diary entries written offline go out the same way.
+        Task { [selfReports = connection.selfReports] in await selfReports.flush() }
         // Edits left on disk by the last run go out too; not awaited, since they need nothing
         // below and nothing below needs them.
         Task { [notes = connection.notes] in await notes.resumeSync() }

@@ -70,7 +70,9 @@ final class SelfReportStoreTests: XCTestCase {
         let api = FakeSelfReportApi()
         await api.setReject(PaiError.detail("bad", statusCode: 422))
         let s = store(api, SettingsInMemoryKeyValueStore())
-        s.updateDraft { $0.text = "words"; $0.isPrivate = true }
+        s.updateDraft {
+            $0.text = "words"; $0.isPrivate = true
+        }
         s.send()
         await s.flush()
         XCTAssertNotNil(s.items.first?.refusal)

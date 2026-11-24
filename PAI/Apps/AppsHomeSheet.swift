@@ -2,7 +2,7 @@ import PAIKit
 import SwiftUI
 
 /// Where the top bar's "Apps" button leads — a small picker over Quick Actions, Arc, Notes, the
-/// Scheduler, the Alarm, the Weather, the Canteen, Camera Import, Usage, Decisions and the Browser, each shown to those whose
+/// Scheduler, the Alarm, the Weather, Me, the Canteen, Camera Import, Usage, Decisions and the Browser, each shown to those whose
 /// capabilities admit it.
 /// Mirrors the web's own `AppsFlyout`/`AppsHome` pairing (a modal listing every registered app),
 /// minus Memory and Notifications: PAI Cloud's Memory app is notes plus projects/phases/search,
@@ -28,6 +28,12 @@ struct AppsHomeSheet: View {
                 .accessibilityIdentifier("apps-open-quick-actions")
                 // Each row follows the capability its routes need: a guest's request for an
                 // owner-only one would be refused.
+                if capabilities.canOpenMe {
+                    Button(action: openMe) {
+                        Label("Me", systemImage: "leaf.fill")
+                    }
+                    .accessibilityIdentifier("apps-open-me")
+                }
                 if capabilities.canOpenArc {
                     Button(action: openArc) {
                         Label("Arc", systemImage: "shippingbox")
@@ -117,6 +123,11 @@ struct AppsHomeSheet: View {
     // tap the destination a second time.
     private func openQuickActions() {
         environment.router.push(.quickActions)
+        dismiss()
+    }
+
+    private func openMe() {
+        environment.router.push(.me)
         dismiss()
     }
 

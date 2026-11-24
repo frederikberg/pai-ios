@@ -16,9 +16,9 @@ private struct QuickActionShortcut: Equatable {
 
 /// Where the hardware Action Button lands: five rows, reachable without the last being cut off —
 /// the layout the user actually reaches for, not a uniform grid that happens to hold every tile at
-/// one size. The row widths differ on purpose: Computer at two thirds beside the camera, two
-/// three-up session rows, a three-up row of Find note, New note and the MailVerdict assistant, and
-/// a three-up row of shortcuts, each of which the user configures.
+/// one size. Every row is three tiles wide: Computer, Me and the camera; two session rows; Find
+/// note, New note and the MailVerdict assistant; and three shortcuts, each of which the user
+/// configures.
 ///
 /// The button is pressed without looking — walking, in a coat pocket, mid-sentence — so the whole
 /// screen is one glance and one thumb. That is what sets the shape: large targets rather than a
@@ -34,6 +34,7 @@ struct QuickActionsScreen: View {
     @Environment(NotesStore.self) private var notes
     @Environment(DraftStore.self) private var drafts
     @Environment(ToastCenter.self) private var toasts
+    @Environment(SelfReportStore.self) private var selfReports
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -48,8 +49,8 @@ struct QuickActionsScreen: View {
     /// Big enough to hit without looking, on the smallest phone this runs on.
     private let minRowHeight: CGFloat = 88
     private let maxRowHeight: CGFloat = 104
-    /// The Computer tile is wide, so it needs less height than a narrow tile to carry the same
-    /// label — and it is the one tile whose position is never in doubt.
+    /// The top row needs less height than the rows below it — and it holds the tiles whose
+    /// position is never in doubt.
     private let computerHeightFactor: CGFloat = 0.8
 
     @AppStorage("quickActionShortcut1Name") private var shortcut1Name = ""
@@ -59,6 +60,7 @@ struct QuickActionsScreen: View {
     @AppStorage("quickActionShortcut3Name") private var shortcut3Name = ""
     @AppStorage("quickActionShortcut3URL") private var shortcut3URLString = ""
     @State private var editingShortcutSlot: Int?
+    @State private var writingEntry = false
 
     private var shortcut1: QuickActionShortcut {
         QuickActionShortcut(name: shortcut1Name, urlString: shortcut1URLString)
@@ -100,7 +102,7 @@ struct QuickActionsScreen: View {
         // against scrolls a few points rather than hard-clipping the bottom row again.
         GeometryReader { proxy in
             ScrollView {
-                grid(rowHeight: rowHeight(in: proxy.size.height), width: proxy.size.width)
+                grid(rowHeight: rowHeight(in: proxy.size.height))
                     .frame(minHeight: proxy.size.height, alignment: .top)
             }
         }
@@ -108,6 +110,7 @@ struct QuickActionsScreen: View {
         .navigationTitle("Quick Actions")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("quick-actions-screen")
+        .sheet(isPresented: $writingEntry) { MeComposerSheet(mode: .new) }
         .sheet(item: $editingShortcutSlot.map { slot in EditingSlot(slot: slot) }) { editing in
             ShortcutEditSheet(
                 name: shortcutNameBinding(slot: editing.slot),
@@ -116,14 +119,17 @@ struct QuickActionsScreen: View {
         }
     }
 
-    private func grid(rowHeight: CGFloat, width: CGFloat) -> some View {
-        // Two of the three columns below it, so the camera sits right above the Ultra-fast column
-        // it starts a session in.
-        let column = (width - padding * 2 - spacing * 2) / 3
-        return VStack(spacing: spacing) {
+    private func grid(rowHeight: CGFloat) -> some View {
+        VStack(spacing: spacing) {
             HStack(spacing: spacing) {
-                computerTile(height: rowHeight * computerHeightFactor)
-                    .frame(width: column * 2 + spacing)
+                tile(
+                    title: "Computer", subtitle: "Talk", systemImage: "waveform.circle.fill",
+                    tint: PaiPalette.primary500, height: rowHeight * computerHeightFactor,
+                    identifier: "quick-computer"
+                ) {
+                    ComputerCallEntry.open(environment)
+                }
+                meTile(height: rowHeight * computerHeightFactor)
                 tile(
                     title: "Camera", subtitle: "Ultra-fast", systemImage: "camera.fill",
                     tint: PaiPalette.green500, height: rowHeight * computerHeightFactor,
@@ -210,37 +216,34 @@ struct QuickActionsScreen: View {
         return min(maxRowHeight, max(minRowHeight, divided))
     }
 
-    /// The always-reachable voice agent — the widest tile, since it is the one meant to be found
-    /// without even glancing at the grid's rhythm.
-    private func computerTile(height: CGFloat) -> some View {
-        Button {
-            ComputerCallEntry.open(environment)
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "waveform.circle.fill")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(PaiPalette.primary500)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Computer")
-                        .font(PaiTypography.panelTitle.font)
-                        .foregroundStyle(PaiPalette.Semantic.textPrimary)
-                    Text("Talk to the switchboard")
-                        .font(PaiTypography.caption.font)
-                        .foregroundStyle(PaiPalette.Semantic.textMuted)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
+    /// Writes into the Me diary: a tap opens the composer with the keyboard up, a long press opens
+    /// the Me app. A small dot marks a draft kept from last time. Guests have no diary, so the
+    /// slot stays empty for them.
+    @ViewBuilder
+    private func meTile(height: CGFloat) -> some View {
+        if environment.connection?.me.capabilities.canOpenMe == true {
+            tile(
+                title: "Me", subtitle: "Write", systemImage: "leaf.fill", tint: PaiPalette.amber500,
+                height: height, identifier: "quick-me"
+            ) {
+                writingEntry = true
             }
-            .frame(maxWidth: .infinity, minHeight: height, maxHeight: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(PaiPalette.Semantic.raisedSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .contentShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(alignment: .topTrailing) {
+                if !selfReports.draft.isEmpty {
+                    Circle()
+                        .fill(PaiPalette.amber500)
+                        .frame(width: 6, height: 6)
+                        .padding(12)
+                        .accessibilityLabel("Draft kept")
+                        .accessibilityIdentifier("quick-me-draft-dot")
+                }
+            }
+            .contextMenu {
+                Button("Open Me", systemImage: "leaf.fill") { environment.router.push(.me) }
+            }
+        } else {
+            Color.clear.frame(maxWidth: .infinity, minHeight: height)
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("quick-computer")
-        .accessibilityLabel("Computer")
     }
 
     private func tile(

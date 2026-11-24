@@ -170,6 +170,7 @@ struct RootView: View {
                 .environment(connection.settings)
                 .environment(connection.drafts)
                 .environment(connection.me)
+                .environment(connection.selfReports)
                 .environment(connection.toasts)
                 .environment(connection.secretGrants)
                 .environment(connection.notes)
@@ -383,6 +384,8 @@ struct RootView: View {
             AlarmView()
         case .weather:
             WeatherView()
+        case .me:
+            MeView()
         case .cameraImport:
             CameraImportView()
         case .usage:

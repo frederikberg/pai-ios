@@ -84,6 +84,12 @@ The Weather app (Apps, or `pai://weather`) answers two questions in two rows: "N
 
 Where you are comes from one iPhone you choose: Settings, Location, "Use this iPhone for weather". That phone asks for location access (while using the app first, then Always), reports through significant-location-change monitoring (low power, moves of about 500 m) and takes one fix each time the app comes to the front, naming the place on the device. Only the latest location is kept on the PAI server. The two purpose strings live in `Config/Info.plist`; the `Mac` workflow asserts both survive into the built app.
 
+## Me
+
+Me is a diary and a view of the day for the signed-in owner. The launcher's middle tile, "Me", opens a composer with the keyboard up: a face (heavy, okay, good), a few words, or both, an optional earlier time and a Private switch. Send always succeeds on the phone: the entry goes to a small outbox under its own id and is delivered when the network is there, so a retry never makes a second row. The draft survives closing the sheet.
+
+The Me screen (Apps, owner only) has three views under a segmented control: Today (what the day looks like so far, the week, the newest entries), 14 days (one column per day and a row per kind of data; rows whose source is not connected are not drawn) and Diary (entries grouped by day, filters, search over the loaded pages, edit, make private, delete with undo). A blank cell means nothing was recorded; there are no scores, streaks or averages.
+
 ## Camera Import
 
 Camera Import (Apps) copies the photos and videos of a camera plugged in by USB-C into the photo library, so whatever backs up the library (the Immich app, iCloud) takes them from there. "Import from Camera" reads the folder picked last time; when there is none, or it no longer opens or lists nothing (a folder grant onto an external drive may not survive unplugging it), the folder picker opens instead. Any folder of the camera works, the volume root included: everything below it is read. "Choose Folder" picks another one. A camera with several USB modes has to be in its mass-storage one to show up in the picker (Insta360 Ace Pro: USB Mode → U-Disk Mode, where Files lists it as "Untitled" with the media in `DCIM/Camera01`).

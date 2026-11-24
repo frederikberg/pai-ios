@@ -21,7 +21,7 @@ SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscre
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
 watch-keys alarm-facts weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke
-camera-import-result"
+camera-import-result me-screens"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
@@ -336,6 +336,26 @@ if want weather-states; then
   weather_state noLocation unknown unknown
   weather_state sourceUnavailable unknown unknown
   weather_state forecastOnly unlikely rain
+fi
+
+if want me-screens; then
+  # The three Me views, the composer over a seeded draft, and the two states with less data.
+  me_screen() {
+    name=$1 tab=$2 fact=$3
+    shift 3
+    screenshot "me-$name" -PaiFixtureRoute me -PaiFixtureMeTab "$tab" "$@"
+    fact_assert "me-$name" meTab "$tab"
+    [ -z "$fact" ] || fact_assert "me-$name" "${fact%%=*}" "${fact#*=}"
+    xcrun simctl terminate "$udid" "$bundle" || true
+  }
+  me_screen today today meOverviewDays=14
+  me_screen days days meOverviewDays=14
+  me_screen diary diary meDiaryRows=7
+  me_screen no-garmin today meOverviewDays=14 -PaiFixtureMe noGarmin
+  me_screen no-garmin-days days "" -PaiFixtureMe noGarmin
+  me_screen empty-diary diary meDiaryRows=0 -PaiFixtureMe empty
+  # Last: it leaves the seeded draft on the simulator, which the screens above must not show.
+  me_screen composer today "" -PaiFixtureMeComposer
 fi
 
 if want camera-import-result; then
