@@ -34,7 +34,8 @@ extension PaiFixtures {
             isPrivate: false, source: "ios", activity: ("bouldering", "bouldering", "🧗", "after"), session: nil),
         MeEntrySpec(
             id: "00000000-0000-4000-8000-000000000003", daysAgo: 2, hour: 17, minute: 30,
-            text: "Up on the ridge, cold and clear, nobody around. Want to remember this light. More Sundays like this.",
+            text:
+                "Up on the ridge, cold and clear, nobody around. Want to remember this light. More Sundays like this.",
             feel: "good", isPrivate: false, source: "computer", activity: ("hiking", "a hike", "🥾", "during"),
             session: nil),
         MeEntrySpec(
@@ -43,7 +44,8 @@ extension PaiFixtures {
             isPrivate: true, source: "watch", activity: nil, session: nil),
         MeEntrySpec(
             id: "00000000-0000-4000-8000-000000000005", daysAgo: 5, hour: 16, minute: 20,
-            text: "Too many things open at once and I haven't even started the one that matters. Closing the laptop and going for a ride.",
+            text:
+                "Too many things open at once and I haven't even started the one that matters. Closing the laptop and going for a ride.",
             feel: "heavy", isPrivate: false, source: "session", activity: nil, session: "Fleet rollout session"),
         MeEntrySpec(
             id: "00000000-0000-4000-8000-000000000006", daysAgo: 5, hour: 19, minute: 5, text: nil, feel: "good",
@@ -147,8 +149,10 @@ extension PaiFixtures {
                     guard let at = $0["at"] as? String, let date = IsoTimestamp.date(from: at) else { return false }
                     return presenter.dayKey(date) == key
                 }.map { entry in
-                    ["id": entry["id"] ?? "", "at": entry["at"] ?? "", "feel": entry["feel"] ?? NSNull(),
-                        "private": entry["private"] ?? false] as [String: Any]
+                    [
+                        "id": entry["id"] ?? "", "at": entry["at"] ?? "", "feel": entry["feel"] ?? NSNull(),
+                        "private": entry["private"] ?? false,
+                    ] as [String: Any]
                 }
             day["held"] =
                 index % 3 == 0
@@ -179,7 +183,10 @@ extension PaiFixtures {
             "generated_at": AlarmTime.wireString(now), "timezone": "Europe/Berlin",
             "today": presenter.dayKey(now),
             "sources": [
-                "garmin": ["status": garmin ? "ok" : "not_configured", "as_of": garmin ? AlarmTime.wireString(now) as Any : NSNull()],
+                "garmin": [
+                    "status": garmin ? "ok" : "not_configured",
+                    "as_of": garmin ? AlarmTime.wireString(now) as Any : NSNull(),
+                ],
                 "plan": ["status": "ok"],
             ],
             "days": meDays(state: state, now: now, end: end),
@@ -212,7 +219,8 @@ extension PaiFixtures {
                     "project": entry["project"] ?? "",
                     "phases": [
                         [
-                            "name": entry["label"] ?? "", "summary": "Worked through the open questions and wrote them down.",
+                            "name": entry["label"] ?? "",
+                            "summary": "Worked through the open questions and wrote them down.",
                             "minutes": entry["minutes"] ?? 0, "summary_stale": false,
                         ]
                     ],

@@ -334,7 +334,9 @@ public struct MeHeldPhase: Decodable, Sendable, Equatable {
 
 /// What a day held at work: names and durations in the overview (`label`, `minutes`), the phases
 /// with their summaries in the day route.
-public struct MeHeld: Decodable, Sendable, Equatable {
+public struct MeHeld: Decodable, Sendable, Equatable, Identifiable {
+    public var id: String { project }
+
     public let project: String
     public let label: String?
     public let minutes: Int?
