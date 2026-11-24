@@ -4,6 +4,16 @@ import Foundation
 /// choices are as much a part of it as an existing session's key is a part of that session.
 public enum DraftKey {
     public static let newSession = "new"
+
+    private static let localPrefix = "local:"
+
+    /// A key for a composer that is not a session's: its text lives on this phone only, is saved and
+    /// restored like any other draft, and is never sent to the draft routes (which refuse such a
+    /// key) nor read back from them. The point is privacy as much as protocol: a diary entry's
+    /// words must not be uploaded as a session draft.
+    public static func local(_ name: String) -> String { localPrefix + name }
+
+    public static func isLocal(_ key: String) -> Bool { key.hasPrefix(localPrefix) }
 }
 
 /// Composer text that has not been sent, plus the launch choices that only mean anything for

@@ -30,10 +30,32 @@ private actor FakeSelfReportApi: SelfReportApiClient {
     func restoreSelfReport(id: String) async throws {}
 }
 
+/// The diary's draft must never need the network: every call fails the test that makes it.
+private struct NoDraftRoutes: DraftsFetching {
+    func getDrafts() async throws -> [Draft] { [] }
+    func putDraft(
+        key: String, text: String, deviceId: String?, sessionType: String?, workingDir: String?, model: String?,
+        thinking: String?, noMemory: Bool?
+    ) async throws -> DraftWriteResult {
+        XCTFail("a diary draft reached putDraft")
+        throw PaiError.transport("unexpected")
+    }
+    func deleteDraft(key: String) async throws -> PaiDraftDeleteResult {
+        XCTFail("a diary draft reached deleteDraft")
+        throw PaiError.transport("unexpected")
+    }
+    func addDraftAttachment(key: String, file: PaiFileUpload, id: String) async throws -> DraftAttachment {
+        throw PaiError.transport("unexpected")
+    }
+    func removeDraftAttachment(key: String, attachmentId: String) async throws {}
+}
+
 @MainActor
 final class SelfReportStoreTests: XCTestCase {
     private func store(_ api: FakeSelfReportApi, _ storage: SettingsInMemoryKeyValueStore) -> SelfReportStore {
-        SelfReportStore(api: api, storage: storage, makeId: { "id-1" })
+        // The words live in the draft store, which shares the storage like the app's does.
+        let drafts = DraftStore(api: NoDraftRoutes(), localPersistence: storage)
+        return SelfReportStore(api: api, storage: storage, drafts: drafts, makeId: { "id-1" })
     }
 
     func testAnEntryWrittenOfflineSurvivesARelaunchAndIsSentUnderTheSameId() async {
@@ -81,5 +103,27 @@ final class SelfReportStoreTests: XCTestCase {
         XCTAssertEqual(s.draft.text, "words")
         XCTAssertTrue(s.draft.isPrivate)
         XCTAssertTrue(s.items.isEmpty)
+    }
+
+    func testTheWordsLiveInTheDraftStoreAndTheRestInTheStoreAcrossARelaunch() async {
+        let api = FakeSelfReportApi()
+        let storage = SettingsInMemoryKeyValueStore()
+        let first = store(api, storage)
+        first.updateDraft {
+            $0.text = "typed"
+            $0.feel = "good"
+            $0.isPrivate = true
+        }
+        let second = store(api, storage)
+        XCTAssertEqual(second.draft, SelfReportDraft(text: "typed", feel: "good", isPrivate: true))
+
+        // Text written the way a dictation take writes it shows up as the draft's words.
+        let drafts = DraftStore(api: NoDraftRoutes(), localPersistence: storage)
+        drafts.setDraftText(key: SelfReportStore.dictationKey, text: "stt-rec: spoken")
+        let third = SelfReportStore(api: api, storage: storage, drafts: drafts)
+        XCTAssertEqual(third.draft.text, "stt-rec: spoken")
+        XCTAssertTrue(third.send())
+        XCTAssertTrue(third.draft.isEmpty)
+        XCTAssertEqual(drafts.draft(for: SelfReportStore.dictationKey).text, "")
     }
 }

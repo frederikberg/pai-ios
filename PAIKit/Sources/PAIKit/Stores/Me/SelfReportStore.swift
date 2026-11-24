@@ -86,17 +86,22 @@ public struct MeDiaryItem: Equatable, Sendable, Identifiable {
 /// and the outbox that makes Send succeed locally whether or not the network is there.
 ///
 /// Send hands the entry to the outbox and clears the draft at once; the POST follows when it can.
-/// Both the draft and the outbox live in `storage`, so a relaunch finds them as they were.
+///
+/// The draft's words have one home, the ``DraftStore`` entry under ``dictationKey`` (a device-only
+/// key: dictation writes into it like into a session's draft, and it is never sent to the draft
+/// routes). The face, Private and the time live in `storage`, beside the outbox, so a relaunch
+/// finds everything as it was.
 @MainActor
 @Observable
 public final class SelfReportStore {
     public static let draftKey = "me-composer"
     public static let outboxKey = "me-outbox"
+    /// The draft key the diary composer's text and its dictation use.
+    public static let dictationKey = DraftKey.local("me-composer")
     public static let pageSize = 50
 
     public private(set) var entries: [SelfReport] = []
     public private(set) var pending: [PendingSelfReport] = []
-    public private(set) var draft = SelfReportDraft()
     public private(set) var isLoading = false
     private var nextBefore: String?
     public var hasMore: Bool { nextBefore != nil }
@@ -109,40 +114,57 @@ public final class SelfReportStore {
 
     private let api: SelfReportApiClient
     private let storage: SettingsKeyValueStore
+    private let drafts: DraftStore
+    /// What the draft holds besides its words.
+    private var details = DraftDetails() {
+        didSet { storage.setValue(details == DraftDetails() ? nil : details, forKey: Self.draftKey) }
+    }
     private let now: @Sendable () -> Date
     private let makeId: @Sendable () -> String
     private var isFlushing = false
     private var loadedOnce = false
 
     public init(
-        api: SelfReportApiClient, storage: SettingsKeyValueStore, now: @escaping @Sendable () -> Date = { Date() },
+        api: SelfReportApiClient, storage: SettingsKeyValueStore, drafts: DraftStore,
+        now: @escaping @Sendable () -> Date = { Date() },
         makeId: @escaping @Sendable () -> String = { UUID().uuidString.lowercased() }
     ) {
         self.api = api
         self.storage = storage
+        self.drafts = drafts
         self.now = now
         self.makeId = makeId
-        draft = storage.value(forKey: Self.draftKey) ?? SelfReportDraft()
+        details = storage.value(forKey: Self.draftKey) ?? DraftDetails()
         pending = storage.value(forKey: Self.outboxKey) ?? []
     }
 
     // MARK: Draft
 
+    private struct DraftDetails: Codable, Equatable {
+        var feel: String?
+        var isPrivate = false
+        var at: Date?
+    }
+
+    /// The draft as the composer shows it: the words from the draft store, the rest from here.
+    public var draft: SelfReportDraft {
+        SelfReportDraft(
+            text: drafts.draft(for: Self.dictationKey).text, feel: details.feel, isPrivate: details.isPrivate,
+            at: details.at)
+    }
+
+    /// Applies `change` to the draft; a changed text goes to the draft store, the rest stays here.
     public func updateDraft(_ change: (inout SelfReportDraft) -> Void) {
-        var next = draft
+        let before = draft
+        var next = before
         change(&next)
-        guard next != draft else { return }
-        draft = next
-        persistDraft()
+        if next.text != before.text { drafts.setDraftText(key: Self.dictationKey, text: next.text) }
+        details = DraftDetails(feel: next.feel, isPrivate: next.isPrivate, at: next.at)
     }
 
     public func clearDraft() {
-        draft = SelfReportDraft()
-        persistDraft()
-    }
-
-    private func persistDraft() {
-        storage.setValue(draft.isEmpty ? nil : draft, forKey: Self.draftKey)
+        details = DraftDetails()
+        drafts.clearDraft(key: Self.dictationKey)
     }
 
     // MARK: Sending

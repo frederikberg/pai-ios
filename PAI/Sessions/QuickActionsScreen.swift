@@ -229,7 +229,15 @@ struct QuickActionsScreen: View {
                 writingEntry = true
             }
             .overlay(alignment: .topTrailing) {
-                if !selfReports.draft.isEmpty {
+                // A take outlives the sheet, and nothing else on this screen shows one running.
+                if environment.connection?.voice.isRecording(draftKey: SelfReportStore.dictationKey) == true {
+                    Circle()
+                        .fill(PaiPalette.Semantic.errorText)
+                        .frame(width: 8, height: 8)
+                        .padding(12)
+                        .accessibilityLabel("Recording")
+                        .accessibilityIdentifier("quick-me-recording-dot")
+                } else if !selfReports.draft.isEmpty {
                     Circle()
                         .fill(PaiPalette.amber500)
                         .frame(width: 6, height: 6)

@@ -227,6 +227,7 @@ public final class DraftStore {
     /// id. A send that went while this was in the air has withheld that id, and the file is already
     /// on its way with the message, so a late answer must not put the chip back.
     public func addAttachment(key: String, file: PaiFileUpload, id: String) async -> DraftAttachment? {
+        guard !DraftKey.isLocal(key) else { return nil }
         guard let attachment = try? await api.addDraftAttachment(key: key, file: file, id: id) else { return nil }
         if withheldAttachmentIds[key]?.contains(attachment.id) == true { return attachment }
         var entry = draft(for: key)
@@ -241,6 +242,7 @@ public final class DraftStore {
         var entry = draft(for: key)
         entry.attachments.removeAll { $0.id == attachmentId }
         drafts[key] = entry
+        guard !DraftKey.isLocal(key) else { return }
         _ = try? await api.removeDraftAttachment(key: key, attachmentId: attachmentId)
     }
 
@@ -295,12 +297,14 @@ public final class DraftStore {
         localRevision[key, default: 0] += 1
         retryAttempt[key] = nil
         diagnosticsLog?.log(.info, .drafts, "clear key=\(key)")
+        guard !DraftKey.isLocal(key) else { return }
         Task { await self.requestOp(key, .delete) }
     }
 
     // MARK: - Flush (debounced write)
 
     private func scheduleFlush(_ key: String) {
+        guard !DraftKey.isLocal(key) else { return }
         localRevision[key, default: 0] += 1
         retryAttempt[key] = nil
         pendingDebounce[key]?.cancel()
@@ -323,6 +327,7 @@ public final class DraftStore {
     /// directly — not through the debounce — when it is about to disappear, so leaving a session
     /// cannot strand an edit inside the debounce window.
     public func flush(key: String) async {
+        guard !DraftKey.isLocal(key) else { return }
         pendingDebounce[key]?.cancel()
         pendingDebounce[key] = nil
         guard drafts[key] != nil else { return }
@@ -338,6 +343,7 @@ public final class DraftStore {
     /// number of those into exactly one further write, carrying whatever text is current the
     /// moment the in-flight request actually finishes.
     private func requestOp(_ key: String, _ op: PendingOp) async {
+        guard !DraftKey.isLocal(key) else { return }
         if currentOp[key] != nil {
             queuedOp[key] = op
             await currentOp[key]?.value
@@ -429,7 +435,8 @@ public final class DraftStore {
             return
         }
 
-        for row in remote {
+        // A local key is never a server row; one listed anyway is not this device's to adopt.
+        for row in remote where !DraftKey.isLocal(row.key) {
             // A key with an unwritten local edit, a write or delete already on the wire, or any
             // local change since this request left, is newer than anything this response can
             // report — adopting it would put back text the device already replaced. Comparing
