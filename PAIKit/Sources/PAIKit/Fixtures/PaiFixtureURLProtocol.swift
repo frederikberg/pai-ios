@@ -168,6 +168,14 @@
                 }
                 return Match(status: 200) { PaiFixtures.notePatched(id: note.id, requestBody: body) ?? Data() }
             }
+            // The Me routes read the state `-PaiFixtureMe` asks for and echo a create back.
+            if path.hasPrefix("/api/me/"),
+                let answer = PaiFixtures.meRoute(
+                    method: method, path: path, query: query, body: body,
+                    state: PaiFixtureLaunch.requestedMeState(arguments: arguments))
+            {
+                return Match(status: answer.status) { answer.body }
+            }
             // The watch keys remember what was created and revoked in this process, so a list read
             // after either shows it, the way the real list does.
             if path == "/api/watch-keys" {
