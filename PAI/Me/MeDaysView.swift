@@ -95,6 +95,9 @@ struct MeDaysView: View {
                     Text(day.activities.prefix(2).compactMap(\.emoji).joined()).font(.system(size: 13))
                         .minimumScaleFactor(0.6)
                 }
+            case .calendar:
+                rowCaption("Calendar", color: PaiPalette.green500, source: "events · titles in the day")
+                cells(height: 22) { day in calendarCell(day) }
             case .pai:
                 rowCaption("PAI", color: MeColor.pai(dark: dark), source: "your messages · ☾ agents ran overnight")
                 cells(height: 52) { day in paiCell(day, presenter) }
@@ -115,7 +118,10 @@ struct MeDaysView: View {
                                 ? PaiPalette.Semantic.textStrong : PaiPalette.Semantic.textMuted)
                 }
             }
-            ForEach(MeLayout.gridRows(garminConnected: garmin), id: \.self) { row in
+            ForEach(
+                MeLayout.gridRows(garminConnected: garmin, calendarConnected: overview.sources.calendarConnected),
+                id: \.self
+            ) { row in
                 gridRow(row)
             }
         }
@@ -156,6 +162,16 @@ struct MeDaysView: View {
             }
         }
         .frame(maxHeight: .infinity, alignment: .bottom)
+    }
+
+    /// A dot per event, at most three: the titles are in the day's detail.
+    private func calendarCell(_ day: MeDay) -> some View {
+        VStack(spacing: 3) {
+            ForEach(0..<min(3, day.events.count), id: \.self) { _ in
+                Circle().fill(PaiPalette.green500.opacity(0.85)).frame(width: 6, height: 6)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .center)
     }
 
     private func sleepCell(_ day: MeDay, _ presenter: MePresenter) -> some View {
@@ -314,6 +330,9 @@ struct MeDaysView: View {
                 ].compactMap { $0 }
                 facts.append(Fact(text: parts.joined(separator: " · "), color: MeColor.movement(dark: dark)))
             }
+        }
+        for event in day.events {
+            facts.append(Fact(text: presenter.eventLine(event), color: PaiPalette.green500))
         }
         return facts
     }

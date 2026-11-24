@@ -154,6 +154,18 @@ extension PaiFixtures {
                         "private": entry["private"] ?? false,
                     ] as [String: Any]
                 }
+            day["events"] =
+                garmin && index % 2 == 1
+                ? [
+                    [
+                        "title": "Dentist", "start_at": time(9, 30), "end_at": time(10, 15), "all_day": false,
+                        "calendar": "Personal",
+                    ],
+                    [
+                        "title": "Climbing with friends", "start_at": time(18, 0), "end_at": time(20, 0),
+                        "all_day": false, "calendar": "Personal",
+                    ],
+                ] as [[String: Any]] : []
             day["held"] =
                 index % 3 == 0
                 ? [
@@ -188,6 +200,7 @@ extension PaiFixtures {
                     "as_of": garmin ? AlarmTime.wireString(now) as Any : NSNull(),
                 ],
                 "plan": ["status": "ok"],
+                "calendar": ["status": garmin ? "ok" : "not_configured", "as_of": AlarmTime.wireString(now)],
             ],
             "days": meDays(state: state, now: now, end: end),
             "recent_entries": Array(entries.prefix(2)),

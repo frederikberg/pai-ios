@@ -217,6 +217,21 @@ struct MeTodayView: View {
                             .font(PaiTypography.caption.font)
                             .foregroundStyle(PaiPalette.Semantic.textMuted)
                     }
+                    let events = overview.sources.calendarConnected ? (day?.events ?? []) : []
+                    if !events.isEmpty {
+                        Divider().overlay(PaiPalette.Semantic.borderDefault)
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(Array(events.enumerated()), id: \.offset) { _, event in
+                                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    Circle().fill(PaiPalette.green500).frame(width: 8, height: 8)
+                                    Text(presenter.eventLine(event))
+                                        .font(PaiTypography.body.font)
+                                        .foregroundStyle(PaiPalette.Semantic.textPrimary)
+                                }
+                            }
+                        }
+                        .accessibilityIdentifier("me-today-events")
+                    }
                     let lines = [presenter.planLine(day?.plan)].compactMap { $0 }
                     if !lines.isEmpty {
                         Divider().overlay(PaiPalette.Semantic.borderDefault)
