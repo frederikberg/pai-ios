@@ -70,6 +70,16 @@ public struct SelfReportActivityContext: Decodable, Sendable, Equatable {
         case startAt = "start_at"
         case durationS = "duration_s"
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try? container.decodeIfPresent(String.self, forKey: .type)
+        name = try? container.decodeIfPresent(String.self, forKey: .name)
+        emoji = try? container.decodeIfPresent(String.self, forKey: .emoji)
+        relation = try container.decode(Relation.self, forKey: .relation)
+        startAt = try? container.decodeIfPresent(String.self, forKey: .startAt)
+        durationS = container.decodeLenientInt(forKey: .durationS)
+    }
 }
 
 public struct SelfReportContext: Decodable, Sendable, Equatable {
@@ -244,6 +254,16 @@ public struct MeBody: Decodable, Sendable, Equatable {
         case readiness
         case hrvStatus = "hrv_status"
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sleepSeconds = container.decodeLenientInt(forKey: .sleepSeconds)
+        sleepScore = container.decodeLenientInt(forKey: .sleepScore)
+        wakeAt = try? container.decodeIfPresent(String.self, forKey: .wakeAt)
+        bodyBatteryWake = container.decodeLenientInt(forKey: .bodyBatteryWake)
+        readiness = container.decodeLenientInt(forKey: .readiness)
+        hrvStatus = try? container.decodeIfPresent(String.self, forKey: .hrvStatus)
+    }
 }
 
 public struct MeActivity: Decodable, Sendable, Equatable {
@@ -272,6 +292,16 @@ public struct MeActivity: Decodable, Sendable, Equatable {
         case durationS = "duration_s"
         case distanceM = "distance_m"
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try? container.decodeIfPresent(String.self, forKey: .type)
+        name = try? container.decodeIfPresent(String.self, forKey: .name)
+        emoji = try? container.decodeIfPresent(String.self, forKey: .emoji)
+        startAt = try? container.decodeIfPresent(String.self, forKey: .startAt)
+        durationS = container.decodeLenientInt(forKey: .durationS)
+        distanceM = try? container.decodeIfPresent(Double.self, forKey: .distanceM)
+    }
 }
 
 public struct MePai: Decodable, Sendable, Equatable {
@@ -298,6 +328,15 @@ public struct MePai: Decodable, Sendable, Equatable {
         case lastMessageAt = "last_message_at"
         case overnightAgentMinutes = "overnight_agent_minutes"
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        messages = container.decodeLenientInt(forKey: .messages) ?? 0
+        sessions = container.decodeLenientInt(forKey: .sessions)
+        firstMessageAt = try? container.decodeIfPresent(String.self, forKey: .firstMessageAt)
+        lastMessageAt = try? container.decodeIfPresent(String.self, forKey: .lastMessageAt)
+        overnightAgentMinutes = container.decodeLenientInt(forKey: .overnightAgentMinutes)
+    }
 }
 
 public struct MePlan: Decodable, Sendable, Equatable {
@@ -312,16 +351,27 @@ public struct MePlan: Decodable, Sendable, Equatable {
         self.done = done
         self.added = added
     }
+
+    enum CodingKeys: String, CodingKey { case appetite, planned, done, added }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        appetite = try? container.decodeIfPresent(String.self, forKey: .appetite)
+        planned = container.decodeLenientInt(forKey: .planned)
+        done = container.decodeLenientInt(forKey: .done)
+        added = container.decodeLenientInt(forKey: .added)
+    }
 }
 
 /// One phase of a project a day held; only the day route fills `summary`.
 public struct MeHeldPhase: Decodable, Sendable, Equatable {
-    public let name: String
+    /// Nil for a phase the pipeline has not named yet.
+    public let name: String?
     public let summary: String?
     public let minutes: Int?
     public let summaryStale: Bool
 
-    public init(name: String, summary: String? = nil, minutes: Int? = nil, summaryStale: Bool = false) {
+    public init(name: String? = nil, summary: String? = nil, minutes: Int? = nil, summaryStale: Bool = false) {
         self.name = name
         self.summary = summary
         self.minutes = minutes
@@ -335,24 +385,32 @@ public struct MeHeldPhase: Decodable, Sendable, Equatable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        name = try container.decode(String.self, forKey: .name)
-        summary = try container.decodeIfPresent(String.self, forKey: .summary)
-        minutes = try container.decodeIfPresent(Int.self, forKey: .minutes)
-        summaryStale = try container.decodeIfPresent(Bool.self, forKey: .summaryStale) ?? false
+        name = try? container.decodeIfPresent(String.self, forKey: .name)
+        summary = try? container.decodeIfPresent(String.self, forKey: .summary)
+        minutes = container.decodeLenientInt(forKey: .minutes)
+        summaryStale = (try? container.decodeIfPresent(Bool.self, forKey: .summaryStale)) ?? false
     }
+
+    /// What a row shows for the phase: its name, or a placeholder while it has none.
+    public var title: String { name ?? MeHeld.untitled }
 }
 
 /// What a day held at work: names and durations in the overview (`label`, `minutes`), the phases
 /// with their summaries in the day route.
 public struct MeHeld: Decodable, Sendable, Equatable, Identifiable {
-    public var id: String { project }
+    /// What a project or phase without a name is called on screen.
+    public static let untitled = "Untitled"
 
-    public let project: String
+    /// A project holds one entry per phase in the overview, so the phase label is part of the identity.
+    public var id: String { "\(project ?? "")|\(label ?? "")" }
+
+    /// Nil for a project the pipeline has not named yet.
+    public let project: String?
     public let label: String?
     public let minutes: Int?
     public let phases: [MeHeldPhase]
 
-    public init(project: String, label: String? = nil, minutes: Int? = nil, phases: [MeHeldPhase] = []) {
+    public init(project: String? = nil, label: String? = nil, minutes: Int? = nil, phases: [MeHeldPhase] = []) {
         self.project = project
         self.label = label
         self.minutes = minutes
@@ -363,14 +421,14 @@ public struct MeHeld: Decodable, Sendable, Equatable, Identifiable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        project = try container.decode(String.self, forKey: .project)
-        label = try container.decodeIfPresent(String.self, forKey: .label)
-        minutes = try container.decodeIfPresent(Int.self, forKey: .minutes)
-        phases = try container.decodeIfPresent([MeHeldPhase].self, forKey: .phases) ?? []
+        project = try? container.decodeIfPresent(String.self, forKey: .project)
+        label = try? container.decodeIfPresent(String.self, forKey: .label)
+        minutes = container.decodeLenientInt(forKey: .minutes)
+        phases = (try? container.decodeIfPresent([MeHeldPhase].self, forKey: .phases)) ?? []
     }
 
     /// The chip's name: the phase label when the overview sent one, else the project.
-    public var title: String { label ?? project }
+    public var title: String { label ?? project ?? Self.untitled }
 
     /// Minutes of the project: its own figure, or what its phases add up to in the day route.
     public var totalMinutes: Int? {
@@ -408,11 +466,11 @@ public struct MeEvent: Decodable, Sendable, Equatable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        title = try container.decode(String.self, forKey: .title)
-        startAt = try container.decodeIfPresent(String.self, forKey: .startAt)
-        endAt = try container.decodeIfPresent(String.self, forKey: .endAt)
-        allDay = try container.decodeIfPresent(Bool.self, forKey: .allDay) ?? false
-        calendar = try container.decodeIfPresent(String.self, forKey: .calendar)
+        title = (try? container.decodeIfPresent(String.self, forKey: .title)) ?? ""
+        startAt = try? container.decodeIfPresent(String.self, forKey: .startAt)
+        endAt = try? container.decodeIfPresent(String.self, forKey: .endAt)
+        allDay = (try? container.decodeIfPresent(Bool.self, forKey: .allDay)) ?? false
+        calendar = try? container.decodeIfPresent(String.self, forKey: .calendar)
     }
 }
 
@@ -463,7 +521,7 @@ public struct MeDay: Decodable, Sendable, Equatable, Identifiable {
         body = try container.decodeIfPresent(MeBody.self, forKey: .body)
         activities = try container.decodeIfPresent([MeActivity].self, forKey: .activities) ?? []
         pai = try container.decodeIfPresent(MePai.self, forKey: .pai)
-        wakeToFirstMessageMin = try container.decodeIfPresent(Int.self, forKey: .wakeToFirstMessageMin)
+        wakeToFirstMessageMin = container.decodeLenientInt(forKey: .wakeToFirstMessageMin)
         plan = try container.decodeIfPresent(MePlan.self, forKey: .plan)
         entries = try container.decodeIfPresent([SelfReport].self, forKey: .entries) ?? []
         held = try container.decodeIfPresent([MeHeld].self, forKey: .held) ?? []
