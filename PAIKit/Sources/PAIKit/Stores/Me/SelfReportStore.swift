@@ -74,6 +74,12 @@ public struct MeDiaryItem: Equatable, Sendable, Identifiable {
     public let waiting: Bool
     public let refusal: String?
     public var id: String { report.id }
+
+    public init(report: SelfReport, waiting: Bool, refusal: String?) {
+        self.report = report
+        self.waiting = waiting
+        self.refusal = refusal
+    }
 }
 
 /// The diary and the composer's state: entries read from the server, the draft kept on the phone,
