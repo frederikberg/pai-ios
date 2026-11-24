@@ -37,6 +37,8 @@ public struct Capabilities: Sendable, Equatable {
     public var canOpenCanteen: Bool { isOwner }
     public var canOpenDecisions: Bool { isOwner }
     public var canOpenBrowser: Bool { isOwner }
+    /// The Me app and its self-report routes: owner-only, absent from every guest namespace.
+    public var canOpenMe: Bool { isOwner }
 
     /// The write-only secrets' presence read (`GET /api/settings/secrets`).
     public var canReadSecrets: Bool { isOwner }

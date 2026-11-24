@@ -35,6 +35,9 @@
         static let weatherFlag = "-PaiFixtureWeather"
         static let watchKeysFlag = "-PaiFixtureWatchKeys"
         static let cameraImportFlag = "-PaiFixtureCameraImport"
+        static let meFlag = "-PaiFixtureMe"
+        static let meTabFlag = "-PaiFixtureMeTab"
+        static let meComposerFlag = "-PaiFixtureMeComposer"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -204,6 +207,21 @@
         /// reads. Absent is the showers-approaching answer.
         public static func requestedWeatherState(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: weatherFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureMe <state>`: which of `PaiFixtures.meStates` the Me routes answer. Absent is the full one.
+        public static func requestedMeState(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: meFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureMeTab today|days|diary`: the Me screen's opening tab.
+        public static func requestedMeTab(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: meTabFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureMeComposer`: the Me composer opens at once over a seeded draft.
+        public static func opensMeComposer(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains(meComposerFlag)
         }
 
         /// `-PaiFixtureCameraImport`: the Camera Import screen runs at once over
