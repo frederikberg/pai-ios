@@ -14,9 +14,12 @@ final class SchedulerRunHistoryTests: XCTestCase {
              "runtime_warned":false,"budget_warned":false,"started_at_ms":1000,"finished_at_ms":253000,
              "started_at":"1970-01-01T00:00:01+00:00","finished_at":"1970-01-01T00:04:13+00:00",
              "duration_ms":252000,"tokens_start":120000,"tokens_end":340000,
-             "tokens_absolute":340000,"tokens_relative":220000,"notified":true}
+             "tokens_absolute":340000,"tokens_relative":220000,"notified":true,
+             "source":"re-run: kibana: rule A","cost_usd":0.8412}
             """
         let run = try JSONDecoder().decode(TaskRun.self, from: Data(json.utf8))
+        XCTAssertEqual(run.source, "re-run: kibana: rule A")
+        XCTAssertEqual(run.costUsd, 0.8412)
         XCTAssertEqual(run.durationMs, 252_000)
         XCTAssertEqual([run.tokensStart, run.tokensEnd], [120_000, 340_000])
         XCTAssertEqual([run.tokensAbsolute, run.tokensRelative], [340_000, 220_000])

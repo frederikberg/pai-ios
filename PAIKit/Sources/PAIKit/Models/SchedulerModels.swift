@@ -743,6 +743,13 @@ public struct TaskRun: Codable, Sendable, Equatable, Identifiable {
     public let tokensRelative: Int?
     /// Whether the run's session raised a notification while the run was open.
     public let notified: Bool
+    /// What woke the run, in a few words: `cadence`, `one-time run`, `wake: <reason>`,
+    /// `re-run: <the triggers it stands for>`, or what a `run-now` caller named. `nil` for a
+    /// `run-now` that named nothing, and from a backend that predates the field.
+    public let source: String?
+    /// List-price USD of the run's model calls so far; `nil` for a run that never reached a
+    /// session.
+    public let costUsd: Double?
 
     public init(
         id: String, taskId: String, trigger: TaskRunTrigger, disposition: TaskRunDisposition,
@@ -750,7 +757,8 @@ public struct TaskRun: Codable, Sendable, Equatable, Identifiable {
         gateSkipped: Bool = false, runtimeWarned: Bool, budgetWarned: Bool, startedAtMs: Int,
         finishedAtMs: Int?, startedAt: String? = nil, finishedAt: String? = nil,
         durationMs: Int? = nil, tokensStart: Int? = nil, tokensEnd: Int? = nil,
-        tokensAbsolute: Int? = nil, tokensRelative: Int? = nil, notified: Bool = false
+        tokensAbsolute: Int? = nil, tokensRelative: Int? = nil, notified: Bool = false,
+        source: String? = nil, costUsd: Double? = nil
     ) {
         self.id = id
         self.taskId = taskId
@@ -773,10 +781,13 @@ public struct TaskRun: Codable, Sendable, Equatable, Identifiable {
         self.tokensAbsolute = tokensAbsolute
         self.tokensRelative = tokensRelative
         self.notified = notified
+        self.source = source
+        self.costUsd = costUsd
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, trigger, disposition, reason, notified
+        case id, trigger, disposition, reason, notified, source
+        case costUsd = "cost_usd"
         case startedAt = "started_at"
         case finishedAt = "finished_at"
         case durationMs = "duration_ms"
