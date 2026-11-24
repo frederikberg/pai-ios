@@ -643,6 +643,9 @@ private struct RunRow: View {
                     .font(PaiTypography.caption.font)
                     .foregroundStyle(PaiPalette.Semantic.textFaint)
             }
+            if let source = run.source, !source.isEmpty {
+                Text(source).font(PaiTypography.caption.font).foregroundStyle(PaiPalette.Semantic.textFaint)
+            }
             if let reason = run.reason, !reason.isEmpty {
                 Text(reason).font(PaiTypography.caption.font).foregroundStyle(PaiPalette.Semantic.textMuted)
             }
@@ -683,6 +686,9 @@ private struct RunRow: View {
             if run.tokensEnd != nil {
                 Text(tokensText)
             }
+            if let costText {
+                Text(costText)
+            }
         }
         .font(PaiTypography.caption.font)
         .foregroundStyle(PaiPalette.Semantic.textFaint)
@@ -695,6 +701,11 @@ private struct RunRow: View {
                 SchedulerRunDisplay.formatBerlinEnd(ms: $0, sinceMs: run.startedAtMs)
             } ?? "running"
         return "\(start) → \(end)"
+    }
+
+    /// The list price of the run's model calls, as the web's run row shows it.
+    private var costText: String? {
+        run.costUsd.map { String(format: "$%.2f", $0) }
     }
 
     private var tokensText: String {
