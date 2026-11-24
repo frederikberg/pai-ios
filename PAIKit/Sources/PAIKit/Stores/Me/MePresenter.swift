@@ -151,8 +151,27 @@ public struct MePresenter: Sendable {
         return nil
     }
 
-    /// 🎙 spoken, ⌚ watch: only a source that is not plain typing gets a chip.
+    /// What an entry's words read as: dictated text carries the `stt-rec: ` marker (it tells a
+    /// session the words came from speech), which the diary keeps in storage but never shows.
+    /// `spoken` is true when the marker was there.
+    public struct EntryWords: Equatable, Sendable {
+        public let text: String?
+        public let spoken: Bool
+    }
+
+    public func words(of entry: SelfReport) -> EntryWords {
+        guard let raw = entry.text else { return EntryWords(text: nil, spoken: false) }
+        let marker = VoiceRecordingResult.sttPrefix
+        let spoken = raw.contains(marker)
+        let cleaned = (spoken ? raw.replacingOccurrences(of: marker, with: "") : raw)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return EntryWords(text: cleaned.isEmpty ? nil : cleaned, spoken: spoken)
+    }
+
+    /// 🎙 spoken, ⌚ watch: only a source that is not plain typing gets a chip. Words that were
+    /// dictated into the composer are spoken whatever the entry's source says.
     public func sourceChip(_ entry: SelfReport) -> (emoji: String, text: String)? {
+        if words(of: entry).spoken { return ("🎙", "spoken") }
         switch entry.source {
         case .computer: return ("🎙", "spoken")
         case .watch: return ("⌚", "watch")

@@ -514,7 +514,7 @@ struct ComposerBar: View {
     /// A live take rewrites the text continuously and the call writes its turns into it: neither
     /// leaves a caret or a token for the reader to act on.
     private func liveTakeOwnsBox(_ controller: VoiceRecorderController) -> Bool {
-        (isRecordingHere(controller) && controller.activeSttMode == .live) || callIsInThisSession
+        dictation(controller).ownsBox || callIsInThisSession
     }
 
     private func fixSkillMention(
@@ -549,19 +549,20 @@ struct ComposerBar: View {
         return call.session.busOwner == .call && call.session.sessionId == sessionID
     }
 
-    /// Whether the running take is *this* composer's. The recorder is app-wide, so a take started
-    /// on another session — or in the new-session sheet — must not turn this bar into a recording
-    /// bar for a recording that is not its own.
+    /// The dictation rules for this composer's draft: whose take is running, who may start one.
+    private func dictation(_ controller: VoiceRecorderController) -> ComposerDictation {
+        ComposerDictation(controller: controller, draftKey: sessionID)
+    }
+
     private func isRecordingHere(_ controller: VoiceRecorderController) -> Bool {
-        controller.activeDraftKey == sessionID && controller.state != .idle
+        dictation(controller).isRecordingHere
     }
 
     /// A take of this session that is recording, finishing or owed — what keeps the composer's
     /// controls on screen after the session stops being drivable.
     private var ownsTake: Bool {
         guard let controller = environment.connection?.voice else { return false }
-        return isRecordingHere(controller) || controller.isTranscribingBatch(draftKey: sessionID)
-            || controller.hasStuckBatchTake(draftKey: sessionID)
+        return dictation(controller).ownsTake
     }
 
     // MARK: - Voice
@@ -576,58 +577,19 @@ struct ComposerBar: View {
         controller.setupFailure?.userMessage ?? controller.lastStartFailure?.userMessage
     }
 
-    /// What tapping the mic in this session's composer does to whatever else is claiming the one
-    /// shared microphone — the "new one wins, the old one stops cleanly" rule
-    /// (`VoiceHandover.forMicrophoneTap`), never applicable while this session already owns the
-    /// running take (`isRecordingHere` handles that tap as an ordinary stop instead).
-    private func microphoneHandoverAction(_ controller: VoiceRecorderController) -> VoiceHandoverAction {
-        let running = controller.state == .idle ? nil : controller.activeDraftKey
-        return VoiceHandover.forMicrophoneTap(sessionID: sessionID, microphoneTakeSessionID: running)
-    }
-
     private func micButtonIsMine(_ controller: VoiceRecorderController) -> Bool {
-        controller.state == .idle || isRecordingHere(controller)
+        dictation(controller).micIsMine
     }
 
-    /// `nil` defers to `VoiceRecorderButton`'s own ordinary gate (`controller.canStart`) — the
-    /// case where a tap genuinely cannot start anything (already starting, not signed in).
-    /// `true` forces the button tappable even though `controller.canStart` would refuse it: a
-    /// handover tap does not itself start anything until the thing it is taking over has stopped,
-    /// so the ordinary "is the microphone free right now" gate does not apply to it.
     private func micButtonCanStartOverride(_ controller: VoiceRecorderController) -> Bool? {
-        guard !isRecordingHere(controller) else { return nil }
-        switch microphoneHandoverAction(controller) {
-        case .startOnly, .alreadyHere: return nil
-        case .stopMicrophoneTake: return true
-        }
+        dictation(controller).canStartOverride
     }
 
     private func toggleRecording(
         draftStore: DraftStore, voiceController: VoiceRecorderController, sttMode: VoiceSttMode
     ) async {
-        if isRecordingHere(voiceController) {
-            // A tap during Finishing means "stop waiting" rather than "start a second stop" —
-            // `stop()`'s own wait is already running by the time the button reads `.stopping`.
-            // Every other mid-take state ends through the ordinary `stop()`.
-            if voiceController.state == .stopping {
-                voiceController.stopWaiting()
-                return
-            }
-            await voiceController.stop()
-            return
-        }
-
-        sendErrorMessage = nil
-        switch microphoneHandoverAction(voiceController) {
-        case .stopMicrophoneTake:
-            // The other session's own take ends exactly as an ordinary tap-to-stop in that
-            // composer would — its text is already there, written as the stop itself closes it.
-            await voiceController.stop()
-        case .startOnly, .alreadyHere:
-            break
-        }
-        await voiceController.start(
-            draftKey: sessionID, preText: draftStore.draft(for: sessionID).text, sttMode: sttMode)
+        if !isRecordingHere(voiceController) { sendErrorMessage = nil }
+        await dictation(voiceController).toggle(sttMode: sttMode, preText: draftStore.draft(for: sessionID).text)
     }
 
     // MARK: - Send

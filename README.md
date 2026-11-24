@@ -86,7 +86,7 @@ Where you are comes from one iPhone you choose: Settings, Location, "Use this iP
 
 ## Me
 
-Me is a diary and a view of the day for the signed-in owner. The launcher's middle tile, "Me", opens a composer with the keyboard up: a face (heavy, okay, good), a few words, or both, an optional earlier time and a Private switch. Send always succeeds on the phone: the entry goes to a small outbox under its own id and is delivered when the network is there, so a retry never makes a second row. The draft survives closing the sheet.
+Me is a diary and a view of the day for the signed-in owner. The launcher's middle tile, "Me", opens a composer with the keyboard up: a face (heavy, okay, good), a few words, or both, an optional earlier time and a Private switch. Send always succeeds on the phone: the entry goes to a small outbox under its own id and is delivered when the network is there, so a retry never makes a second row. The draft survives closing the sheet. The composer has the same microphone as a session's: a tap starts the default dictation mode, a long press the other one, and the words land in the entry like typed ones. The diary draft is a device-only draft: it is kept on the phone and never sent to the draft routes.
 
 The Me screen (Apps, owner only) has three views under a segmented control: Today (what the day looks like so far, the week, the newest entries), 14 days (one column per day and a row per kind of data; rows whose source is not connected are not drawn) and Diary (entries grouped by day, filters, search over the loaded pages, edit, make private, delete with undo). A blank cell means nothing was recorded; there are no scores, streaks or averages.
 

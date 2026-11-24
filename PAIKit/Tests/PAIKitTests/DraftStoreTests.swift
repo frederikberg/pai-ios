@@ -1078,4 +1078,54 @@ final class DraftStoreTests: XCTestCase {
         XCTAssertNotEqual(store.draft(for: "s1").knownVersion, 9)
         await gate.open()
     }
+
+    // MARK: - Device-only keys
+
+    /// A diary entry's words must never reach the draft routes, however the store is driven.
+    func testALocalKeyIsStoredAndRestoredButNeverSentToTheDraftRoutes() async {
+        let fake = FakeDraftsFetching()
+        let storage = SettingsInMemoryKeyValueStore()
+        let key = DraftKey.local("diary")
+        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+
+        store.setDraftText(key: key, text: "private words")
+        await store.flush(key: key)
+        store.setDraftText(key: key, text: "more private words")
+        await Task.yield()
+        store.clearDraft(key: key)
+        store.setDraftText(key: key, text: "after the clear")
+        await store.flush(key: key)
+        _ = await store.addAttachment(
+            key: key, file: PaiFileUpload(filename: "a.txt", mimeType: "text/plain", data: Data("x".utf8)), id: "a")
+
+        let reached = fake.callLog.filter { $0.contains(key) || $0.hasPrefix("addDraftAttachment") }
+        XCTAssertEqual(reached, [])
+
+        let relaunched = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+        XCTAssertEqual(relaunched.draft(for: key).text, "after the clear")
+    }
+
+    func testASyncFromTheServerNeverTouchesALocalKey() async {
+        let fake = FakeDraftsFetching()
+        let storage = SettingsInMemoryKeyValueStore()
+        let key = DraftKey.local("diary")
+        let first = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+        first.setDraftText(key: key, text: "mine")
+        // A fresh launch holds the text with no write pending: nothing but the key protects it.
+        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+        fake.remoteDrafts = [
+            Draft(key: key, text: "someone else's", sessionType: nil, workingDir: nil, updatedAt: nil, version: 99)
+        ]
+        await store.syncFromServer()
+        XCTAssertEqual(store.draft(for: key).text, "mine")
+        XCTAssertNil(store.draft(for: key).knownVersion)
+    }
+
+    func testAnOrdinaryKeyStillFlushesSoTheGuardIsSpecificToLocalKeys() async {
+        let fake = FakeDraftsFetching()
+        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        store.setDraftText(key: "s1", text: "hello")
+        await store.flush(key: "s1")
+        XCTAssertTrue(fake.callLog.contains("putDraft:done:s1"))
+    }
 }

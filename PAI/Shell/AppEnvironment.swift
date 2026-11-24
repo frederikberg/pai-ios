@@ -315,7 +315,7 @@ final class AppEnvironment {
                 for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
             ))?.appendingPathComponent("Outbox", isDirectory: true) ?? FileManager.default.temporaryDirectory
         let outbox = OutboxStore(api: client, storage: FileOutboxStorage(rootURL: outboxRoot))
-        let selfReports = SelfReportStore(api: client, storage: defaults)
+        let selfReports = SelfReportStore(api: client, storage: defaults, drafts: draftStore)
         let notesStore = Self.makeNotesStore(client: client, budgetBytes: settingsStore.notesCacheBudgetBytes)
         let sessions = SessionListStore(api: client)
         // What happens the moment the server has the row lives in `installHandover` rather than

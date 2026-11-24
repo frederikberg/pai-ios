@@ -13,9 +13,10 @@ struct MeEntryCard: View {
 
     var body: some View {
         let lock = MeColor.lock(dark: scheme == .dark)
+        let words = presenter.words(of: report)
         VStack(alignment: .leading, spacing: 8) {
             meta(lock: lock)
-            if let text = report.text, report.hasWords {
+            if let text = words.text {
                 Text(text)
                     .font(.system(size: 15))
                     .lineSpacing(3)
@@ -50,7 +51,8 @@ struct MeEntryCard: View {
     }
 
     private func meta(lock: Color) -> some View {
-        HStack(spacing: 8) {
+        let words = presenter.words(of: report)
+        return HStack(spacing: 8) {
             if let feel = report.feel { FeelFace(feel: feel, size: 20) }
             Text(presenter.entryTime(report))
                 .font(PaiTypography.body.font)
@@ -67,7 +69,7 @@ struct MeEntryCard: View {
                     .font(PaiTypography.caption.font)
                     .foregroundStyle(PaiPalette.Semantic.textFaint)
             }
-            if !report.hasWords && !report.redacted && item.refusal == nil {
+            if words.text == nil && !report.redacted && item.refusal == nil {
                 Text("no words")
                     .font(PaiTypography.body.font)
                     .foregroundStyle(PaiPalette.Semantic.textFaint)

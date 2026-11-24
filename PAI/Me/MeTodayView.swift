@@ -90,17 +90,22 @@ struct MeTodayView: View {
                 Button {
                     write(nil)
                 } label: {
-                    Text(draftLine)
-                        .font(.system(size: 17))
-                        .foregroundStyle(
-                            reports.draft.text.isEmpty
-                                ? PaiPalette.Semantic.textMuted : PaiPalette.Semantic.textPrimary
-                        )
-                        .lineLimit(1)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(PaiPalette.Semantic.insetBackground, in: RoundedRectangle(cornerRadius: 12))
+                    HStack(spacing: 8) {
+                        if recording {
+                            Circle().fill(PaiPalette.Semantic.errorText).frame(width: 8, height: 8)
+                        }
+                        Text(recording ? "Recording…" : draftLine)
+                            .font(.system(size: 17))
+                            .foregroundStyle(
+                                reports.draft.text.isEmpty || recording
+                                    ? PaiPalette.Semantic.textMuted : PaiPalette.Semantic.textPrimary
+                            )
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(PaiPalette.Semantic.insetBackground, in: RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("me-write-field")
@@ -125,8 +130,14 @@ struct MeTodayView: View {
         }
     }
 
+    /// A take dictating into the diary draft keeps running when the composer closes.
+    private var recording: Bool {
+        environment.connection?.voice.isRecording(draftKey: SelfReportStore.dictationKey) == true
+    }
+
     private var draftLine: String {
-        let first = reports.draft.text.split(whereSeparator: \.isNewline).first.map(String.init)
+        let text = reports.draft.text.replacingOccurrences(of: VoiceRecordingResult.sttPrefix, with: "")
+        let first = text.split(whereSeparator: \.isNewline).first.map(String.init)
         return first ?? "Anything about today…"
     }
 

@@ -55,4 +55,22 @@ final class MePresenterTests: XCTestCase {
         let none = try JSONDecoder().decode(MeOverview.self, from: PaiFixtures.meOverview(state: "noGarmin", end: nil))
         XCTAssertFalse(none.sources.garminConnected)
     }
+
+    func testDictatedWordsShowWithoutTheMarkerAndGetAVoiceChip() {
+        let dictated = SelfReport(id: "1", at: "x", text: "stt-rec: slept badly, head is full", source: .ios)
+        let words = presenter.words(of: dictated)
+        XCTAssertEqual(words.text, "slept badly, head is full")
+        XCTAssertTrue(words.spoken)
+        XCTAssertEqual(presenter.sourceChip(dictated)?.text, "spoken")
+
+        let mixed = SelfReport(id: "2", at: "x", text: "typed first stt-rec: then spoken", source: .ios)
+        XCTAssertEqual(presenter.words(of: mixed).text, "typed first then spoken")
+
+        let typed = SelfReport(id: "3", at: "x", text: "just typed", source: .ios)
+        XCTAssertFalse(presenter.words(of: typed).spoken)
+        XCTAssertNil(presenter.sourceChip(typed))
+
+        let onlyMarker = SelfReport(id: "4", at: "x", text: "stt-rec: ", source: .ios)
+        XCTAssertNil(presenter.words(of: onlyMarker).text)
+    }
 }
