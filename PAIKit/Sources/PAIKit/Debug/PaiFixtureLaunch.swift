@@ -38,6 +38,7 @@
         static let meFlag = "-PaiFixtureMe"
         static let meTabFlag = "-PaiFixtureMeTab"
         static let meComposerFlag = "-PaiFixtureMeComposer"
+        static let alarmSheetFlag = "-PaiFixtureAlarmSheet"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -217,6 +218,12 @@
         /// `-PaiFixtureMeTab today|days|diary`: the Me screen's opening tab.
         public static func requestedMeTab(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: meTabFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureAlarmSheet time|in`: the Alarm screen opens its new-alarm sheet at once, in
+        /// the "At time" or the "In" mode.
+        public static func requestedAlarmSheet(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: alarmSheetFlag, in: arguments)
         }
 
         /// `-PaiFixtureMeComposer`: the Me composer opens at once over a seeded draft.

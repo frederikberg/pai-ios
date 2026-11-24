@@ -57,6 +57,24 @@ public final class AlarmStore {
             errorMessage = "That time does not exist today"
             return false
         }
+        return await create(fireAt: fireAt, name: name)
+    }
+
+    /// Arms an alarm for `now` plus the given duration, fixed here at Save rather than by the
+    /// server so it counts from the moment the person pressed it.
+    public func add(
+        hours: Int, minutes: Int, seconds: Int, name: String, now: Date = Date()
+    ) async -> Bool {
+        guard
+            let fireAt = AlarmTime.relativeFireDate(hours: hours, minutes: minutes, seconds: seconds, after: now)
+        else {
+            errorMessage = "Set a time above zero"
+            return false
+        }
+        return await create(fireAt: fireAt, name: name)
+    }
+
+    private func create(fireAt: Date, name: String) async -> Bool {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
             _ = try await api.createAlarm(
