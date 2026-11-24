@@ -237,13 +237,6 @@ public struct MePresenter: Sendable {
         return "Morning · first PAI message \(minutes) min after waking"
     }
 
-    /// The morning cell of the 14-day grid: the number, "–" if he messaged but no wake time is
-    /// known, blank when there is no PAI message that day.
-    public func morningCell(_ day: MeDay) -> String? {
-        if let minutes = day.wakeToFirstMessageMin { return String(minutes) }
-        return day.pai == nil ? nil : "–"
-    }
-
     /// One bar's height share for the PAI row: 1.3 pt a message, capped.
     public func paiBarHeight(messages: Int, cap: Double = 52) -> Double {
         min(cap, max(4, Double(messages) * 1.3))
@@ -270,5 +263,34 @@ public struct MePresenter: Sendable {
         let faces = entries.compactMap(\.feel)
         let lock = entries.contains { $0.isPrivate && $0.feel == nil }
         return EntryMarks(faces: Array(faces.prefix(maxFaces)), more: max(0, faces.count - maxFaces), lock: lock)
+    }
+}
+
+/// What the Me screens show and in which order: the person's body, life and diary come first and
+/// the numbers about PAI below them. One home for the order, so a screen only draws it.
+public enum MeLayout {
+    /// The rows of the 14-day grid, top to bottom. The morning measure is not a grid row; it lives
+    /// in the day's detail. Rows from Garmin exist only while it is connected.
+    public enum GridRow: Equatable, Sendable {
+        case diary, sleep, bodyBattery, movement, pai
+    }
+
+    public static func gridRows(garminConnected: Bool) -> [GridRow] {
+        garminConnected ? [.diary, .sleep, .bodyBattery, .movement, .pai] : [.diary, .pai]
+    }
+
+    /// The blocks of the Today view, top to bottom.
+    public enum TodaySection: Equatable, Sendable {
+        case write, review, soFar, week, diary, lookingBack, pai, notes
+    }
+
+    public static func todaySections(for overview: MeOverview) -> [TodaySection] {
+        var sections: [TodaySection] = [.write]
+        if overview.review != nil { sections.append(.review) }
+        sections += [.soFar, .week, .diary]
+        if overview.lookingBack != nil { sections.append(.lookingBack) }
+        sections.append(.pai)
+        if !overview.notes.isEmpty { sections.append(.notes) }
+        return sections
     }
 }

@@ -197,7 +197,7 @@ extension PaiFixtures {
                 ? NSNull()
                 : [
                     "title": "Week 47 review", "note_id": "6a0b5f2e-9d47-4c1a-8f30-2b7e5c918d64", "week": 47,
-                    "compass_session_prompt": "Talk through the compass",
+                    "compass_session_id": "305df4d3-1554-4fc3-be04-39a354a9e619",
                 ] as [String: Any],
         ]
         return meJSON(overview)
