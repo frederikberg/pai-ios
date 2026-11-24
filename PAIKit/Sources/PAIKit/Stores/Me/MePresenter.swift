@@ -242,6 +242,12 @@ public struct MePresenter: Sendable {
         min(cap, max(4, Double(messages) * 1.3))
     }
 
+    /// A calendar event as the screens write it: its title, a timed one with its start time in front.
+    public func eventLine(_ event: MeEvent) -> String {
+        guard !event.allDay, let time = clock(wire: event.startAt) else { return event.title }
+        return "\(time) \(event.title)"
+    }
+
     // MARK: This week
 
     /// The seven days ending at `todayKey` out of the overview's days, oldest first.
@@ -272,11 +278,16 @@ public enum MeLayout {
     /// The rows of the 14-day grid, top to bottom. The morning measure is not a grid row; it lives
     /// in the day's detail. Rows from Garmin exist only while it is connected.
     public enum GridRow: Equatable, Sendable {
-        case diary, sleep, bodyBattery, movement, pai
+        case diary, sleep, bodyBattery, movement, calendar, pai
     }
 
-    public static func gridRows(garminConnected: Bool) -> [GridRow] {
-        garminConnected ? [.diary, .sleep, .bodyBattery, .movement, .pai] : [.diary, .pai]
+    /// Life rows follow the body rows; each exists only while its source is connected.
+    public static func gridRows(garminConnected: Bool, calendarConnected: Bool = false) -> [GridRow] {
+        var rows: [GridRow] = [.diary]
+        if garminConnected { rows += [.sleep, .bodyBattery, .movement] }
+        if calendarConnected { rows.append(.calendar) }
+        rows.append(.pai)
+        return rows
     }
 
     /// The blocks of the Today view, top to bottom.

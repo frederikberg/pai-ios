@@ -100,4 +100,31 @@ final class MePresenterTests: XCTestCase {
         let none = #"{"today": "d", "days": [], "review": {"title": "t", "note_id": "n", "compass_session_id": null}}"#
         XCTAssertNil(try JSONDecoder().decode(MeOverview.self, from: Data(none.utf8)).review?.compassSessionId)
     }
+
+    func testCalendarEventsDecodeOptionallyAndTheRowFollowsTheSource() throws {
+        // An older server sends no events and no calendar source: nothing breaks, no row.
+        let old = try JSONDecoder().decode(MeDay.self, from: Data(#"{"date": "2026-11-24"}"#.utf8))
+        XCTAssertEqual(old.events, [])
+        let day = try JSONDecoder().decode(
+            MeDay.self,
+            from: Data(
+                #"""
+                {"date": "2026-11-24", "events": [
+                 {"title": "Dentist", "start_at": "2026-11-24T08:30:00+00:00", "end_at": "2026-11-24T09:15:00+00:00",
+                  "all_day": false, "calendar": "Personal"},
+                 {"title": "Conference", "start_at": "2026-11-23T23:00:00+00:00", "end_at": "2026-11-25T23:00:00+00:00",
+                  "all_day": true, "calendar": "Work"}]}
+                """#.utf8))
+        XCTAssertEqual(day.events.map(presenter.eventLine), ["09:30 Dentist", "Conference"])
+
+        let ok = MeSources(calendar: MeSource(status: .ok))
+        let off = MeSources(calendar: MeSource(status: .notConfigured))
+        XCTAssertTrue(ok.calendarConnected)
+        XCTAssertFalse(off.calendarConnected)
+        XCTAssertFalse(MeSources().calendarConnected)
+        XCTAssertEqual(
+            MeLayout.gridRows(garminConnected: true, calendarConnected: true),
+            [.diary, .sleep, .bodyBattery, .movement, .calendar, .pai])
+        XCTAssertEqual(MeLayout.gridRows(garminConnected: false, calendarConnected: true), [.diary, .calendar, .pai])
+    }
 }

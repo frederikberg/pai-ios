@@ -191,10 +191,20 @@ public struct MeSource: Decodable, Sendable, Equatable {
 public struct MeSources: Decodable, Sendable, Equatable {
     public let garmin: MeSource?
     public let plan: MeSource?
+    public let calendar: MeSource?
 
-    public init(garmin: MeSource? = nil, plan: MeSource? = nil) {
+    public init(garmin: MeSource? = nil, plan: MeSource? = nil, calendar: MeSource? = nil) {
         self.garmin = garmin
         self.plan = plan
+        self.calendar = calendar
+    }
+
+    /// The calendar row exists only while the source answers; an older server that does not
+    /// mention it, and "not configured", both hide it.
+    public var calendarConnected: Bool {
+        guard let calendar else { return false }
+        if case .ok = calendar.status { return true }
+        return false
     }
 
     /// Garmin rows exist only for a source that is connected: "not configured" hides them, and so
@@ -370,6 +380,42 @@ public struct MeHeld: Decodable, Sendable, Equatable, Identifiable {
     }
 }
 
+/// A calendar event on a day. `startAt`/`endAt` are the server's strings (read through
+/// ``IsoTimestamp``); an all-day event spans Berlin midnight to the midnight after its last day.
+public struct MeEvent: Decodable, Sendable, Equatable {
+    public let title: String
+    public let startAt: String?
+    public let endAt: String?
+    public let allDay: Bool
+    public let calendar: String?
+
+    public init(
+        title: String, startAt: String? = nil, endAt: String? = nil, allDay: Bool = false, calendar: String? = nil
+    ) {
+        self.title = title
+        self.startAt = startAt
+        self.endAt = endAt
+        self.allDay = allDay
+        self.calendar = calendar
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case title, calendar
+        case startAt = "start_at"
+        case endAt = "end_at"
+        case allDay = "all_day"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        startAt = try container.decodeIfPresent(String.self, forKey: .startAt)
+        endAt = try container.decodeIfPresent(String.self, forKey: .endAt)
+        allDay = try container.decodeIfPresent(Bool.self, forKey: .allDay) ?? false
+        calendar = try container.decodeIfPresent(String.self, forKey: .calendar)
+    }
+}
+
 /// One day of the overview, and the day route's answer too. In the overview `entries` are the
 /// dots only (no text) and `held` carries names and durations; the day route fills both fully.
 public struct MeDay: Decodable, Sendable, Equatable, Identifiable {
@@ -383,12 +429,15 @@ public struct MeDay: Decodable, Sendable, Equatable, Identifiable {
     public let plan: MePlan?
     public let entries: [SelfReport]
     public let held: [MeHeld]
+    /// Calendar events touching the day, sorted by start; empty whenever the source is not ok.
+    public let events: [MeEvent]
 
     public var id: String { date }
 
     public init(
         date: String, final: Bool = true, body: MeBody? = nil, activities: [MeActivity] = [], pai: MePai? = nil,
-        wakeToFirstMessageMin: Int? = nil, plan: MePlan? = nil, entries: [SelfReport] = [], held: [MeHeld] = []
+        wakeToFirstMessageMin: Int? = nil, plan: MePlan? = nil, entries: [SelfReport] = [], held: [MeHeld] = [],
+        events: [MeEvent] = []
     ) {
         self.date = date
         self.final = final
@@ -399,10 +448,11 @@ public struct MeDay: Decodable, Sendable, Equatable, Identifiable {
         self.plan = plan
         self.entries = entries
         self.held = held
+        self.events = events
     }
 
     enum CodingKeys: String, CodingKey {
-        case date, final, body, activities, pai, plan, entries, held
+        case date, final, body, activities, pai, plan, entries, held, events
         case wakeToFirstMessageMin = "wake_to_first_message_min"
     }
 
@@ -417,6 +467,7 @@ public struct MeDay: Decodable, Sendable, Equatable, Identifiable {
         plan = try container.decodeIfPresent(MePlan.self, forKey: .plan)
         entries = try container.decodeIfPresent([SelfReport].self, forKey: .entries) ?? []
         held = try container.decodeIfPresent([MeHeld].self, forKey: .held) ?? []
+        events = try container.decodeIfPresent([MeEvent].self, forKey: .events) ?? []
     }
 }
 
