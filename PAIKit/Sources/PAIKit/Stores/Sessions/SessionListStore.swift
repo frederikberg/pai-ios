@@ -128,12 +128,11 @@ public final class SessionListStore {
     public private(set) var filterQueryText: String = ""
     private var debouncedQuery: String = ""
     public private(set) var machineFilter: String?
-    /// The "Scheduled" chip — sessions the scheduler itself launched, exclusively, wherever they
-    /// happen to run. Mutually exclusive with `machineFilter`, the same way "All" and a machine
-    /// chip already are: filters the synced list (source A) rather than issuing a server query,
-    /// since there is no server-side scheduled filter yet — every session already carries its own
-    /// `taskId` once loaded.
-    public private(set) var scheduledOnly = false
+    /// Which view of the sessions the list shows — the ordinary list, everything including
+    /// scheduled-task sessions, or only those. Independent of `machineFilter`; it re-filters
+    /// whatever source is active rather than issuing a request, since every session already
+    /// carries its own `taskId` once loaded.
+    public private(set) var scope: SessionListScope = .all
     public private(set) var semanticMode = false
     public private(set) var timeWindow: TimeWindow?
 
@@ -221,10 +220,10 @@ public final class SessionListStore {
         let source: [SessionSearchResult] =
             isServerFiltered
             ? serverFilteredResults : syncedSessions.map { SessionSearchResult(session: $0, score: nil, tier: nil) }
-        // Exclusive, not an extra narrowing on top of the ordinary list — a scheduled session
-        // shows under this toggle and nowhere else, whether or not a search is also active.
-        // Matches the web's `Sidebar.tsx` (`scopedToView`).
-        let scoped = source.filter { scheduledOnly ? $0.session.taskId != nil : $0.session.taskId == nil }
+        // Exclusive views, not an extra narrowing on top of the ordinary list — a scheduled
+        // session shows under Scheduled and All+ and nowhere else, whether or not a search is
+        // also active.
+        let scoped = source.filter { scope.includes($0.session) }
         // A subagent (opened from its parent's own subagents screen) or a supervisor (opened
         // from its worker's own menu) lands in this same synced store so a chat view can find it
         // by id — neither may ever surface as a row of its own here. A spoken Computer
@@ -438,17 +437,13 @@ public final class SessionListStore {
     /// A machine chip — `nil` for "All". A discrete choice, so it answers immediately.
     public func setMachineFilter(_ slug: String?) {
         machineFilter = slug
-        scheduledOnly = false
         refetchServerFiltered()
     }
 
-    /// The "Scheduled" chip — exclusive with every machine chip, the same way they are exclusive
-    /// with each other. Never issues a request: it re-filters the synced list already in memory.
-    public func setScheduledOnly(_ enabled: Bool) {
-        scheduledOnly = enabled
-        guard enabled else { return }
-        machineFilter = nil
-        refetchServerFiltered()
+    /// The All / All+ / Scheduled choice. Never issues a request: it re-filters the rows already
+    /// in memory.
+    public func setScope(_ newScope: SessionListScope) {
+        scope = newScope
     }
 
     /// The semantic-mode toggle. A discrete choice, so it answers immediately too — including a
