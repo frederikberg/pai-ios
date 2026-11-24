@@ -19,15 +19,9 @@ struct MeTodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     header(overview, presenter)
-                    writeCard
-                    if let review = overview.review { reviewCard(review) }
-                    soFar(overview, presenter)
-                    week(overview, presenter)
-                    diary(overview, presenter)
-                    if let looking = overview.lookingBack {
-                        lookingBack(looking, presenter)
+                    ForEach(MeLayout.todaySections(for: overview), id: \.self) { section in
+                        sectionView(section, overview, presenter)
                     }
-                    notes(overview)
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 32)
@@ -48,6 +42,24 @@ struct MeTodayView: View {
     }
 
     // MARK: Sections
+
+    @ViewBuilder
+    private func sectionView(_ section: MeLayout.TodaySection, _ overview: MeOverview, _ presenter: MePresenter)
+        -> some View
+    {
+        switch section {
+        case .write: writeCard
+        case .review:
+            if let review = overview.review { reviewCard(review) }
+        case .soFar: soFar(overview, presenter)
+        case .week: week(overview, presenter)
+        case .diary: diary(overview, presenter)
+        case .lookingBack:
+            if let looking = overview.lookingBack { lookingBack(looking, presenter) }
+        case .pai: paiCard(presenter)
+        case .notes: notes(overview)
+        }
+    }
 
     private func header(_ overview: MeOverview, _ presenter: MePresenter) -> some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -143,7 +155,7 @@ struct MeTodayView: View {
 
     private func reviewCard(_ review: MeReview) -> some View {
         card {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 Button {
                     environment.router.push(.note(id: review.noteId))
                 } label: {
@@ -157,6 +169,21 @@ struct MeTodayView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("me-review")
+                // Only while the review names the talk's session.
+                if let sessionId = review.compassSessionId {
+                    Button {
+                        environment.router.push(.session(id: sessionId, messageID: nil))
+                    } label: {
+                        HStack {
+                            Label("Compass talk", systemImage: "safari")
+                                .font(PaiTypography.bodyEmphasized.font)
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundStyle(PaiPalette.Semantic.textMuted)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("me-compass")
+                }
             }
         }
     }
@@ -190,7 +217,7 @@ struct MeTodayView: View {
                             .font(PaiTypography.caption.font)
                             .foregroundStyle(PaiPalette.Semantic.textMuted)
                     }
-                    let lines = [presenter.planLine(day?.plan), day.flatMap(presenter.morningLine)].compactMap { $0 }
+                    let lines = [presenter.planLine(day?.plan)].compactMap { $0 }
                     if !lines.isEmpty {
                         Divider().overlay(PaiPalette.Semantic.borderDefault)
                         ForEach(lines, id: \.self) { line in
@@ -200,6 +227,30 @@ struct MeTodayView: View {
                 }
             }
             .accessibilityIdentifier("me-so-far")
+        }
+    }
+
+    /// The numbers about PAI sit below the body, life and diary blocks, never above them.
+    @ViewBuilder
+    private func paiCard(_ presenter: MePresenter) -> some View {
+        if let day = store.today, let pai = day.pai {
+            let sessions = pai.sessions.map { " in \($0) session\($0 == 1 ? "" : "s")" }
+            VStack(alignment: .leading, spacing: 8) {
+                caption("PAI")
+                card {
+                    VStack(alignment: .leading, spacing: 10) {
+                        factCell(
+                            FactCell(
+                                id: "pai", value: "\(pai.messages)", unit: sessions, label: "messages to PAI",
+                                color: MeColor.pai(dark: dark)))
+                        if let morning = presenter.morningLine(day) {
+                            Text(morning).font(PaiTypography.body.font).foregroundStyle(
+                                PaiPalette.Semantic.textSecondary)
+                        }
+                    }
+                }
+                .accessibilityIdentifier("me-pai")
+            }
         }
     }
 
@@ -234,13 +285,6 @@ struct MeTodayView: View {
                     id: "movement", value: duration, unit: nil,
                     label: "\(activity.name ?? activity.type ?? "activity")\(started)",
                     color: MeColor.movement(dark: dark)))
-        }
-        if let pai = day.pai {
-            let sessions = pai.sessions.map { " in \($0) session\($0 == 1 ? "" : "s")" }
-            cells.append(
-                FactCell(
-                    id: "pai", value: "\(pai.messages)", unit: sessions, label: "messages to PAI",
-                    color: MeColor.pai(dark: dark)))
         }
         return cells
     }

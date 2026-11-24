@@ -73,4 +73,31 @@ final class MePresenterTests: XCTestCase {
         let onlyMarker = SelfReport(id: "4", at: "x", text: "stt-rec: ", source: .ios)
         XCTAssertNil(presenter.words(of: onlyMarker).text)
     }
+
+    func testBodyLifeAndDiaryComeBeforeThePaiNumbersAndMorningIsNotAGridRow() {
+        XCTAssertEqual(
+            MeLayout.gridRows(garminConnected: true), [.diary, .sleep, .bodyBattery, .movement, .pai])
+        XCTAssertEqual(MeLayout.gridRows(garminConnected: false), [.diary, .pai])
+
+        let day = MeDay(date: "2026-11-24")
+        let review = MeReview(title: "t", noteId: "n")
+        let full = MeOverview(
+            today: "2026-11-24", days: [day], lookingBack: SelfReport(id: "1", at: "x"),
+            notes: [MeNote(key: "now", title: "Now", noteId: "n")], review: review)
+        let sections = MeLayout.todaySections(for: full)
+        XCTAssertEqual(sections, [.write, .review, .soFar, .week, .diary, .lookingBack, .pai, .notes])
+        let bare = MeOverview(today: "2026-11-24", days: [day])
+        XCTAssertEqual(MeLayout.todaySections(for: bare), [.write, .soFar, .week, .diary, .pai])
+    }
+
+    func testTheReviewNamesTheCompassSessionByIdAndAnOldPromptFieldIsIgnored() throws {
+        let json = #"""
+            {"today": "2026-11-24", "days": [], "review": {"title": "Week 47", "note_id": "n1", "week": 47,
+             "compass_session_id": "305df4d3-1554-4fc3-be04-39a354a9e619", "compass_session_prompt": "old"}}
+            """#
+        let overview = try JSONDecoder().decode(MeOverview.self, from: Data(json.utf8))
+        XCTAssertEqual(overview.review?.compassSessionId, "305df4d3-1554-4fc3-be04-39a354a9e619")
+        let none = #"{"today": "d", "days": [], "review": {"title": "t", "note_id": "n", "compass_session_id": null}}"#
+        XCTAssertNil(try JSONDecoder().decode(MeOverview.self, from: Data(none.utf8)).review?.compassSessionId)
+    }
 }

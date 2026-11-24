@@ -445,19 +445,20 @@ public struct MeReview: Decodable, Sendable, Equatable {
     public let title: String
     public let noteId: String
     public let week: Int?
-    public let compassSessionPrompt: String?
+    /// The compass-talk session the latest review names; nil hides the Compass button.
+    public let compassSessionId: String?
 
-    public init(title: String, noteId: String, week: Int? = nil, compassSessionPrompt: String? = nil) {
+    public init(title: String, noteId: String, week: Int? = nil, compassSessionId: String? = nil) {
         self.title = title
         self.noteId = noteId
         self.week = week
-        self.compassSessionPrompt = compassSessionPrompt
+        self.compassSessionId = compassSessionId
     }
 
     enum CodingKeys: String, CodingKey {
         case title, week
         case noteId = "note_id"
-        case compassSessionPrompt = "compass_session_prompt"
+        case compassSessionId = "compass_session_id"
     }
 }
 
