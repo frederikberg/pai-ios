@@ -1017,11 +1017,9 @@ final class SessionStoreListStoreTests: XCTestCase {
         XCTAssertEqual(store.syncedSessions.first?.taskId, "task-1")
     }
 
-    // MARK: - scheduledOnly
+    // MARK: - scope
 
-    /// The "Scheduled" chip shows sessions the scheduler launched EXCLUSIVELY — filtered out of
-    /// the synced list already in memory, never a fresh request.
-    func testScheduledOnlyShowsOnlySessionsCarryingATaskId() async {
+    private func storeWithOrdinaryAndScheduledSessions() async -> SessionListStore {
         let api = FakeSessionListApi()
         await api.setGetSessionsResult { _ in
             .success(
@@ -1033,43 +1031,44 @@ final class SessionStoreListStoreTests: XCTestCase {
         }
         let store = makeStore(api: api)
         await store.loadInitialSessions()
-
-        store.setScheduledOnly(true)
-
-        XCTAssertEqual(store.rows.map(\.id), ["scheduled"])
+        return store
     }
 
-    /// The exclusion is the other half of the same guarantee: a scheduled session must not also
-    /// surface in the ordinary list, matching the web's `Sidebar.tsx` (`scopedToView` is
-    /// exclusive both ways, never an extra narrowing only on top of the toggle being on).
-    func testOrdinaryListExcludesScheduledSessions() async {
-        let api = FakeSessionListApi()
-        await api.setGetSessionsResult { _ in
-            .success(
-                SessionsPage(
-                    sessions: [
-                        SessionFixture.make(id: "ordinary"),
-                        SessionFixture.make(id: "scheduled", taskId: "task-1"),
-                    ], nextCursor: nil))
-        }
-        let store = makeStore(api: api)
-        await store.loadInitialSessions()
+    /// Fresh store: the ordinary list, without the scheduled session. Scheduled and All+ then
+    /// each show their own set.
+    func testScopeDecidesWhetherScheduledSessionsAreListed() async {
+        let store = await storeWithOrdinaryAndScheduledSessions()
+        XCTAssertEqual(store.rows.map(\.id), ["ordinary"])
 
+        store.setScope(.allPlus)
+        XCTAssertEqual(Set(store.rows.map(\.id)), ["ordinary", "scheduled"])
+
+        store.setScope(.scheduled)
+        XCTAssertEqual(store.rows.map(\.id), ["scheduled"])
+
+        store.setScope(.all)
         XCTAssertEqual(store.rows.map(\.id), ["ordinary"])
     }
 
-    /// "Scheduled" and a machine chip are exclusive, the same way "All" and a machine chip are —
-    /// selecting one clears the other rather than the two combining.
-    func testScheduledOnlyAndAMachineFilterAreMutuallyExclusive() async {
+    /// The scope narrows within a machine chip's list instead of replacing it.
+    func testScopeCombinesWithAMachineFilter() async {
         let api = FakeSessionListApi()
+        await api.setGetSessionsResult { _ in
+            .success(
+                SessionsPage(
+                    sessions: [
+                        SessionFixture.make(id: "ordinary"),
+                        SessionFixture.make(id: "scheduled", taskId: "task-1"),
+                    ], nextCursor: nil))
+        }
         let store = makeStore(api: api)
+        await store.loadInitialSessions()
 
-        store.setScheduledOnly(true)
+        store.setScope(.allPlus)
         store.setMachineFilter("vm")
-        XCTAssertFalse(store.scheduledOnly)
 
-        store.setScheduledOnly(true)
-        XCTAssertNil(store.machineFilter)
+        XCTAssertEqual(store.machineFilter, "vm")
+        XCTAssertEqual(store.scope, .allPlus)
     }
 
     /// Same trap, same shape, for the badge the session header shows next to the token

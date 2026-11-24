@@ -33,6 +33,7 @@ struct SessionListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            scopePicker
             filterChips
             list
         }
@@ -323,10 +324,27 @@ struct SessionListView: View {
 
     // MARK: - Filter chips
 
+    /// All / All+ / Scheduled: which sessions the list is about, independent of the machine chips
+    /// below it, which narrow further within the chosen view.
+    private var scopePicker: some View {
+        Picker("Sessions", selection: scopeBinding) {
+            ForEach(SessionListScope.allCases, id: \.self) { scope in
+                Text(scope.title).tag(scope)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
+        .accessibilityIdentifier("session-filter-scope")
+    }
+
+    private var scopeBinding: Binding<SessionListScope> {
+        Binding(get: { sessions.scope }, set: { sessions.setScope($0) })
+    }
+
     /// Per-machine chips only earn their place once there is a choice to make — one machine means
-    /// no per-machine chips, not a disabled row. "Scheduled" is a separate axis (sessions the
-    /// scheduler launched, wherever they run) and always offers a real choice, so the chip row
-    /// itself is never hidden the way the machine-only row used to be.
+    /// no per-machine chips, not a disabled row. The chip row stays even then: it also carries the
+    /// time-window chip.
     private var showsMachineChips: Bool {
         MachineStore.hasMultipleAgents(machines.allMachines)
     }
@@ -343,21 +361,17 @@ struct SessionListView: View {
     private var chipScroller: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                MachineChip(title: "All", isSelected: sessions.machineFilter == nil && !sessions.scheduledOnly) {
-                    sessions.setMachineFilter(nil)
-                }
-                MachineChip(title: "Scheduled", isSelected: sessions.scheduledOnly) {
-                    sessions.setScheduledOnly(!sessions.scheduledOnly)
-                }
-                .accessibilityIdentifier("session-filter-scheduled")
                 // Offline machines stay selectable here, unlike the launch picker: this filters
                 // what to look at, not where to launch, and a grey laptop session is exactly
                 // what a chip here is for finding.
                 if showsMachineChips {
+                    MachineChip(title: "All", isSelected: sessions.machineFilter == nil) {
+                        sessions.setMachineFilter(nil)
+                    }
                     ForEach(machines.allMachines) { machine in
                         MachineChip(
                             title: machine.displayName,
-                            isSelected: sessions.machineFilter == machine.slug && !sessions.scheduledOnly
+                            isSelected: sessions.machineFilter == machine.slug
                         ) {
                             sessions.setMachineFilter(machine.slug)
                         }
