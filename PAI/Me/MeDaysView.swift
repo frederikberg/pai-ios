@@ -371,10 +371,10 @@ private struct HeldSheet: View {
                 if held.phases.isEmpty {
                     Text("No summaries for this day.").foregroundStyle(PaiPalette.Semantic.textMuted)
                 }
-                ForEach(held.phases, id: \.name) { phase in
+                ForEach(Array(held.phases.enumerated()), id: \.offset) { _, phase in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(
-                            [phase.name, presenter.roundedMinutes(phase.minutes)].compactMap { $0 }.joined(
+                            [phase.title, presenter.roundedMinutes(phase.minutes)].compactMap { $0 }.joined(
                                 separator: " · ")
                         )
                         .font(PaiTypography.panelTitle.font)
