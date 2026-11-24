@@ -6,11 +6,21 @@ public enum ClockTime {
 
     /// "17:30": `date` as the wall clock reads in `calendar`'s time zone.
     public static func string(_ date: Date, calendar: Calendar = .current) -> String {
+        format(date, calendar: calendar, pattern: "HH:mm")
+    }
+
+    /// "17:30", or "17:30:45" when `date` falls on a second other than zero.
+    public static func stringShowingSeconds(_ date: Date, calendar: Calendar = .current) -> String {
+        let seconds = calendar.component(.second, from: date)
+        return format(date, calendar: calendar, pattern: seconds == 0 ? "HH:mm" : "HH:mm:ss")
+    }
+
+    private static func format(_ date: Date, calendar: Calendar, pattern: String) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = calendar
         formatter.timeZone = calendar.timeZone
-        formatter.dateFormat = "HH:mm"
+        formatter.dateFormat = pattern
         return formatter.string(from: date)
     }
 

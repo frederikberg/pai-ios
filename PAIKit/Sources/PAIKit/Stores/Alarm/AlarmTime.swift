@@ -14,6 +14,16 @@ public enum AlarmTime {
             matchingPolicy: .nextTime)
     }
 
+    /// `now` plus a duration given as hours, minutes and seconds, to the second. Nil for a zero
+    /// duration (an alarm for this very moment can never be set) and for a part outside its dial:
+    /// hours 0-23, minutes and seconds 0-59.
+    public static func relativeFireDate(hours: Int, minutes: Int, seconds: Int, after now: Date) -> Date? {
+        guard (0...23).contains(hours), (0...59).contains(minutes), (0...59).contains(seconds) else { return nil }
+        let total = hours * 3600 + minutes * 60 + seconds
+        guard total > 0 else { return nil }
+        return Date(timeIntervalSince1970: now.timeIntervalSince1970.rounded(.down) + Double(total))
+    }
+
     /// ISO-8601 UTC with an explicit `+00:00` offset, the form the backend itself writes.
     public static func wireString(_ date: Date) -> String {
         let formatter = ISO8601DateFormatter()

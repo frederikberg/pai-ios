@@ -160,6 +160,42 @@ final class AlarmTests: XCTestCase {
         XCTAssertEqual(AlarmTime.wireString(fire), "2026-10-25T06:00:00+00:00")
     }
 
+    // MARK: Relative
+
+    func testARelativeAlarmFiresTheDurationAfterNowToTheSecond() throws {
+        let now = date("2026-09-01T05:00:00.800000+00:00")
+        let fire = try XCTUnwrap(AlarmTime.relativeFireDate(hours: 1, minutes: 2, seconds: 3, after: now))
+        XCTAssertEqual(AlarmTime.wireString(fire), "2026-09-01T06:02:03+00:00")
+    }
+
+    func testARelativeAlarmMayReachAcrossMidnight() throws {
+        let now = date("2026-09-01T23:30:00+00:00")
+        let fire = try XCTUnwrap(AlarmTime.relativeFireDate(hours: 23, minutes: 59, seconds: 59, after: now))
+        XCTAssertEqual(AlarmTime.wireString(fire), "2026-09-02T23:29:59+00:00")
+    }
+
+    func testAZeroDurationHasNoFireTime() {
+        let now = date("2026-09-01T05:00:00+00:00")
+        XCTAssertNil(AlarmTime.relativeFireDate(hours: 0, minutes: 0, seconds: 0, after: now))
+    }
+
+    func testAPartOutsideItsDialHasNoFireTime() {
+        let now = date("2026-09-01T05:00:00+00:00")
+        XCTAssertNil(AlarmTime.relativeFireDate(hours: 24, minutes: 0, seconds: 0, after: now))
+        XCTAssertNil(AlarmTime.relativeFireDate(hours: 0, minutes: 60, seconds: 0, after: now))
+        XCTAssertNil(AlarmTime.relativeFireDate(hours: 0, minutes: 0, seconds: -1, after: now))
+    }
+
+    // MARK: Listing
+
+    func testASecondOnTheFireTimeIsListedAndZeroSecondsAreNot() {
+        let berlin = calendar("Europe/Berlin")
+        XCTAssertEqual(
+            ClockTime.stringShowingSeconds(date("2026-09-01T05:30:00+00:00"), calendar: berlin), "07:30")
+        XCTAssertEqual(
+            ClockTime.stringShowingSeconds(date("2026-09-01T05:30:07+00:00"), calendar: berlin), "07:30:07")
+    }
+
     func testTheTitleCarriesTheClock() {
         XCTAssertEqual(AlarmTime.title("Wecker"), "⏰ Wecker")
     }
@@ -227,6 +263,28 @@ final class AlarmTests: XCTestCase {
         XCTAssertEqual(created.map(\.name), [nil])
         let alarms = await store.alarms
         XCTAssertEqual(alarms.count, 2)
+    }
+
+    func testAddingARelativeAlarmSendsNowPlusTheDuration() async throws {
+        let api = FakeAlarmApi()
+        let store = await AlarmStore(api: api)
+        let ok = await store.add(
+            hours: 0, minutes: 5, seconds: 30, name: "Tee", now: date("2026-09-01T05:00:10+00:00"))
+        XCTAssertTrue(ok)
+        let created = await api.created
+        XCTAssertEqual(created.map(\.fireAt), ["2026-09-01T05:05:40+00:00"])
+        XCTAssertEqual(created.map(\.name), ["Tee"])
+    }
+
+    func testAZeroRelativeAlarmIsRefusedWithoutAServerCall() async {
+        let api = FakeAlarmApi()
+        let store = await AlarmStore(api: api)
+        let ok = await store.add(hours: 0, minutes: 0, seconds: 0, name: "")
+        XCTAssertFalse(ok)
+        let created = await api.created
+        XCTAssertEqual(created.count, 0)
+        let message = await store.errorMessage
+        XCTAssertNotNil(message)
     }
 
     func testAFailedSaveKeepsTheErrorAndSaysSo() async {

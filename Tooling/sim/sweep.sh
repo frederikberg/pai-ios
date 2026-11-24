@@ -20,7 +20,7 @@ set -o pipefail
 SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscreen-pdf secret-prompt compact-chip mailverdict person-settings playback playback-voice
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
-watch-keys alarm-facts weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke
+watch-keys alarm-facts alarm-sheet weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke
 camera-import-result me-screens"
 
 mkdir -p artifacts
@@ -318,6 +318,21 @@ if want alarm-facts; then
   screenshot alarm-facts -PaiFixtureRoute alarm
   fact_assert alarm-facts alarmRinging 1
   fact_assert alarm-facts alarmArmed 2
+  # The blank row's height is the room under the rows; it is printed, not asserted, because it
+  # depends on the device.
+  echo "alarm-facts: alarmBlank=$(curl -sS --max-time 5 http://127.0.0.1:8765/fixture \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('alarmBlank', ''))" 2>/dev/null)"
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want alarm-sheet; then
+  # The new-alarm sheet in both entry modes (read both pictures: the wheels, the toggle in the
+  # title bar, Save disabled at 0:00:00).
+  screenshot alarm-sheet-time -PaiFixtureRoute alarm -PaiFixtureAlarmSheet time
+  fact_assert alarm-sheet-time alarmSheetMode time
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot alarm-sheet-in -PaiFixtureRoute alarm -PaiFixtureAlarmSheet in
+  fact_assert alarm-sheet-in alarmSheetMode relative
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 
