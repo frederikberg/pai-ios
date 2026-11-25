@@ -546,6 +546,35 @@ def non_sendable_stored_property(
     return findings
 
 
+#: Fixture mode exists only in a Debug build: its types are declared inside `#if DEBUG`, so a use
+#: outside one compiles in the PR's Debug check and fails the tag's Release archive.
+DEBUG_ONLY_NAME = re.compile(r"\bPaiFixtureLaunch\b|\bFixtureFacts\.shared\b")
+
+
+def debug_only_name_outside_debug(path: Path, lines: list[str]) -> list[tuple[int, str, str]]:
+    """Flags a fixture-mode name used outside every `#if DEBUG` block. Files under the package's
+    `Debug/` folder and `PAI/Debug/` declare those names (or are wholly guarded) and are skipped."""
+    if "/Debug/" in str(path):
+        return []
+    findings: list[tuple[int, str, str]] = []
+    stack: list[bool] = []  # one entry per open `#if`: whether it is a DEBUG branch
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("#if "):
+            stack.append(stripped == "#if DEBUG")
+        elif stripped.startswith("#endif") and stack:
+            stack.pop()
+        elif stripped.startswith("#else") and stack:
+            stack[-1] = False
+        elif DEBUG_ONLY_NAME.search(line) and not stripped.startswith("//") and not any(stack):
+            findings.append((
+                index + 1, stripped,
+                "fixture-mode code exists only in Debug — a use outside '#if DEBUG' compiles in a "
+                "PR check and fails the Release archive",
+            ))
+    return findings
+
+
 def check(path: Path, sendable_names: frozenset[str] = frozenset({"Sendable"})) -> list[tuple[int, str, str]]:
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     isolated = main_actor_line_numbers(lines)
@@ -557,6 +586,7 @@ def check(path: Path, sendable_names: frozenset[str] = frozenset({"Sendable"})) 
     findings.extend(stored_static_in_generic_type(lines))
     findings.extend(private_type_used_too_widely(lines))
     findings.extend(non_sendable_stored_property(lines, sendable_names))
+    findings.extend(debug_only_name_outside_debug(path, lines))
 
     for index, line in enumerate(lines):
         if STORED_STATIC_VAR.match(line) and index not in isolated and "nonisolated(unsafe)" not in line:
