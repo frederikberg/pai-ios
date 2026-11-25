@@ -43,7 +43,7 @@ struct MeDaysView: View {
             .refreshable { await store.load() }
         }
         .sheet(item: $workedSheet) { project in WorkedSheet(project: project, presenter: store.presenter) }
-        .task(id: store.selectedDate) {
+        .task(id: whereKey) {
             guard let date = store.selectedDate, let client = environment.connection?.apiClient else { return }
             let held =
                 location
@@ -333,6 +333,13 @@ struct MeDaysView: View {
             .accessibilityIdentifier("me-where")
             .fixtureFact("meWhere", "stays=\(located.stays.count) gaps=\(line.hasGaps)")
         }
+    }
+
+    /// The picked day and whether `/api/me` has answered: the line is read again once the role is
+    /// known, since a read made before that is refused locally and would otherwise never be retried.
+    private var whereKey: String {
+        let known = environment.connection?.me.capabilities.isKnown == true
+        return "\(store.selectedDate ?? "")|\(known)"
     }
 
     private func whereText(_ line: LocationDayLine) -> Text {

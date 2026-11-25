@@ -62,7 +62,7 @@ struct LocationSection: View {
     private var footer: String {
         if ownerHistory {
             return
-                "Keeps your location history on your PAI server, so reminders at places, the weather and your day's movement work. One iPhone reports it; the others stay silent."
+                "Keeps your location history on your PAI server for reminders at places and the weather. One iPhone reports it."
         }
         return
             "Only your latest location is kept on your PAI server, to answer whether it will rain where you are. One iPhone reports it; the others stay silent."
