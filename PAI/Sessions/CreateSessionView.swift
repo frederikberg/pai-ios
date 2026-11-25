@@ -62,6 +62,9 @@ struct CreateSessionView: View {
     /// exists. Set from the launcher's call tiles and from the plus menu below; read once, in
     /// `send(_:)`.
     @State private var startsCallOnSend = false
+    /// The session a call-mode send created, held until this sheet has finished leaving: the call
+    /// screen is pushed from `onDisappear`, never while the dismissal is still running.
+    @State private var callToOpenAfterDismiss: String?
 
     var body: some View {
         NavigationStack {
@@ -104,6 +107,11 @@ struct CreateSessionView: View {
             // is what stops it opening against the *next* visit to this screen instead — the
             // session is in the list either way.
             NewSessionHandoff.shared.withdrawCreated()
+            // The sheet is gone now; a push made while it was leaving is dropped.
+            if let sessionID = callToOpenAfterDismiss {
+                callToOpenAfterDismiss = nil
+                ComputerCallEntry.open(environment, connectSession: sessionID)
+            }
         }
         // The session a send from this screen created, the moment the outbox lands it. A change
         // rather than an initial read: anything already sitting here when this screen appears
@@ -813,11 +821,10 @@ struct CreateSessionView: View {
     /// reveals it.
     private func openCreatedSession() {
         guard let sessionID = NewSessionHandoff.shared.consumeCreated() else { return }
-        // Handed to the session's own composer rather than pushed from here — see
-        // `CallModeLaunchRequest.openCall(forSession:)` for why a presentation requested from
-        // behind this dismissing sheet would be dropped.
+        // The call opens once this sheet has left (`onDisappear`): a push requested from behind a
+        // dismissing sheet is dropped, and the session's composer mounts during that window.
         if startsCallOnSend {
-            CallModeLaunchRequest.shared.openCall(forSession: sessionID)
+            callToOpenAfterDismiss = sessionID
             // Cleared before the dismiss, because this screen's own teardown withdraws an unused
             // request — and after a send the request is not unused, it is on its way to the
             // session that was just created.

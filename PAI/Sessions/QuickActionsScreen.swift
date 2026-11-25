@@ -1,8 +1,8 @@
 import PAIKit
 import SwiftUI
 
-/// One of the bottom row's three shortcuts — a link the user configures by long-pressing the
-/// tile, since Todoist's own view/filter URLs are theirs to find and paste rather than something
+/// One of the three shortcuts in the More list — a link the user configures through the row's
+/// context menu, or by tapping an unconfigured one, since Todoist's own view/filter URLs are theirs to find and paste rather than something
 /// this app can construct (a saved-filter URL in particular names an id only their account has).
 /// Persisted locally, never synced: this is a per-device convenience, not app state PAI Cloud
 /// needs to know about.
@@ -14,11 +14,9 @@ private struct QuickActionShortcut: Equatable {
     var url: URL? { isConfigured ? URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines)) : nil }
 }
 
-/// Where the hardware Action Button lands: five rows, reachable without the last being cut off —
-/// the layout the user actually reaches for, not a uniform grid that happens to hold every tile at
-/// one size. Every row is three tiles wide: Computer, Me and the camera; two session rows; Find
-/// note, New note and the MailVerdict assistant; and three shortcuts, each of which the user
-/// configures.
+/// Where the hardware Action Button lands: a three-column grid whose placement is
+/// ``QuickActionLayout``. Self-report, Me and the More tile on top, then the typed and call
+/// shortcuts, with the actions the grid has no room for behind the More tile as a scrollable list.
 ///
 /// The button is pressed without looking — walking, in a coat pocket, mid-sentence — so the whole
 /// screen is one glance and one thumb. That is what sets the shape: large targets rather than a
@@ -28,7 +26,7 @@ private struct QuickActionShortcut: Equatable {
 /// 🚨 Row height is divided out of the measured screen by `rowCount`, then held between a floor
 /// and a ceiling. The floor keeps a target big enough to hit without looking on a small phone;
 /// the ceiling keeps a large one from stretching every tile to fill space it does not need, which
-/// reads as a screen of six enormous buttons rather than a glanceable grid.
+/// reads as a screen of enormous buttons rather than a glanceable grid.
 struct QuickActionsScreen: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(NotesStore.self) private var notes
@@ -36,22 +34,12 @@ struct QuickActionsScreen: View {
     @Environment(ToastCenter.self) private var toasts
     @Environment(SelfReportStore.self) private var selfReports
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12),
-    ]
-
     private let spacing: CGFloat = 12
     private let padding: CGFloat = 16
-    /// Computer and the camera, Home/Fast/Ultra-fast typed, Home/Fast/Ultra-fast call, notes and
-    /// the MailVerdict assistant, and a three-up shortcut row.
-    private let rowCount: CGFloat = 5
+    private var rowCount: CGFloat { CGFloat(QuickActionLayout.grid.count) }
     /// Big enough to hit without looking, on the smallest phone this runs on.
     private let minRowHeight: CGFloat = 88
-    private let maxRowHeight: CGFloat = 104
-    /// The top row needs less height than the rows below it — and it holds the tiles whose
-    /// position is never in doubt.
-    private let computerHeightFactor: CGFloat = 0.8
+    private let maxRowHeight: CGFloat = 120
 
     @AppStorage("quickActionShortcut1Name") private var shortcut1Name = ""
     @AppStorage("quickActionShortcut1URL") private var shortcut1URLString = ""
@@ -61,15 +49,17 @@ struct QuickActionsScreen: View {
     @AppStorage("quickActionShortcut3URL") private var shortcut3URLString = ""
     @State private var editingShortcutSlot: Int?
     @State private var writingEntry = false
+    @State private var showingMore = false
+    /// What a tap in the More list asked for. It runs once the list has finished leaving: an
+    /// action that presents or navigates from behind a dismissing sheet is dropped silently.
+    @State private var afterMore: (() -> Void)?
 
-    private var shortcut1: QuickActionShortcut {
-        QuickActionShortcut(name: shortcut1Name, urlString: shortcut1URLString)
-    }
-    private var shortcut2: QuickActionShortcut {
-        QuickActionShortcut(name: shortcut2Name, urlString: shortcut2URLString)
-    }
-    private var shortcut3: QuickActionShortcut {
-        QuickActionShortcut(name: shortcut3Name, urlString: shortcut3URLString)
+    private func shortcut(slot: Int) -> QuickActionShortcut {
+        switch slot {
+        case 1: QuickActionShortcut(name: shortcut1Name, urlString: shortcut1URLString)
+        case 2: QuickActionShortcut(name: shortcut2Name, urlString: shortcut2URLString)
+        default: QuickActionShortcut(name: shortcut3Name, urlString: shortcut3URLString)
+        }
     }
 
     private func shortcutNameBinding(slot: Int) -> Binding<String> {
@@ -94,12 +84,8 @@ struct QuickActionsScreen: View {
         // screen empty on a large phone while overflowing a small one.
         //
         // 🚨 A `.frame(minHeight:maxHeight:)` proposes a size — it does not forcibly clip a child
-        // that refuses to shrink smaller, so on a device where the five-way division comes out
-        // below a tile's own minimum content height (icon + title + subtitle + padding), the grid
-        // as a whole grows past what `GeometryReader` measured, which is exactly the "last row
-        // cut off" failure this screen exists to fix. The `ScrollView` below is the backstop for
-        // that case — never the primary mechanism — so a smaller phone than this was tuned
-        // against scrolls a few points rather than hard-clipping the bottom row again.
+        // that refuses to shrink smaller, so the `ScrollView` is the backstop for a phone smaller
+        // than this was tuned against: it scrolls a few points rather than clipping the bottom row.
         GeometryReader { proxy in
             ScrollView {
                 grid(rowHeight: rowHeight(in: proxy.size.height))
@@ -110,6 +96,12 @@ struct QuickActionsScreen: View {
         .navigationTitle("Quick Actions")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("quick-actions-screen")
+        .fixtureFact("quickActionsGrid", QuickActionLayout.summary)
+        #if DEBUG
+            .task {
+                if PaiFixtureLaunch.isEnabled(), PaiFixtureLaunch.opensQuickMore() { showingMore = true }
+            }
+        #endif
         .sheet(isPresented: $writingEntry) { MeComposerSheet(mode: .new) }
         .sheet(item: $editingShortcutSlot.map { slot in EditingSlot(slot: slot) }) { editing in
             ShortcutEditSheet(
@@ -117,96 +109,50 @@ struct QuickActionsScreen: View {
                 urlString: shortcutURLBinding(slot: editing.slot)
             )
         }
+        .sheet(
+            isPresented: $showingMore,
+            onDismiss: {
+                let action = afterMore
+                afterMore = nil
+                action?()
+            }
+        ) {
+            moreList
+        }
     }
 
     private func grid(rowHeight: CGFloat) -> some View {
         VStack(spacing: spacing) {
-            HStack(spacing: spacing) {
-                tile(
-                    title: "Computer", subtitle: "Talk", systemImage: "waveform.circle.fill",
-                    tint: PaiPalette.primary500, height: rowHeight * computerHeightFactor,
-                    identifier: "quick-computer"
-                ) {
-                    ComputerCallEntry.open(environment)
+            ForEach(Array(QuickActionLayout.grid.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: spacing) {
+                    ForEach(Array(row.enumerated()), id: \.offset) { _, slot in
+                        cell(slot, height: rowHeight)
+                    }
                 }
-                meTile(height: rowHeight * computerHeightFactor)
-                tile(
-                    title: "Camera", subtitle: "Ultra-fast", systemImage: "camera.fill",
-                    tint: PaiPalette.green500, height: rowHeight * computerHeightFactor,
-                    identifier: "quick-camera"
-                ) {
-                    startSession(type: "ultrafast", call: false, camera: true)
-                }
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: spacing) {
-                tile(
-                    title: "Home", subtitle: "Type", systemImage: "house.fill",
-                    tint: PaiPalette.primary500, height: rowHeight, identifier: "quick-home"
-                ) {
-                    startSession(type: "home", call: false)
-                }
-                tile(
-                    title: "Fast", subtitle: "Type", systemImage: "bolt.fill",
-                    tint: PaiPalette.amber500, height: rowHeight, identifier: "quick-fast"
-                ) {
-                    startSession(type: "fast", call: false)
-                }
-                tile(
-                    title: "Ultra-fast", subtitle: "Type", systemImage: "hare.fill",
-                    tint: PaiPalette.green500, height: rowHeight, identifier: "quick-ultrafast"
-                ) {
-                    startSession(type: "ultrafast", call: false)
-                }
-            }
-            HStack(spacing: spacing) {
-                tile(
-                    title: "Home", subtitle: "Call", systemImage: "phone.fill",
-                    tint: PaiPalette.primary500, height: rowHeight, identifier: "quick-home-call"
-                ) {
-                    startSession(type: "home", call: true)
-                }
-                tile(
-                    title: "Fast", subtitle: "Call", systemImage: "phone.badge.waveform.fill",
-                    tint: PaiPalette.amber500, height: rowHeight, identifier: "quick-fast-call"
-                ) {
-                    startSession(type: "fast", call: true)
-                }
-                tile(
-                    title: "Ultra-fast", subtitle: "Call", systemImage: "hare.fill",
-                    tint: PaiPalette.green500, height: rowHeight, identifier: "quick-ultrafast-call"
-                ) {
-                    startSession(type: "ultrafast", call: true)
-                }
-            }
-            HStack(spacing: spacing) {
-                tile(
-                    title: "Find note", subtitle: "Filter", systemImage: "magnifyingglass",
-                    tint: PaiPalette.Semantic.textSecondary, height: rowHeight, identifier: "quick-find-note"
-                ) {
-                    NotesFilterFocus.shared.arm()
-                    environment.router.replace(with: [.notes])
-                }
-                tile(
-                    title: "New note", subtitle: "Write", systemImage: "square.and.pencil",
-                    tint: PaiPalette.Semantic.textSecondary, height: rowHeight, identifier: "quick-new-note"
-                ) {
-                    Task { await createNote() }
-                }
-                tile(
-                    title: "Assistant", subtitle: "MailVerdict", systemImage: "envelope.fill",
-                    tint: PaiPalette.primary500, height: rowHeight, identifier: "quick-mailverdict-assistant"
-                ) {
-                    MailVerdictAssistantEntry.open(environment: environment, drafts: drafts)
-                }
-            }
-            HStack(spacing: spacing) {
-                shortcutTile(shortcut1, slot: 1, height: rowHeight, identifier: "quick-shortcut-1")
-                shortcutTile(shortcut2, slot: 2, height: rowHeight, identifier: "quick-shortcut-2")
-                shortcutTile(shortcut3, slot: 3, height: rowHeight, identifier: "quick-shortcut-3")
             }
         }
         .padding(padding)
+    }
+
+    @ViewBuilder
+    private func cell(_ slot: QuickActionSlot, height: CGFloat) -> some View {
+        switch slot {
+        case .action(let action):
+            if isAvailable(action) {
+                actionTile(action, height: height)
+            } else {
+                Color.clear.frame(maxWidth: .infinity, minHeight: height)
+            }
+        case .more:
+            tile(
+                title: "More", subtitle: "Other actions", systemImage: "ellipsis.circle.fill",
+                tint: PaiPalette.Semantic.textSecondary, height: height, identifier: "quick-more"
+            ) {
+                showingMore = true
+            }
+        case .empty:
+            Color.clear.frame(maxWidth: .infinity, minHeight: height)
+        }
     }
 
     /// Divided out of the measured height, then clamped. `GeometryReader` is what makes the grid
@@ -216,41 +162,174 @@ struct QuickActionsScreen: View {
         return min(maxRowHeight, max(minRowHeight, divided))
     }
 
-    /// Writes into the Me diary: a tap opens the composer with the keyboard up, a long press opens
-    /// the Me app. A small dot marks a draft kept from last time. Guests have no diary, so the
-    /// slot stays empty for them.
-    @ViewBuilder
-    private func meTile(height: CGFloat) -> some View {
-        if environment.connection?.me.capabilities.canOpenMe == true {
-            tile(
-                title: "Me", subtitle: "Write", systemImage: "leaf.fill", tint: PaiPalette.amber500,
-                height: height, identifier: "quick-me"
-            ) {
-                writingEntry = true
+    /// Guests have no diary and no Me app, so those two slots stay empty for them.
+    private func isAvailable(_ action: QuickAction) -> Bool {
+        switch action {
+        case .selfReport, .me: environment.connection?.me.capabilities.canOpenMe == true
+        default: true
+        }
+    }
+
+    private func tint(_ action: QuickAction) -> Color {
+        switch action {
+        case .selfReport, .fastSession, .fastCall: PaiPalette.amber500
+        case .me, .computer, .home, .homeCall, .mailverdict: PaiPalette.primary500
+        case .ultrafast, .ultrafastCall, .ultrafastCamera: PaiPalette.green500
+        case .findNote, .newNote, .shortcut1, .shortcut2, .shortcut3: PaiPalette.Semantic.textSecondary
+        }
+    }
+
+    private func identifier(_ action: QuickAction) -> String {
+        switch action {
+        case .selfReport: "quick-me"
+        case .me: "quick-me-app"
+        case .computer: "quick-computer"
+        case .home: "quick-home"
+        case .ultrafast: "quick-ultrafast"
+        case .mailverdict: "quick-mailverdict-assistant"
+        case .homeCall: "quick-home-call"
+        case .ultrafastCamera: "quick-camera"
+        case .ultrafastCall: "quick-ultrafast-call"
+        case .fastSession: "quick-fast"
+        case .fastCall: "quick-fast-call"
+        case .findNote: "quick-find-note"
+        case .newNote: "quick-new-note"
+        case .shortcut1: "quick-shortcut-1"
+        case .shortcut2: "quick-shortcut-2"
+        case .shortcut3: "quick-shortcut-3"
+        }
+    }
+
+    /// What a tap on `action` does, wherever its tile is drawn.
+    private func perform(_ action: QuickAction) {
+        switch action {
+        case .selfReport:
+            writingEntry = true
+        case .me:
+            environment.router.push(.me)
+        case .computer:
+            ComputerCallEntry.open(environment)
+        case .mailverdict:
+            MailVerdictAssistantEntry.open(environment: environment, drafts: drafts)
+        case .findNote:
+            NotesFilterFocus.shared.arm()
+            environment.router.replace(with: [.notes])
+        case .newNote:
+            Task { await createNote() }
+        case .shortcut1, .shortcut2, .shortcut3:
+            guard let slot = action.shortcutSlot else { return }
+            guard let url = shortcut(slot: slot).url else {
+                editingShortcutSlot = slot
+                return
             }
-            .overlay(alignment: .topTrailing) {
-                // A take outlives the sheet, and nothing else on this screen shows one running.
-                if environment.connection?.voice.isRecording(draftKey: SelfReportStore.dictationKey) == true {
-                    Circle()
-                        .fill(PaiPalette.Semantic.errorText)
-                        .frame(width: 8, height: 8)
-                        .padding(12)
-                        .accessibilityLabel("Recording")
-                        .accessibilityIdentifier("quick-me-recording-dot")
-                } else if !selfReports.draft.isEmpty {
-                    Circle()
-                        .fill(PaiPalette.amber500)
-                        .frame(width: 6, height: 6)
-                        .padding(12)
-                        .accessibilityLabel("Draft kept")
-                        .accessibilityIdentifier("quick-me-draft-dot")
+            UIApplication.shared.open(url)
+        case .home, .ultrafast, .homeCall, .ultrafastCall, .ultrafastCamera, .fastSession, .fastCall:
+            guard let type = action.sessionType else { return }
+            NewSessionLaunch.start(
+                type: type, call: action.startsCall, camera: action == .ultrafastCamera,
+                environment: environment, drafts: drafts)
+        }
+    }
+
+    @ViewBuilder
+    private func actionTile(_ action: QuickAction, height: CGFloat) -> some View {
+        let base = tile(
+            title: action.title, subtitle: action.subtitle, systemImage: action.systemImage,
+            tint: tint(action), height: height, identifier: identifier(action)
+        ) {
+            perform(action)
+        }
+        if action == .selfReport {
+            base.overlay(alignment: .topTrailing) { selfReportDot }
+        } else {
+            base
+        }
+    }
+
+    /// A take outlives the sheet, and nothing else on this screen shows one running; a small dot
+    /// also marks a draft kept from last time.
+    @ViewBuilder
+    private var selfReportDot: some View {
+        if environment.connection?.voice.isRecording(draftKey: SelfReportStore.dictationKey) == true {
+            Circle()
+                .fill(PaiPalette.Semantic.errorText)
+                .frame(width: 8, height: 8)
+                .padding(12)
+                .accessibilityLabel("Recording")
+                .accessibilityIdentifier("quick-me-recording-dot")
+        } else if !selfReports.draft.isEmpty {
+            Circle()
+                .fill(PaiPalette.amber500)
+                .frame(width: 6, height: 6)
+                .padding(12)
+                .accessibilityLabel("Draft kept")
+                .accessibilityIdentifier("quick-me-draft-dot")
+        }
+    }
+
+    // MARK: - More
+
+    /// Every action the grid has no room for, one row each. Always the same list the layout
+    /// reports, so an action added to ``QuickAction`` without a grid slot shows up here.
+    private var moreList: some View {
+        NavigationStack {
+            List {
+                ForEach(QuickActionLayout.overflow.filter(isAvailable), id: \.self) { action in
+                    moreRow(action)
                 }
             }
-            .contextMenu {
-                Button("Open Me", systemImage: "leaf.fill") { environment.router.push(.me) }
+            .navigationTitle("More")
+            .navigationBarTitleDisplayMode(.inline)
+            .accessibilityIdentifier("quick-more-list")
+            .fixtureFact(
+                "quickMoreList", QuickActionLayout.overflow.filter(isAvailable).map(\.rawValue).joined(separator: ",")
+            )
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showingMore = false }
+                }
             }
-        } else {
-            Color.clear.frame(maxWidth: .infinity, minHeight: height)
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func moreRow(_ action: QuickAction) -> some View {
+        let shortcut = action.shortcutSlot.map { shortcut(slot: $0) }
+        let title =
+            shortcut.map { $0.isConfigured ? ($0.name.isEmpty ? "Shortcut" : $0.name) : "Set up" } ?? action.title
+        let subtitle = shortcut.map { $0.isConfigured ? "Todoist" : "Tap to add" } ?? action.subtitle
+        return Button {
+            afterMore = { perform(action) }
+            showingMore = false
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: action.systemImage)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(tint(action))
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(PaiTypography.panelTitle.font)
+                        .foregroundStyle(PaiPalette.Semantic.textPrimary)
+                    Text(subtitle)
+                        .font(PaiTypography.caption.font)
+                        .foregroundStyle(PaiPalette.Semantic.textMuted)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("\(identifier(action))-row")
+        .accessibilityLabel("\(title), \(subtitle)")
+        .contextMenu {
+            if let slot = action.shortcutSlot {
+                Button("Edit shortcut", systemImage: "pencil") {
+                    afterMore = { editingShortcutSlot = slot }
+                    showingMore = false
+                }
+            }
         }
     }
 
@@ -286,57 +365,6 @@ struct QuickActionsScreen: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)
         .accessibilityLabel("\(title), \(subtitle)")
-    }
-
-    /// A configurable shortcut — task-shaped icon, long-press to set its
-    /// name and link. An unconfigured slot's tap opens the same editor a long press would, so
-    /// pasting the link in is the tile's own first affordance rather than something that does
-    /// nothing until discovered.
-    private func shortcutTile(_ shortcut: QuickActionShortcut, slot: Int, height: CGFloat, identifier: String)
-        -> some View
-    {
-        Button {
-            guard let url = shortcut.url else {
-                editingShortcutSlot = slot
-                return
-            }
-            UIApplication.shared.open(url)
-        } label: {
-            VStack(alignment: .leading, spacing: 4) {
-                Image(systemName: "checklist")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(PaiPalette.Semantic.textSecondary)
-                Spacer(minLength: 0)
-                Text(shortcut.isConfigured ? shortcut.name.isEmpty ? "Shortcut" : shortcut.name : "Set up")
-                    .font(PaiTypography.panelTitle.font)
-                    .foregroundStyle(PaiPalette.Semantic.textPrimary)
-                    .lineLimit(1)
-                Text(shortcut.isConfigured ? "Todoist" : "Tap to add")
-                    .font(PaiTypography.caption.font)
-                    .foregroundStyle(PaiPalette.Semantic.textMuted)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(PaiPalette.Semantic.raisedSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .contentShape(RoundedRectangle(cornerRadius: 18))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(identifier)
-        .accessibilityLabel(shortcut.isConfigured ? shortcut.name : "Configure shortcut")
-        // A `contextMenu` rather than `onLongPressGesture`: this tile IS a button, and a button's
-        // own gesture recogniser wins that contest often enough that the long press reads as
-        // broken. The context menu is the long press SwiftUI hands to a button on purpose, and it
-        // shows what it offers rather than firing invisibly.
-        .contextMenu {
-            Button("Edit shortcut", systemImage: "pencil") { editingShortcutSlot = slot }
-        }
-    }
-
-    private func startSession(type: String, call: Bool, camera: Bool = false) {
-        NewSessionLaunch.start(type: type, call: call, camera: camera, environment: environment, drafts: drafts)
     }
 
     private func createNote() async {

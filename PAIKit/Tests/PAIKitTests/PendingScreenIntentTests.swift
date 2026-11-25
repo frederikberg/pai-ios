@@ -52,31 +52,6 @@ final class PendingScreenIntentTests: XCTestCase {
         XCTAssertNil(carry.consume(), "a later opening must start clean")
     }
 
-    /// Keyed by session id, because the composer that consumes it is one of many and each one
-    /// asks on mount. Answering yes to the wrong session would open a call on a conversation
-    /// nobody was starting.
-    func testAnOpenCallRequestOnlyAnswersForItsOwnSession() async {
-        let request = CallModeLaunchRequest()
-        request.openCall(forSession: "session-a")
-
-        XCTAssertFalse(request.consumeOpenCall(forSession: "session-b"))
-        XCTAssertTrue(
-            request.consumeOpenCall(forSession: "session-a"),
-            "asking on behalf of another session must not consume the request")
-        XCTAssertFalse(request.consumeOpenCall(forSession: "session-a"), "returning later must not reopen it")
-    }
-
-    /// The two signals share an object but not a lifetime: the microphone flag is cleared by the
-    /// screen that used it, long before the session it leads to exists.
-    func testConsumingTheMicrophoneFlagLeavesAnOpenCallRequestStanding() async {
-        let request = CallModeLaunchRequest()
-        request.arm()
-        request.openCall(forSession: "session-a")
-
-        XCTAssertTrue(request.consume())
-        XCTAssertTrue(request.consumeOpenCall(forSession: "session-a"))
-    }
-
     func testAFilterFocusRequestIsConsumedOnce() async {
         let focus = NotesFilterFocus()
         XCTAssertFalse(focus.consume())

@@ -60,36 +60,11 @@ public final class CallModeLaunchRequest {
         return armed
     }
 
-    /// The session whose composer should open call mode the moment it mounts, if one is waiting.
-    ///
-    /// Why not simply push `Route.callMode` from the screen that created the session: that screen
-    /// is a sheet, and it is dismissing at exactly that moment. A presentation requested from
-    /// behind a dismissing sheet is dropped silently — the same trap `CreateSessionView` already
-    /// documents for a plain push — and the failure here would be a call that never opens on a
-    /// session that was created for one. Handing the request to the composer instead means the
-    /// call is presented by the one piece of code that already presents it correctly, from a
-    /// screen that is fully on top by the time it runs.
-    private var pendingCallSessionID: String?
-
-    /// Called with the id of a session that has just been created for a call.
-    public func openCall(forSession id: String) {
-        pendingCallSessionID = id
-    }
-
-    /// Whether `id` is the session a call was asked for — true at most once, and only for that
-    /// session. Consumed either way, so returning to a transcript later never reopens a call.
-    public func consumeOpenCall(forSession id: String) -> Bool {
-        guard pendingCallSessionID == id else { return false }
-        pendingCallSessionID = nil
-        return true
-    }
-
     /// Withdraws a request that will not be acted on — the screen was dismissed without sending,
     /// or the microphone could not be reserved. Without this an abandoned request would sit
     /// waiting and turn the *next* new session into a call nobody asked for.
     public func cancel() {
         armed = false
-        pendingCallSessionID = nil
     }
 }
 
