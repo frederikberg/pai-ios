@@ -41,6 +41,7 @@
         static let meDayFlag = "-PaiFixtureMeDay"
         static let alarmSheetFlag = "-PaiFixtureAlarmSheet"
         static let sessionFiltersFlag = "-PaiFixtureSessionFilters"
+        static let quickMoreFlag = "-PaiFixtureQuickMore"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -239,6 +240,11 @@
         /// `-PaiFixtureMeDay <n>`: the 14-day grid opens with the day `n` days before today picked.
         public static func requestedMeDayOffset(arguments: [String] = ProcessInfo.processInfo.arguments) -> Int? {
             value(for: meDayFlag, in: arguments).flatMap { Int($0) }
+        }
+
+        /// `-PaiFixtureQuickMore`: the Quick Actions screen opens its More list at once.
+        public static func opensQuickMore(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains(quickMoreFlag)
         }
 
         /// `-PaiFixtureMeComposer`: the Me composer opens at once over a seeded draft.

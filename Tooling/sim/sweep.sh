@@ -21,7 +21,7 @@ SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscre
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
 watch-keys alarm-facts alarm-sheet weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke
-camera-import-result me-screens session-filters new-session-usage"
+camera-import-result me-screens session-filters new-session-usage quick-actions"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
@@ -286,6 +286,17 @@ if want session-filters; then
   xcrun simctl terminate "$udid" "$bundle" || true
   screenshot session-filters-both -PaiFixtureSessionFilters both
   fact_assert session-filters-both sessionListFilters "manual hideClosed=true machine=laptop"
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want quick-actions; then
+  # The launcher grid and, opened by the fixture flag, the More list behind its top-right tile.
+  grid="selfReport,me,more|computer,home,ultrafast|mailverdict,homeCall,ultrafastCamera|-,-,ultrafastCall"
+  screenshot quick-actions-grid -PaiFixtureRoute quickActions
+  fact_assert quick-actions-grid quickActionsGrid "$grid"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot quick-actions-more -PaiFixtureRoute quickActions -PaiFixtureQuickMore
+  fact_assert quick-actions-more quickMoreList "fastSession,fastCall,findNote,newNote,shortcut1,shortcut2,shortcut3"
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 

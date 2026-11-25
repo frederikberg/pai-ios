@@ -127,16 +127,6 @@ struct ComposerBar: View {
             grantRuns.composerAppeared(sessionId: sessionID)
             presentSecretPromptIfNeeded()
             presentGrantFailureIfNeeded()
-            // A session created by one of the launcher's call tiles: the first turn was just
-            // spoken and sent, and the point of the tile was never touching the phone again — so
-            // the call opens here, straight inside this session, from the screen the send landed
-            // on rather than from the sheet that was dismissing when the session came into being
-            // (the same ordering reason `CallModeLaunchRequest.openCall(forSession:)`'s own doc
-            // comment gives). A call rather than plain dictation, because a call is what the tile
-            // said: the wake word, spoken replies, and no screen to hold.
-            if CallModeLaunchRequest.shared.consumeOpenCall(forSession: sessionID) {
-                ComputerCallEntry.open(environment, connectSession: sessionID)
-            }
         }
         .onChange(of: currentSecretPrompt) { _, _ in presentSecretPromptIfNeeded() }
         .onChange(of: grantRuns.failures[sessionID]) { _, _ in presentGrantFailureIfNeeded() }
