@@ -74,7 +74,7 @@ struct VoicesSections: View {
     }
 
     private var presetSummary: String? {
-        guard let choices = settings.computerModel.choices else { return nil }
+        guard let choices = settings.computerChoices.choices else { return nil }
         return choices.summary(ofPreset: registry.person["computer_turn_preset"]?.stringValue ?? "")
     }
 

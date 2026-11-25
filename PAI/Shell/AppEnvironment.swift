@@ -457,8 +457,8 @@ final class AppEnvironment {
             push: PushRegistrationStore(
                 storage: defaults,
                 isRegistrationAllowed: { [weak me] in me?.capabilities.canRegisterPush ?? false }
-            ) { token, mutedChannels in
-                try await client.registerDevice(token: token, mutedChannels: mutedChannels)
+            ) { token, mutedChannels, sleep in
+                try await client.registerDevice(token: token, mutedChannels: mutedChannels, sleep: sleep)
             },
             pushChannels: PushChannelsStore(api: client),
             skills: SkillStore(api: client),

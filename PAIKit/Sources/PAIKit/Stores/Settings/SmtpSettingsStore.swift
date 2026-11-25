@@ -12,9 +12,7 @@ public struct SmtpSettingsDraft: Sendable, Equatable {
     public var security: SmtpSecurity
     public var username: String
     public var fromAddress: String
-    public var recipient: String
     public var enabled: Bool
-    public var alertsEnabled: Bool
 
     public init(loaded: SmtpSettings) {
         host = loaded.host ?? ""
@@ -22,11 +20,13 @@ public struct SmtpSettingsDraft: Sendable, Equatable {
         security = loaded.security
         username = loaded.username ?? ""
         fromAddress = loaded.fromAddress ?? ""
-        recipient = loaded.recipient
         enabled = loaded.enabled
-        alertsEnabled = loaded.alertsEnabled
     }
 
+    /// The server's own half: the recipient and the alert-mail switch are the owner's person
+    /// settings (`mail_address`, `mail_alerts`), so a save here never names them and cannot
+    /// overwrite a choice made on the Notifications page.
+    ///
     /// The Save button PUTs every field, not a selective patch — see `SmtpSettingsUpdate`'s doc
     /// comment for why a partial patch cannot express "clear to null" and this project follows
     /// the web's whole-draft pattern instead of building one.
@@ -37,9 +37,7 @@ public struct SmtpSettingsDraft: Sendable, Equatable {
             security: security,
             username: username.isEmpty ? nil : username,
             fromAddress: fromAddress.isEmpty ? nil : fromAddress,
-            recipient: recipient,
-            enabled: enabled,
-            alertsEnabled: alertsEnabled
+            enabled: enabled
         )
     }
 }
@@ -86,27 +84,13 @@ public final class SmtpSettingsStore {
         return draft != SmtpSettingsDraft(loaded: loaded)
     }
 
-    /// One line for the settings row: whether mail is sent, whether that includes alerts, and to
-    /// whom.
-    public var summary: String? {
-        guard let loaded else { return nil }
-        guard loaded.enabled else { return "Off" }
-        guard loaded.alertsEnabled else { return "Agent mail only" }
-        return loaded.recipient.isEmpty ? "On" : loaded.recipient
-    }
-
     public var isPortValid: Bool {
         guard let draft else { return false }
         return (1...65_535).contains(draft.port)
     }
 
-    public var isRecipientValid: Bool {
-        guard let draft else { return false }
-        return draft.recipient.contains("@")
-    }
-
     public var canSave: Bool {
-        loaded != nil && isDirty && isPortValid && isRecipientValid && !isSaving
+        loaded != nil && isDirty && isPortValid && !isSaving
     }
 
     public var canSendTest: Bool {

@@ -23,7 +23,7 @@ struct SmtpSection: View {
             Text("Mail server · \(SettingsScope.everyone.label)")
         } footer: {
             Text(
-                "Lets PAI email you: mail an agent asks for, and optionally an alert when something breaks. Alerts and relayed messages are always kept in the notifications screen and pushed to your devices; mail is an addition."
+                "The one account every mail from PAI goes out through, for everyone. Alerts and relayed messages are always kept in the notifications screen and pushed to your devices; mail is an addition."
             )
         }
         .task {
@@ -35,9 +35,7 @@ struct SmtpSection: View {
     private func loadedContent(_ draft: SmtpSettingsDraft) -> some View {
         Toggle("Send mail", isOn: bindingToDraft(\.enabled, fallback: draft))
             .accessibilityIdentifier("smtp-enabled")
-        Toggle("Send alerts by email", isOn: bindingToDraft(\.alertsEnabled, fallback: draft))
-            .accessibilityIdentifier("smtp-alerts-enabled")
-        Text("Alert mail needs both switches; nothing is mailed while \"Send mail\" is off.")
+        Text("Nothing is mailed while \"Send mail\" is off. Who gets which mail is set under Notifications.")
             .font(PaiTypography.caption.font)
             .foregroundStyle(PaiPalette.Semantic.textFaint)
 
@@ -87,19 +85,6 @@ struct SmtpSection: View {
                 .autocorrectionDisabled()
                 .multilineTextAlignment(.trailing)
                 .accessibilityIdentifier("smtp-from")
-        }
-
-        LabeledContent("Recipient") {
-            TextField("", text: bindingToDraft(\.recipient, fallback: draft))
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .multilineTextAlignment(.trailing)
-                .accessibilityIdentifier("smtp-recipient")
-        }
-        if !smtp.isRecipientValid {
-            Text("Recipient must contain an @.")
-                .font(PaiTypography.caption.font)
-                .foregroundStyle(PaiPalette.Semantic.errorText)
         }
 
         Button("Save") { Task { await smtp.save() } }

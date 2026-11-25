@@ -277,6 +277,9 @@
             exact("GET", "/api/session-models") { PaiFixtures.sessionModels },
             exact("GET", "/api/settings/llm") { PaiFixtures.sessionDefaults },
             exact("GET", "/api/playback/voices") { PaiFixtures.playbackVoices },
+            exact("GET", "/api/push/devices") { PaiFixtures.pushDevices },
+            exact("GET", "/api/settings/connections") { PaiFixtures.connections },
+            exact("GET", "/api/settings/models") { PaiFixtures.models },
             exact("GET", "/api/me") {
                 PaiFixtureLaunch.requestedRole() == "guest" ? PaiFixtures.meGuest : PaiFixtures.me
             },

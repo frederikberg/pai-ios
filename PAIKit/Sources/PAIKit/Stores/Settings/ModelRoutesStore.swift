@@ -50,7 +50,9 @@ public struct ModelRouteDraft: Equatable, Sendable {
     public mutating func chooseModel(_ model: String, forFallback: Bool) {
         let step = forFallback ? fallbackStep : defaultStep
         guard let step else { return }
-        put(fitted(ModelStep(provider: step.provider, model: model, effort: step.effort), forFallback: forFallback), forFallback: forFallback)
+        put(
+            fitted(ModelStep(provider: step.provider, model: model, effort: step.effort), forFallback: forFallback),
+            forFallback: forFallback)
     }
 
     public mutating func chooseEffort(_ effort: String?, forFallback: Bool) {
@@ -75,7 +77,9 @@ public struct ModelRouteDraft: Equatable, Sendable {
     private func fitted(_ step: ModelStep, forFallback: Bool) -> ModelStep {
         let accepted = efforts(provider: step.provider, model: step.model, forFallback: forFallback)
         var next = step
-        if accepted.isEmpty { next.effort = nil } else if !accepted.contains(where: { $0 == step.effort }) {
+        if accepted.isEmpty {
+            next.effort = nil
+        } else if !accepted.contains(where: { $0 == step.effort }) {
             next.effort = accepted.first ?? nil
         }
         return next

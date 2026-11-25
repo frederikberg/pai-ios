@@ -1120,8 +1120,8 @@ public struct SecretStatusMap: Codable, Sendable, Equatable {
 // MARK: - Voice settings
 //
 // The person's own voice and dictation settings are registry keys (`SettingsRegistryStore`).
-// What is left of the older voice route is Computer's Claude model and effort and the choices
-// the backend offers for the turn-taking presets.
+// What is read of the older voice route is the choices the backend offers for the turn-taking
+// presets.
 
 /// One turn-taking tunable as the backend stores it: a number, the `turn_cue` switch, or `null`
 /// ("never") for the two silence waits.
@@ -1286,30 +1286,6 @@ public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
         self.sttBatchPauseS = sttBatchPauseS
         self.debugRecordingsEnabled = debugRecordingsEnabled
         self.updatedAt = updatedAt
-    }
-}
-
-/// Computer's Claude model and effort, the two fields of the voice route that are not registry
-/// keys. `nil` is written as JSON `null`, which means "the backend's default"; an omitted key
-/// would leave the stored choice as it is.
-public struct ComputerModelUpdate: Encodable, Sendable, Equatable {
-    public var model: String?
-    public var effort: String?
-
-    enum CodingKeys: String, CodingKey {
-        case model = "computer_claude_model"
-        case effort = "computer_claude_effort"
-    }
-
-    public init(model: String?, effort: String?) {
-        self.model = model
-        self.effort = effort
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(model, forKey: .model)
-        try container.encode(effort, forKey: .effort)
     }
 }
 

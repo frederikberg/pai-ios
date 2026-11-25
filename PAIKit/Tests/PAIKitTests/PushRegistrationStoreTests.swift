@@ -243,15 +243,14 @@ final class PushRegistrationStoreTests: XCTestCase {
         let first = Recorder()
         let store = makeStore(storage: storage, recorder: first)
         store.recordDeviceToken("abc")
-        await store.setMuted(true, forChannel: "alerts")
+        await store.setMuted(true, forChannel: "alarm")
 
         let second = Recorder()
         let relaunched = makeStore(storage: storage, recorder: second)
-        XCTAssertTrue(relaunched.registration.isMuted("alerts"))
+        XCTAssertTrue(relaunched.registration.isMuted("alarm"))
         await relaunched.registerWithBackendIfNeeded()
         XCTAssertEqual(second.tokens, [], "already acknowledged before the relaunch")
     }
-
 
     private let window = DeviceSleepChoice(
         window: .init(start: "22:00", end: "05:00", tz: "Europe/Berlin"), skipUntil: nil)
@@ -294,5 +293,21 @@ final class PushRegistrationStoreTests: XCTestCase {
         store.forgetBackendRegistration()
         await store.registerWithBackendIfNeeded()
         XCTAssertEqual(recorder.sleeps, [window, window])
+    }
+
+    /// A phone that muted Agent messages or Alerts before those became the person's own switches has
+    /// nothing left to undo it with, so it must not keep sending the mute; alarm's stays.
+    func testMutesOfTheRetiredChannelsAreDroppedAndTheAlarmOneKept() async {
+        let storage = SettingsInMemoryKeyValueStore()
+        storage.setValue(
+            PushRegistration(
+                status: .authorized, deviceToken: "abc", registeredToken: "abc",
+                mutedChannels: ["default", "alerts", "alarm"], registeredMutedChannels: ["default", "alerts", "alarm"]),
+            forKey: "pushRegistration")
+        let recorder = Recorder()
+        let store = makeStore(storage: storage, recorder: recorder)
+        XCTAssertEqual(store.registration.mutedChannels, ["alarm"])
+        await store.registerWithBackendIfNeeded()
+        XCTAssertEqual(recorder.mutedChannels, [["alarm"]])
     }
 }

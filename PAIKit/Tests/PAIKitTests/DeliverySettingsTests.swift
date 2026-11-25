@@ -179,9 +179,13 @@ final class DeliverySettingsTests: XCTestCase {
     func testNoPushReachesAnyDeviceOnlyWhenEveryPushSwitchTheyHaveIsOff() {
         XCTAssertTrue(NotificationMatrix.reachesNoDevice(person: ["push_agent_messages": .bool(false)]))
         XCTAssertTrue(
-            NotificationMatrix.reachesNoDevice(person: ["push_agent_messages": .bool(false), "push_alerts": .bool(false)]))
+            NotificationMatrix.reachesNoDevice(person: [
+                "push_agent_messages": .bool(false), "push_alerts": .bool(false),
+            ]))
         XCTAssertFalse(
-            NotificationMatrix.reachesNoDevice(person: ["push_agent_messages": .bool(false), "push_alerts": .bool(true)]))
+            NotificationMatrix.reachesNoDevice(person: [
+                "push_agent_messages": .bool(false), "push_alerts": .bool(true),
+            ]))
         XCTAssertFalse(NotificationMatrix.reachesNoDevice(person: [:]), "nothing read yet is not an answer")
     }
 
@@ -318,5 +322,20 @@ final class DeliverySettingsTests: XCTestCase {
         XCTAssertFalse(refused)
         XCTAssertEqual(store.features?.first?.default.model, "opus")
         XCTAssertEqual(store.saveError, "Anthropic has no key")
+    }
+
+    func testTheFixtureCorpusDecodesIntoTheRealModels() throws {
+        struct Devices: Decodable { let devices: [PushDevice] }
+        struct Connections: Decodable { let connections: [ServiceConnection] }
+        struct Models: Decodable { let features: [ModelFeature] }
+        let decoder = JSONDecoder()
+        let devices = try decoder.decode(Devices.self, from: Data(PaiFixtures.pushDevices.utf8)).devices
+        XCTAssertEqual(devices.map(\.kind), [.iphone, .browser])
+        let connections = try decoder.decode(Connections.self, from: Data(PaiFixtures.connections.utf8)).connections
+        XCTAssertEqual(connections.first { $0.id == "infomaniak" }?.baseUrlParam?.key, "infomaniak_product_id")
+        XCTAssertNil(connections.first { $0.id == "mailverdict" }?.credential)
+        let features = try decoder.decode(Models.self, from: Data(PaiFixtures.models.utf8)).features
+        XCTAssertEqual(features.first { $0.id == "embeddings" }?.editable, false)
+        XCTAssertEqual(features.first { $0.id == "fast" }?.fallbackAllowed, false)
     }
 }

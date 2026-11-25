@@ -76,13 +76,6 @@ public final class PushDevicesStore {
         await change(device, PushDevicePatch(pause: .resume))
     }
 
-    /// Mutes or unmutes one channel on a device (the alarm switch of an iPhone).
-    public func setMuted(_ muted: Bool, channel: String, on device: PushDevice) async {
-        var channels = Set(device.mutedChannels)
-        if muted { channels.insert(channel) } else { channels.remove(channel) }
-        await change(device, PushDevicePatch(mutedChannels: channels.sorted()))
-    }
-
     private func change(_ device: PushDevice, _ patch: PushDevicePatch) async {
         guard !isBusy else { return }
         isBusy = true

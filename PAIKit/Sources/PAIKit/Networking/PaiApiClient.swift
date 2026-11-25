@@ -1582,10 +1582,6 @@ public struct PaiApiClient: Sendable {
         try await send(path: "/api/settings/voice")
     }
 
-    public func updateComputerModel(_ update: ComputerModelUpdate) async throws -> SpokenVoiceSettings {
-        try await send(path: "/api/settings/voice", method: "PUT", body: try Self.jsonBody(update))
-    }
-
     public func setDebugRecordingsEnabled(_ enabled: Bool) async throws -> SpokenVoiceSettings {
         try await send(
             path: "/api/settings/voice", method: "PUT", body: try Self.jsonBody(["debug_recordings_enabled": enabled]))

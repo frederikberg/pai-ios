@@ -61,11 +61,18 @@ struct RootView: View {
             // next boundary, every return to the front, and the clock or the time zone changing.
             .task(id: environment.sleepMode.nextBoundary) { await sleepUntilNextBoundary() }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) {
-                _ in environment.sleepMode.refresh()
+                _ in
+                environment.sleepMode.refresh()
+                syncSleepToServer()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name.NSSystemTimeZoneDidChange)) { _ in
                 environment.sleepMode.refresh()
+                syncSleepToServer()
             }
+            // The window this phone holds is what the server holds pushes back by: told again
+            // whenever the window or the wake-early moment changes, and above whenever the clock or
+            // the zone it is read in does.
+            .onChange(of: environment.sleepMode.settings) { _, _ in syncSleepToServer() }
             // The springboard badge reads zero while the sessions are put away and the unread count
             // again once the window ends.
             .onChange(of: environment.router.isAsleep) { _, _ in
@@ -213,6 +220,7 @@ struct RootView: View {
                     await PushRegistrar.registerForRemoteNotificationsIfAuthorized(store: connection.push)
                     // Whether this person's device may be registered depends on who they are.
                     await connection.me.ensureKnown()
+                    await connection.push.setSleep(environment.sleepMode.deviceChoice())
                     await connection.push.registerWithBackendIfNeeded()
                     // Where a silent read-sync push actually reaches app code —
                     // `PushRegistrar.application(_:didReceiveRemoteNotification:fetchCompletionHandler:)`
@@ -249,6 +257,7 @@ struct RootView: View {
                     switch phase {
                     case .active:
                         environment.sleepMode.refresh()
+                        syncSleepToServer()
                         attention.setAppActive(true)
                         presenceReporter(connection).setActive(true)
                         UserActivityRecognizer.installOnAllWindows()
@@ -311,6 +320,14 @@ struct RootView: View {
         } else {
             SessionListView()
         }
+    }
+
+    /// Tells the backend this phone's sleep window if it differs from what it was last told.
+    /// Nothing happens without a connection or a push token.
+    private func syncSleepToServer() {
+        guard let push = environment.connection?.push else { return }
+        let choice = environment.sleepMode.deviceChoice()
+        Task { await push.setSleep(choice) }
     }
 
     /// What the springboard badge shows: nothing while asleep.
