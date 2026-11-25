@@ -180,11 +180,18 @@ public struct ConnectionSpend: Codable, Sendable, Equatable {
     public let cycleStart: String?
     public let calls: Int?
     public let costUsd: Double?
+    public let promptTokens: Int?
+    public let completionTokens: Int?
+    public let longPromptCalls: Int?
+    public let refusals: Int?
 
     enum CodingKeys: String, CodingKey {
-        case calls
+        case calls, refusals
         case cycleStart = "cycle_start"
         case costUsd = "cost_usd"
+        case promptTokens = "prompt_tokens"
+        case completionTokens = "completion_tokens"
+        case longPromptCalls = "long_prompt_calls"
     }
 }
 

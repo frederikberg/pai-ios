@@ -28,7 +28,7 @@ struct AlertsSection: View {
             }
         } header: {
             HStack {
-                Text("Open alerts · \(SettingsScope.everyone.label)")
+                Text("Open alerts")
                 Spacer()
                 if (alerts.alerts?.count ?? 0) > 1 {
                     Button("Acknowledge all") { Task { await alerts.acknowledgeAll() } }

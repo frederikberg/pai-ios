@@ -13,7 +13,7 @@ struct SessionDefaultsSection: View {
                 fastGroup(defaults.fast)
                 if let mailverdict = defaults.mailverdict { mailverdictGroup(mailverdict) }
             } else {
-                Section("Session defaults · \(SettingsScope.everyone.label)") {
+                Section("Session defaults") {
                     if let error = store.errorMessage {
                         errorText(error)
                     } else {
@@ -41,7 +41,7 @@ struct SessionDefaultsSection: View {
             }
             if let error = store.errorMessage { errorText(error) }
         } header: {
-            Text("Ultra-fast sessions · \(SettingsScope.everyone.label)")
+            Text("Ultra-fast sessions")
         } footer: {
             Text("A new session can pick another model for itself.")
         }
@@ -62,14 +62,14 @@ struct SessionDefaultsSection: View {
                 SessionDefaultsUpdate(mailverdictReasoningEffort: level)
             }
         } header: {
-            Text("MailVerdict assistant · \(SettingsScope.everyone.label)")
+            Text("MailVerdict assistant")
         } footer: {
             Text("A new session can pick another model for itself.")
         }
     }
 
     private func fastGroup(_ fast: SessionDefaults.Fast) -> some View {
-        Section("Fast sessions · \(SettingsScope.everyone.label)") {
+        Section("Fast sessions") {
             picker(
                 "Model", identifier: "fast-default-model", selection: fast.model,
                 options: store.fastModels, label: SessionModelSwitch.aliasLabel

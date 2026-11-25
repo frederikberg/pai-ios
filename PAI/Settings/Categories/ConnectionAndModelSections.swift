@@ -12,7 +12,7 @@ struct ProvidersSections: View {
             settings: settings, kinds: [.model, .speech, .search, .subscription])
         RegistryPlaceholder(store: settings.registry)
         ScopedSection(
-            title: "Billing", scope: .everyone,
+            title: "Billing",
             footer: "The day of the month Anthropic's billing cycle starts, which the spend lines count from."
         ) {
             RegistryRows(store: settings.registry, keys: ["anthropic_cycle_day"])
@@ -64,7 +64,7 @@ private struct ConnectionCard: View {
     private var store: ConnectionsStore { settings.connections }
 
     var body: some View {
-        ScopedSection(title: connection.label, scope: .everyone, footer: connection.note) {
+        ScopedSection(title: connection.label, footer: connection.note) {
             LabeledContent("Status") {
                 Text(statusText)
                     .foregroundStyle(statusColor)
@@ -220,7 +220,7 @@ struct ModelsSections: View {
         group("Sessions and voice", "sessions")
         RegistryPlaceholder(store: settings.registry)
         ScopedSection(
-            title: "Memory, advanced", scope: .everyone,
+            title: "Memory, advanced",
             footer: "How much earlier turns a summary is given to read."
         ) {
             RegistryRows(
@@ -232,7 +232,7 @@ struct ModelsSections: View {
     private func group(_ title: String, _ id: String) -> some View {
         let features = store.features(inGroup: id)
         if !features.isEmpty {
-            ScopedSection(title: title, scope: .everyone) {
+            ScopedSection(title: title) {
                 ForEach(features) { feature in
                     row(feature)
                 }

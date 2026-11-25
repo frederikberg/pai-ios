@@ -116,6 +116,10 @@ public struct SettingSchema: Codable, Sendable, Equatable {
     /// Whether `null` is a value ("off", "detect", "same as calls") rather than a reset to the default.
     public let nullable: Bool
     public let ownerOnly: Bool
+    /// Whether the setting, an instance one, changes what guests get (the default voice they
+    /// fall back to). An Administration card is tagged "All users" only when it holds one; a
+    /// server that does not send the field is read as `false`.
+    public let affectsGuests: Bool
     /// `false` keeps the key off the settings screens.
     public let ui: Bool
     public let label: String
@@ -131,13 +135,15 @@ public struct SettingSchema: Codable, Sendable, Equatable {
         case itemMaxLen = "item_max_len"
         case itemMaxWords = "item_max_words"
         case ownerOnly = "owner_only"
+        case affectsGuests = "affects_guests"
     }
 
     public init(
         scope: SettingScope = .person, kind: SettingKind, defaultValue: SettingValue = .null,
         min: Double? = nil, max: Double? = nil, step: Double? = nil, choices: [String]? = nil,
         maxLen: Int? = nil, maxItems: Int? = nil, itemMaxLen: Int? = nil, itemMaxWords: Int? = nil,
-        nullable: Bool = false, ownerOnly: Bool = false, ui: Bool = true, label: String = "",
+        nullable: Bool = false, ownerOnly: Bool = false, affectsGuests: Bool = false, ui: Bool = true,
+        label: String = "",
         help: String = "", warning: String? = nil
     ) {
         self.scope = scope
@@ -153,6 +159,7 @@ public struct SettingSchema: Codable, Sendable, Equatable {
         self.itemMaxWords = itemMaxWords
         self.nullable = nullable
         self.ownerOnly = ownerOnly
+        self.affectsGuests = affectsGuests
         self.ui = ui
         self.label = label
         self.help = help
@@ -177,6 +184,7 @@ public struct SettingSchema: Codable, Sendable, Equatable {
         itemMaxWords = c.decodeLenientInt(forKey: .itemMaxWords)
         nullable = (try? c.decode(Bool.self, forKey: .nullable)) ?? false
         ownerOnly = (try? c.decode(Bool.self, forKey: .ownerOnly)) ?? false
+        affectsGuests = (try? c.decode(Bool.self, forKey: .affectsGuests)) ?? false
         ui = (try? c.decode(Bool.self, forKey: .ui)) ?? true
         label = (try? c.decode(String.self, forKey: .label)) ?? ""
         help = (try? c.decode(String.self, forKey: .help)) ?? ""
@@ -198,6 +206,7 @@ public struct SettingSchema: Codable, Sendable, Equatable {
         try c.encodeIfPresent(itemMaxWords, forKey: .itemMaxWords)
         try c.encode(nullable, forKey: .nullable)
         try c.encode(ownerOnly, forKey: .ownerOnly)
+        try c.encode(affectsGuests, forKey: .affectsGuests)
         try c.encode(ui, forKey: .ui)
         try c.encode(label, forKey: .label)
         try c.encode(help, forKey: .help)

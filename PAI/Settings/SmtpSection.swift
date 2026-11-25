@@ -20,7 +20,7 @@ struct SmtpSection: View {
                     .foregroundStyle(PaiPalette.Semantic.errorText)
             }
         } header: {
-            Text("Mail server · \(SettingsScope.everyone.label)")
+            Text("Mail server")
         } footer: {
             Text(
                 "The one account every mail from PAI goes out through, for everyone. Alerts and relayed messages are always kept in the notifications screen and pushed to your devices; mail is an addition."
