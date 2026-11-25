@@ -5,37 +5,84 @@ import SwiftUI
 /// list half of `SchedulerApp.tsx` — the create/edit form itself is `TaskEditorView`, its own
 /// pushed page under `.schedulerTask(id:)`.
 struct SchedulerListView: View {
+    /// Tasks and reminders share the screen: both start something without a person, one by a
+    /// schedule and a session, the other by a place, an event or a script.
+    private enum ListKind: String, CaseIterable {
+        case tasks = "Tasks"
+        case reminders = "Reminders"
+    }
+
     @Environment(AppEnvironment.self) private var environment
     @State private var store: SchedulerListStore?
+    @State private var reminders: ReminderListStore?
+    @State private var section = ListKind.tasks
+
+    private var offersReminders: Bool { environment.connection?.me.capabilities.canOpenReminders == true }
 
     var body: some View {
-        Group {
-            if let store {
-                content(store)
-            } else {
-                ProgressView()
+        VStack(spacing: 0) {
+            if offersReminders {
+                Picker("Section", selection: $section) {
+                    ForEach(ListKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .accessibilityIdentifier("scheduler-section")
             }
+            Group {
+                if section == .reminders, offersReminders {
+                    if let reminders {
+                        ReminderListContent(store: reminders)
+                    } else {
+                        ProgressView()
+                    }
+                } else if let store {
+                    content(store)
+                } else {
+                    ProgressView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle("Scheduler")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    environment.router.push(.schedulerTask(id: nil))
-                } label: {
-                    Image(systemName: "plus")
+            if section == .tasks {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        environment.router.push(.schedulerTask(id: nil))
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityIdentifier("new-scheduled-task")
                 }
-                .accessibilityIdentifier("new-scheduled-task")
             }
         }
         .task {
             guard store == nil, let client = environment.connection?.apiClient else { return }
+            #if DEBUG
+                if PaiFixtureLaunch.requestedSchedulerSection() == "reminders" { section = .reminders }
+            #endif
             let newStore = SchedulerListStore(api: client)
             store = newStore
+            let newReminders = ReminderListStore(api: client)
+            reminders = newReminders
             async let tasks: Void = newStore.load()
             async let wakes: Void = newStore.loadWakes()
-            _ = await (tasks, wakes)
+            async let reminderRows: Void = loadReminders(newReminders)
+            _ = await (tasks, wakes, reminderRows)
         }
+        // Back from a reminder's detail, which may have paused or deleted it.
+        .onAppear {
+            guard let reminders else { return }
+            Task { await reminders.load() }
+        }
+    }
+
+    private func loadReminders(_ store: ReminderListStore) async {
+        guard offersReminders else { return }
+        await store.load()
     }
 
     @ViewBuilder

@@ -39,6 +39,12 @@ public struct Capabilities: Sendable, Equatable {
     public var canOpenBrowser: Bool { isOwner }
     /// The Me app and its self-report routes: owner-only, absent from every guest namespace.
     public var canOpenMe: Bool { isOwner }
+    /// Reminders (the Scheduler's list, the feed's reminder rows): owner-only, and a guest's feed
+    /// never holds one.
+    public var canOpenReminders: Bool { isOwner }
+    /// The location history, the named places and a day's stays: owner-only. A guest's phone still
+    /// sends its latest position for the weather, but nothing is kept and no place is watched.
+    public var canReadLocationHistory: Bool { isOwner }
 
     /// The write-only secrets' presence read (`GET /api/settings/secrets`).
     public var canReadSecrets: Bool { isOwner }

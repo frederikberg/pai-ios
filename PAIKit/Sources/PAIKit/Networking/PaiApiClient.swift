@@ -1914,7 +1914,7 @@ public struct PaiApiClient: Sendable {
         limit: Int? = nil, beforeId: String? = nil, kind: PaiNotificationKind? = nil,
         source: NotificationSource = .any, unreadOnly: Bool = false
     ) async throws -> NotificationsResponse {
-        var query: [URLQueryItem] = []
+        var query = Self.acceptedKindsQuery
         if let limit { query.append(URLQueryItem(name: "limit", value: String(limit))) }
         if let beforeId { query.append(URLQueryItem(name: "before_id", value: beforeId)) }
         if let kind { query.append(URLQueryItem(name: "kind", value: kind.rawValue)) }
@@ -1933,7 +1933,14 @@ public struct PaiApiClient: Sendable {
     /// the call a tapped push notification makes at tap time, since the payload only ever carries
     /// the notification's own id (see `DeepLink.notification`'s doc comment).
     public func getNotification(id: String) async throws -> PaiNotification {
-        try await send(path: "/api/notifications/\(id)")
+        try await send(path: "/api/notifications/\(id)", query: Self.acceptedKindsQuery)
+    }
+
+    /// Which notification kinds beyond the two every client knows this build decodes. The server
+    /// serves any other kind as a plain agent row, so the feed, the single row and the stream
+    /// all send it.
+    static var acceptedKindsQuery: [URLQueryItem] {
+        [URLQueryItem(name: "accept_kinds", value: PaiNotificationKind.acceptKindsQueryValue)]
     }
 
     private struct MarkNotificationsReadResponse: Decodable {

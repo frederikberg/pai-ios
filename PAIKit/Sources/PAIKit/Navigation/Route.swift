@@ -96,6 +96,9 @@ public enum Route: Hashable, Sendable {
     /// one. Mirrors the web's `SchedulerApp.tsx`, whose three routes (list/new/id) are the same
     /// shape with `nil` standing in for its `new` segment.
     case schedulerTask(id: String?)
+    /// One reminder — reached from the Scheduler's reminder list and from a reminder notification.
+    /// Carries the reminder's id; a reminder deleted since says so on arrival.
+    case reminder(id: String)
     /// The tile launcher the hardware Action Button lands on, and the first entry under Apps.
     ///
     /// Pushed rather than presented, and always as the whole path (`DeepLink.quickActions`), so
@@ -162,6 +165,7 @@ public enum Route: Hashable, Sendable {
         case (.arcOverview(let a), .arcOverview(let b)): return a == b
         case (.schedulerList, .schedulerList): return true
         case (.schedulerTask(let a), .schedulerTask(let b)): return a == b
+        case (.reminder(let a), .reminder(let b)): return a == b
         case (.quickActions, .quickActions): return true
         case (.computerCall, .computerCall): return true
         case (.canteen, .canteen): return true
@@ -250,6 +254,9 @@ public enum Route: Hashable, Sendable {
             hasher.combine(28)
         case .me:
             hasher.combine(29)
+        case .reminder(let id):
+            hasher.combine(30)
+            hasher.combine(id)
         }
     }
 }
@@ -263,8 +270,8 @@ extension Route {
     public var isSessionSurface: Bool {
         switch self {
         case .session, .terminal, .createSession, .subagents, .notifications, .recordings, .arcSpec, .arcSpecList,
-            .arcReport, .arcOverview, .schedulerList, .schedulerTask, .computerCall, .usage, .decisions,
-            .browserList, .browser:
+            .arcReport, .arcOverview, .schedulerList, .schedulerTask, .reminder, .computerCall, .usage,
+            .decisions, .browserList, .browser:
             true
         case .settings, .notes, .note, .noteContainers, .notePreview, .apps, .quickActions, .canteen, .alarm,
             .weather, .cameraImport, .me:
@@ -285,7 +292,7 @@ extension Route {
         "session", "terminal", "settings", "createSession", "subagents", "notes", "note", "noteUncached", "noteLarge",
         "noteContainers", "notePreview", "notifications", "recordings", "arcSpec", "apps", "arcSpecList", "arcReport",
         "arcOverview",
-        "schedulerList", "schedulerTask", "quickActions", "computerCall", "canteen", "usage", "decisions",
+        "schedulerList", "schedulerTask", "reminder", "quickActions", "computerCall", "canteen", "usage", "decisions",
         "subagentSession", "alarm", "weather", "cameraImport", "me",
     ]
 
@@ -303,6 +310,9 @@ extension Route {
     /// `GET /api/arc/reports/{uuid}` route (`PaiFixtureURLProtocol`) serves the same report
     /// regardless of which uuid is actually asked for, the same way `fixtureArcSpecUuid`'s
     /// route does, so this only needs to be a well-formed uuid, never one looked up anywhere.
+    /// The reminder `reminder`'s fixture route opens; the fixture corpus answers under it.
+    public static let fixtureReminderId = PaiFixtures.reminderFixtureId
+
     public static let fixtureArcReportUuid = "9c274e11-9b1d-4d54-9a90-7d5b6a6be5aa"
 
     /// Parses a launch-argument screen name into a route. `sessionID` fills in every
@@ -342,6 +352,7 @@ extension Route {
         case "arcOverview": return .arcOverview(specUuid: fixtureArcSpecUuid)
         case "schedulerList": return .schedulerList
         case "schedulerTask": return .schedulerTask(id: nil)
+        case "reminder": return .reminder(id: fixtureReminderId)
         case "quickActions": return .quickActions
         case "computerCall": return .computerCall
         case "canteen": return .canteen
@@ -541,8 +552,8 @@ public final class Router {
             case .terminal(let sessionID): return sessionID
             case .settings, .createSession, .subagents, .notes, .note, .noteContainers, .notePreview,
                 .notifications, .recordings, .arcSpec, .apps, .arcSpecList, .arcReport, .arcOverview,
-                .schedulerList, .schedulerTask, .quickActions, .computerCall, .canteen, .usage, .decisions,
-                .browserList, .browser, .alarm, .weather, .cameraImport, .me:
+                .schedulerList, .schedulerTask, .reminder, .quickActions, .computerCall, .canteen, .usage,
+                .decisions, .browserList, .browser, .alarm, .weather, .cameraImport, .me:
                 continue
             }
         }
@@ -557,8 +568,8 @@ public final class Router {
             case .note(let id), .notePreview(let id, _): return id
             case .session, .terminal, .settings, .createSession, .subagents, .notes, .noteContainers,
                 .notifications, .recordings, .arcSpec, .apps, .arcSpecList, .arcReport, .arcOverview,
-                .schedulerList, .schedulerTask, .quickActions, .computerCall, .canteen, .usage, .decisions,
-                .browserList, .browser, .alarm, .weather, .cameraImport, .me:
+                .schedulerList, .schedulerTask, .reminder, .quickActions, .computerCall, .canteen, .usage,
+                .decisions, .browserList, .browser, .alarm, .weather, .cameraImport, .me:
                 continue
             }
         }

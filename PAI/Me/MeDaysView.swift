@@ -11,6 +11,8 @@ struct MeDaysView: View {
     @State private var workedSheet: MeWorkedProject?
     @State private var showAllWorked = false
     @State private var showTasks = false
+    @State private var location: LocationDayStore?
+    @Environment(AppEnvironment.self) private var environment
 
     private let gutter: CGFloat = 60
     private let sidePadding: CGFloat = 16
@@ -41,6 +43,15 @@ struct MeDaysView: View {
             .refreshable { await store.load() }
         }
         .sheet(item: $workedSheet) { project in WorkedSheet(project: project, presenter: store.presenter) }
+        .task(id: store.selectedDate) {
+            guard let date = store.selectedDate, let client = environment.connection?.apiClient else { return }
+            let held =
+                location
+                ?? LocationDayStore(
+                    api: client, capabilities: { [me = environment.connection?.me] in me?.capabilities ?? .unknown })
+            location = held
+            await held.load(date: date)
+        }
     }
 
     // MARK: Title and paging
@@ -289,6 +300,7 @@ struct MeDaysView: View {
                     MeRibbonView(ribbon: ribbon)
                 }
                 factRows(facts, tasks: tasks, presenter: presenter)
+                whereLine(day: day, presenter: presenter)
                 worked(day, presenter)
                 if !day.entries.isEmpty {
                     Divider().overlay(PaiPalette.Semantic.borderDefault)
@@ -304,6 +316,30 @@ struct MeDaysView: View {
             .id(FixtureScrollAnchor.meDayDetail.rawValue)
             .accessibilityIdentifier("me-day-detail")
         }
+    }
+
+    /// Where he was that day, from the location history: the stays in order and the distance. Drawn
+    /// only for a day the history says something about; the answer of another day is never shown.
+    @ViewBuilder
+    private func whereLine(day: MeDay, presenter: MePresenter) -> some View {
+        if let located = location?.day, located.date == day.date, let line = presenter.locationLine(located) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("Where")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(PaiPalette.Semantic.textMuted)
+                whereText(line)
+                    .font(.system(size: 13))
+            }
+            .accessibilityIdentifier("me-where")
+            .fixtureFact("meWhere", "stays=\(located.stays.count) gaps=\(line.hasGaps)")
+        }
+    }
+
+    private func whereText(_ line: LocationDayLine) -> Text {
+        let stays = Text(line.text).foregroundStyle(PaiPalette.Semantic.textSecondary)
+        guard line.hasGaps else { return stays }
+        let gaps = Text(" (gaps)").foregroundStyle(PaiPalette.Semantic.textFaint)
+        return Text("\(stays)\(gaps)")
     }
 
     /// One line per fact, a coloured dot first; the line about ticked tasks opens the list.

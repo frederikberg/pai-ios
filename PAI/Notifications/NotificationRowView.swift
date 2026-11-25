@@ -143,6 +143,19 @@ struct NotificationRowView: View {
                     .font(PaiTypography.caption.font)
                     .foregroundStyle(PaiPalette.Semantic.textMuted)
             }
+        case .reminder:
+            if let name = notification.reminderName {
+                HStack(spacing: 4) {
+                    Text(name)
+                        .lineLimit(1)
+                        .padding(.horizontal, 4)
+                        .background(PaiPalette.Semantic.raisedSurface, in: RoundedRectangle(cornerRadius: 4))
+                        .accessibilityIdentifier("notification-reminder-chip")
+                    if notification.reminderId != nil { Text("· open reminder") }
+                }
+                .font(PaiTypography.caption.font)
+                .foregroundStyle(PaiPalette.Semantic.textMuted)
+            }
         }
     }
 
@@ -172,6 +185,7 @@ struct NotificationRowView: View {
         switch notification.kind {
         case .agent: "bell"
         case .alert: "exclamationmark.triangle.fill"
+        case .reminder: "bell.badge"
         }
     }
 

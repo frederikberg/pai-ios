@@ -37,6 +37,7 @@
         static let cameraImportFlag = "-PaiFixtureCameraImport"
         static let meFlag = "-PaiFixtureMe"
         static let meTabFlag = "-PaiFixtureMeTab"
+        static let schedulerSectionFlag = "-PaiFixtureSchedulerSection"
         static let meComposerFlag = "-PaiFixtureMeComposer"
         static let meDayFlag = "-PaiFixtureMeDay"
         static let alarmSheetFlag = "-PaiFixtureAlarmSheet"
@@ -227,6 +228,12 @@
         /// `-PaiFixtureMeTab today|days|diary`: the Me screen's opening tab.
         public static func requestedMeTab(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: meTabFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureSchedulerSection reminders`: the Scheduler opens on its reminder list.
+        public static func requestedSchedulerSection(arguments: [String] = ProcessInfo.processInfo.arguments) -> String?
+        {
+            value(for: schedulerSectionFlag, in: arguments)
         }
 
         /// `-PaiFixtureAlarmSheet time|in`: the Alarm screen opens its new-alarm sheet at once, in

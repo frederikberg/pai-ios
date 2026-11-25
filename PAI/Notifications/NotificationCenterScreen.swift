@@ -25,6 +25,7 @@ struct NotificationCenterScreen: View {
             .paiScreenBackground()
             .navigationTitle("Notifications")
             .accessibilityIdentifier("notification-center")
+            .fixtureFact("notificationKinds", store.rows.map(\.kind.rawValue).joined(separator: ","))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -90,11 +91,13 @@ struct NotificationCenterScreen: View {
         .refreshable { await store.loadInitialNotifications() }
     }
 
-    /// All / Sessions / Alerts, in the sticky first row rather than a nav-bar accessory — the
+    private var capabilities: Capabilities { environment.connection?.me.capabilities ?? .unknown }
+
+    /// All / Sessions / Alerts / Reminders, in the sticky first row rather than a nav-bar accessory — the
     /// same placement the web's own three-segment control takes in its sticky header.
     private var filterRow: some View {
         Picker("Filter", selection: filterBinding) {
-            ForEach(NotificationFilter.allCases, id: \.self) { filter in
+            ForEach(NotificationFilter.available(for: capabilities), id: \.self) { filter in
                 Text(filter.title).tag(filter)
             }
         }
@@ -213,6 +216,10 @@ struct NotificationCenterScreen: View {
             environment.router.push(.session(id: sessionId, messageID: messageID))
         case .alert:
             expandedAlertID = (expandedAlertID == notification.id) ? nil : notification.id
+        case .reminder:
+            // A reminder deleted since leaves the row as the record; there is nowhere to go.
+            guard let reminderId = notification.reminderId else { return }
+            environment.router.push(.reminder(id: reminderId))
         }
     }
 

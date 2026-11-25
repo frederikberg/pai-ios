@@ -125,4 +125,33 @@ final class PaiFixtureRoutesTests: XCTestCase {
         XCTAssertEqual(
             PaiFixtureLaunch.requestedScrollAnchor(arguments: ["-PaiFixtureScrollTo", "notesCache"]), "notesCache")
     }
+
+    // MARK: reminders and location
+
+    func testOneReminderAnswersUnderItsOwnIdAndOthersAreNotFound() throws {
+        let known = PaiFixtureURLProtocol.route(method: "GET", path: "/api/reminders/\(PaiFixtures.reminderFixtureId)")
+        XCTAssertEqual(known.status, 200)
+        XCTAssertEqual(try json(known)["id"] as? String, PaiFixtures.reminderFixtureId)
+        let unknown = PaiFixtureURLProtocol.route(
+            method: "GET", path: "/api/reminders/00000000-0000-0000-0000-000000000000")
+        XCTAssertEqual(unknown.status, 404)
+        let list = PaiFixtureURLProtocol.route(method: "GET", path: "/api/reminders")
+        XCTAssertEqual((try json(list)["reminders"] as? [Any])?.count, 5)
+    }
+
+    func testAReminderFeedFilterKeepsOnlyTheReminderRow() throws {
+        let page = try json(
+            PaiFixtureURLProtocol.route(
+                method: "GET", path: "/api/notifications", query: [URLQueryItem(name: "kind", value: "reminder")]))
+        let rows = try XCTUnwrap(page["notifications"] as? [[String: Any]])
+        XCTAssertEqual(rows.map { $0["kind"] as? String }, ["reminder"])
+    }
+
+    func testTheLocationDayAnswersForTheDateAsked() throws {
+        let day = try json(
+            PaiFixtureURLProtocol.route(
+                method: "GET", path: "/api/location/day", query: [URLQueryItem(name: "date", value: "2026-11-20")]))
+        XCTAssertEqual(day["date"] as? String, "2026-11-20")
+        XCTAssertEqual((day["stays"] as? [Any])?.count, 4)
+    }
 }

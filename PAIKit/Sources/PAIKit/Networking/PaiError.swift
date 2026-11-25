@@ -70,6 +70,14 @@ public enum PaiError: Error, Equatable {
         }
     }
 
+    /// The server has no such thing: a 404.
+    public var isNotFound: Bool {
+        switch self {
+        case .detail(_, let statusCode), .http(let statusCode, _): return statusCode == 404
+        case .transport, .decoding: return false
+        }
+    }
+
     /// A semantic endpoint could not embed the query in time and said so with a 503. Any 503 from
     /// one means the same thing; nothing else is read from the body.
     public var isSemanticUnavailable: Bool {

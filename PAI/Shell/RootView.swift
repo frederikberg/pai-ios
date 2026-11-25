@@ -437,6 +437,8 @@ struct RootView: View {
             SchedulerListView()
         case .schedulerTask(let id):
             TaskEditorView(taskId: id)
+        case .reminder(let id):
+            ReminderDetailView(reminderId: id)
         case .quickActions:
             QuickActionsScreen()
         case .computerCall:
@@ -523,6 +525,14 @@ struct RootView: View {
         case .alert:
             environment.router.replace(with: [.notifications])
             connection.notifications.focus(id: notification.id)
+        case .reminder:
+            // The Scheduler underneath so Back has somewhere to go; a reminder deleted since leaves
+            // the centre, where the row is the record.
+            guard let reminderId = notification.reminderId else {
+                environment.router.replace(with: [.notifications])
+                return
+            }
+            environment.router.replace(with: [.schedulerList, .reminder(id: reminderId)])
         case .agent:
             guard let sessionId = notification.sessionId else {
                 // The session is gone — nowhere to land. The centre is the honest fallback: the

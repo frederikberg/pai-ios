@@ -253,31 +253,6 @@ public struct WeatherResponse: Decodable, Sendable, Equatable {
     public var computedDate: Date? { IsoTimestamp.date(from: computedAt) }
 }
 
-/// The body of `POST /api/location`. `source` is always `ios` from this app.
-public struct LocationReport: Encodable, Sendable, Equatable {
-    public let lat: Double
-    public let lon: Double
-    public let accuracyM: Int?
-    public let place: String?
-    public let recordedAt: String
-    public let source: String
-
-    enum CodingKeys: String, CodingKey {
-        case lat, lon, place, source
-        case accuracyM = "accuracy_m"
-        case recordedAt = "recorded_at"
-    }
-
-    public init(lat: Double, lon: Double, accuracyM: Int?, place: String?, recordedAt: String, source: String = "ios") {
-        self.lat = lat
-        self.lon = lon
-        self.accuracyM = accuracyM
-        self.place = place
-        self.recordedAt = recordedAt
-        self.source = source
-    }
-}
-
 /// One position fix as the phone's location service delivers it, before anything is decided.
 public struct LocationFix: Sendable, Equatable {
     public let latitude: Double

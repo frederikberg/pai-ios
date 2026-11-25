@@ -2,8 +2,8 @@ import PAIKit
 import SwiftUI
 import UIKit
 
-/// Which iPhone tells the server where the person is, for the Weather app. A person's own
-/// setting, so a guest has it too.
+/// Which iPhone tells the server where the person is, for the Weather app and, for the owner, the
+/// location history and reminders at places. A person's own setting, so a guest has it too.
 struct LocationSection: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(ToastCenter.self) private var toasts
@@ -14,7 +14,7 @@ struct LocationSection: View {
         if let store = environment.connection?.location {
             Section {
                 Toggle(
-                    "Use this iPhone for weather",
+                    "Use this iPhone for location",
                     isOn: Binding(
                         get: { store.usesThisDevice },
                         set: { on in
@@ -29,6 +29,12 @@ struct LocationSection: View {
                     Text(status.text)
                         .font(PaiTypography.caption.font)
                         .foregroundStyle(PaiPalette.Semantic.textMuted)
+                    if ownerHistory {
+                        Text("Monitored places: \(store.monitoredPlaces.count) of \(PlaceMonitorPlan.maxPlaces)")
+                            .font(PaiTypography.caption.font)
+                            .foregroundStyle(PaiPalette.Semantic.textMuted)
+                            .accessibilityIdentifier("location-monitored-places")
+                    }
                     if status.offersSettings {
                         Button("Open iOS Settings") {
                             if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -40,9 +46,7 @@ struct LocationSection: View {
             } header: {
                 Text("Location · \(SettingsScope.synced.label)")
             } footer: {
-                Text(
-                    "Only your latest location is kept on your PAI server, to answer whether it will rain where you are. One iPhone reports it; the others stay silent."
-                )
+                Text(footer)
             }
             .id(FixtureScrollAnchor.location.rawValue)
             .onChange(of: store.errorMessage) { _, message in
@@ -51,12 +55,28 @@ struct LocationSection: View {
         }
     }
 
+    private var ownerHistory: Bool {
+        environment.connection?.me.capabilities.canReadLocationHistory == true
+    }
+
+    private var footer: String {
+        if ownerHistory {
+            return
+                "Keeps your location history on your PAI server, so reminders at places, the weather and your day's movement work. One iPhone reports it; the others stay silent."
+        }
+        return
+            "Only your latest location is kept on your PAI server, to answer whether it will rain where you are. One iPhone reports it; the others stay silent."
+    }
+
     private func status(_ access: LocationPermission.Access) -> (text: String, offersSettings: Bool)? {
         switch access {
         case .undetermined: nil
         case .denied: ("Location access is off for PAI, so nothing can be reported.", true)
         case .whenInUse:
-            ("Allowed while the app is open. Choose Always so the weather follows you in the background.", true)
+            (
+                "Allowed while the app is open. Choose Always so your location is kept up to date in the background.",
+                true
+            )
         case .always: ("Always allowed: your location updates in the background.", false)
         }
     }
