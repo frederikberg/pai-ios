@@ -25,9 +25,16 @@ public enum ArcBlockTimes {
         let nowMs = milliseconds(now)
         var lines: [String] = []
         if let startMs = g.startedAt.flatMap(IsoTimestamp.date(from:)).map(milliseconds) {
-            let endText = g.endedAt ?? (state == .returned ? g.returnedAt : nil)
             let start = SchedulerRunDisplay.formatBerlinEnd(ms: startMs, sinceMs: nowMs)
-            if let endMs = endText.flatMap(IsoTimestamp.date(from:)).map(milliseconds) {
+            // The run ends where the agent handed back, not where the main agent accepted: a run
+            // accepted hours later would otherwise read as hours of agent work. A hand-back
+            // stamped before the start belongs to an earlier run, and a busy agent has not
+            // handed back at all.
+            let returnedMs = g.returnedAt.flatMap(IsoTimestamp.date(from:)).map(milliseconds)
+            let endedMs = g.endedAt.flatMap(IsoTimestamp.date(from:)).map(milliseconds)
+            var endMs = endedMs
+            if let returnedMs, returnedMs >= startMs, state != .working { endMs = returnedMs }
+            if let endMs {
                 lines.append("\(start) · \(formatSpan(ms: endMs - startMs))")
             } else {
                 lines.append("\(start) · running for \(formatSpan(ms: nowMs - startMs))")
@@ -46,8 +53,10 @@ public enum ArcBlockTimes {
     }
 
     /// Blocks one agent worked in turn: leaders sharing `g.type` and `g.name`, ordered by `o`
-    /// across every segment, each linked to the one before and after. The main session and
-    /// unnamed leaders never link; only blocks with a neighbour appear in the result.
+    /// across every segment, each linked to the one before and after. Two leaders that both
+    /// carry an `agent_id` link only when it matches: a cancelled block frees its name, so a
+    /// fresh agent respawned under it is not a continuation. The main session and unnamed
+    /// leaders never link; only blocks with a neighbour appear in the result.
     public static func threads(_ timeline: ArcTimeline) -> [Int: ThreadLinks] {
         var byAgent: [String: [ArcTimelineBlock]] = [:]
         for block in timeline.segments.flatMap(\.blocks) {
@@ -61,11 +70,17 @@ public enum ArcBlockTimes {
                 return lo != ro ? lo < ro : lhs.id < rhs.id
             }
             for (i, block) in list.enumerated() {
-                out[block.id] = ThreadLinks(
-                    prev: i > 0 ? list[i - 1] : nil, next: i + 1 < list.count ? list[i + 1] : nil)
+                let prev = i > 0 && sameAgent(list[i - 1], block) ? list[i - 1] : nil
+                let next = i + 1 < list.count && sameAgent(block, list[i + 1]) ? list[i + 1] : nil
+                if prev != nil || next != nil { out[block.id] = ThreadLinks(prev: prev, next: next) }
             }
         }
         return out
+    }
+
+    private static func sameAgent(_ a: ArcTimelineBlock, _ b: ArcTimelineBlock) -> Bool {
+        guard let idA = a.leader?.g?.agentId, let idB = b.leader?.g?.agentId else { return true }
+        return idA == idB
     }
 
     private static func milliseconds(_ date: Date) -> Int { Int((date.timeIntervalSince1970 * 1000).rounded()) }

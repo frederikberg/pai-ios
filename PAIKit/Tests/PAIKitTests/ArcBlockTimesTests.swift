@@ -48,6 +48,24 @@ final class ArcBlockTimesTests: XCTestCase {
             ["11:00 · 1 h 35 min", "returned 25 min ago, awaiting review"])
     }
 
+    func test_acceptedBlock_measuresRunToReturn_notToAcceptance() {
+        let g = ArcLeaderAgent(
+            type: "aria", returnedAt: "2026-11-25T10:30:00+00:00", startedAt: "2026-11-25T10:00:00+00:00",
+            endedAt: "2026-11-25T11:50:00+00:00")
+        XCTAssertEqual(ArcBlockTimes.lines(leader: leader(g), state: .accepted, now: now), ["11:00 · 30 min"])
+    }
+
+    func test_returnBeforeStart_orBusyAgent_doesNotEndTheRun() {
+        let stale = ArcLeaderAgent(
+            type: "aria", returnedAt: "2026-11-25T09:00:00+00:00", startedAt: "2026-11-25T10:00:00+00:00",
+            endedAt: "2026-11-25T10:20:00+00:00")
+        XCTAssertEqual(ArcBlockTimes.lines(leader: leader(stale), state: .accepted, now: now), ["11:00 · 20 min"])
+        let resumed = ArcLeaderAgent(
+            type: "aria", returnedAt: "2026-11-25T10:30:00+00:00", startedAt: "2026-11-25T10:00:00+00:00")
+        XCTAssertEqual(
+            ArcBlockTimes.lines(leader: leader(resumed), state: .working, now: now), ["11:00 · running for 2 h"])
+    }
+
     func test_formatSpan_minutesAreFinestUnit() {
         XCTAssertEqual(ArcBlockTimes.formatSpan(ms: 30_000), "<1 min")
         XCTAssertEqual(ArcBlockTimes.formatSpan(ms: 61 * 60_000), "1 h 1 min")
@@ -63,10 +81,23 @@ final class ArcBlockTimesTests: XCTestCase {
 
     // MARK: - Threads
 
-    private func lead(_ id: Int, _ o: Double, _ name: String, type: String = "aria") -> ArcRow {
+    private func lead(_ id: Int, _ o: Double, _ name: String, type: String = "aria", agentId: String? = nil) -> ArcRow {
         ArcRow(
             id: id, i: nil, src: nil, diff: nil, s: .pending, o: o, k: .leader, b: id,
-            g: ArcLeaderAgent(type: type, name: name), n: nil, r: nil, v: nil)
+            g: ArcLeaderAgent(type: type, name: name, agentId: agentId), n: nil, r: nil, v: nil)
+    }
+
+    func test_threads_respawnedAgentUnderSameName_isNotAContinuation() {
+        let rows = [
+            lead(1, 1, "a", agentId: "x1"), lead(2, 2, "a", agentId: "x1"), lead(3, 3, "a", agentId: "x2"),
+            lead(4, 4, "a"), lead(5, 5, "a", agentId: "x2"),
+        ]
+        let links = ArcBlockTimes.threads(ArcTimelineBuilder.build(rows: rows, busyAgents: []))
+        XCTAssertEqual(links[1]?.next?.id, 2)
+        XCTAssertNil(links[2]?.next)
+        XCTAssertNil(links[3]?.prev)
+        XCTAssertEqual(links[3]?.next?.id, 4)
+        XCTAssertEqual(links[4]?.next?.id, 5)
     }
 
     func test_threads_linkOneAgentsBlocksAcrossSegmentsInOrder_andNoOneElses() {
