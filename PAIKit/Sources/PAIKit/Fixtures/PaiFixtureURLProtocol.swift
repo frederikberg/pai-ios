@@ -152,6 +152,12 @@
                 let scheduled = query.first { $0.name == "scheduled" }?.value
                 return Match(status: 200) { PaiFixtures.notificationsPage(kind: kind, scheduled: scheduled) }
             }
+            // A day's stays, answered for whichever day is asked.
+            if method == "GET", path == "/api/location/day",
+                let date = query.first(where: { $0.name == "date" })?.value
+            {
+                return Match(status: 200) { PaiFixtures.data(PaiFixtures.locationDay(date: date)) }
+            }
             // The notes of the corpus answer under their own ids and nothing else does, so a screen
             // that asks for the wrong note gets that note's body (or a 404) rather than the one it
             // expected. `containers` and `config` are not note ids; the table below answers them.
@@ -337,7 +343,27 @@
             },
             FixtureRoute(method: "DELETE", matches: { $0.hasPrefix("/api/alarm/") }) { Data() },
             exact("GET", "/api/weather") { PaiFixtures.weather(state: PaiFixtureLaunch.requestedWeatherState()) },
-            FixtureRoute(method: "POST", matches: { $0 == "/api/location" }) { Data() },
+            FixtureRoute(method: "POST", matches: { $0 == "/api/location/points" }) {
+                PaiFixtures.data(PaiFixtures.locationPointsAnswer)
+            },
+            exact("GET", "/api/places/monitor") { PaiFixtures.placesMonitor },
+            exact("GET", "/api/reminders") { PaiFixtures.reminders },
+            // One reminder answers under its own id and nothing else does, the way the notes do.
+            FixtureRoute(method: "GET", matches: { $0 == "/api/reminders/\(PaiFixtures.reminderFixtureId)" }) {
+                PaiFixtures.data(PaiFixtures.reminderDetail)
+            },
+            FixtureRoute(method: "PATCH", matches: { $0 == "/api/reminders/\(PaiFixtures.reminderFixtureId)" }) {
+                PaiFixtures.data(PaiFixtures.reminderDetail)
+            },
+            FixtureRoute(
+                method: "POST", matches: { $0 == "/api/reminders/\(PaiFixtures.reminderFixtureId)/resume" }
+            ) { PaiFixtures.data(PaiFixtures.reminderDetail) },
+            FixtureRoute(
+                method: "POST", matches: { $0 == "/api/reminders/\(PaiFixtures.reminderFixtureId)/test" }
+            ) { PaiFixtures.data(PaiFixtures.reminderTested) },
+            FixtureRoute(method: "DELETE", matches: { $0 == "/api/reminders/\(PaiFixtures.reminderFixtureId)" }) {
+                PaiFixtures.data(#"{"deleted": "\#(PaiFixtures.reminderFixtureId)"}"#)
+            },
             exact("GET", "/api/sign-ins") { PaiFixtures.mySignIns },
             exact("GET", "/api/alerts") { PaiFixtures.alerts },
             exact("POST", "/api/alerts/clear") { PaiFixtures.alertsCleared },

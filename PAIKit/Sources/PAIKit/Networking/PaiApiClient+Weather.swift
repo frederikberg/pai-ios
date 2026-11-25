@@ -17,8 +17,22 @@ extension PaiApiClient {
         return status == 404 ? nil : data
     }
 
-    /// Replaces the stored location of the signed-in person; the server answers 204.
-    public func postLocation(_ report: LocationReport) async throws {
-        try await sendDiscardingResponse(path: "/api/location", method: "POST", body: try Self.jsonBody(report))
+    /// `POST /api/location/points`: up to 500 points. Every point moves the person's latest
+    /// position (what the weather reads); the owner's also join the history. A repeated batch
+    /// changes nothing, so a retry after a lost answer is harmless.
+    public func postLocationPoints(_ points: [LocationPoint]) async throws -> LocationPointsAnswer {
+        try await send(
+            path: "/api/location/points", method: "POST",
+            body: try Self.jsonBody(LocationPointsRequest(points: points)))
+    }
+
+    /// `GET /api/places/monitor` (owner only): the places this phone geofences.
+    public func getPlacesMonitor() async throws -> PlacesMonitorAnswer {
+        try await send(path: "/api/places/monitor")
+    }
+
+    /// `GET /api/location/day` (owner only): one Berlin day, `yyyy-MM-dd`.
+    public func getLocationDay(date: String) async throws -> LocationDay {
+        try await send(path: "/api/location/day", query: [URLQueryItem(name: "date", value: date)])
     }
 }

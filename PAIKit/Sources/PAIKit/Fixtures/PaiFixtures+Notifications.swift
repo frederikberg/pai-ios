@@ -32,7 +32,7 @@ extension PaiFixtures {
 
     public static let notifications = #"""
         {
-          "unread": 3,
+          "unread": 4,
           "has_more": false,
           "notifications": [
             {
@@ -49,6 +49,23 @@ extension PaiFixtures {
               "task_id": null,
               "task_name": null,
               "run_slug": null
+            },
+            {
+              "id": "n1a2b3c4-0000-4c1a-8f30-2b7e5c918d07",
+              "kind": "reminder",
+              "title": "Library book",
+              "body": "Bring back the library book today.",
+              "created_at": "2026-08-31T22:20:00.000000+00:00",
+              "read_at": null,
+              "session_id": null,
+              "session_title": null,
+              "anchor": null,
+              "alert": null,
+              "task_id": null,
+              "task_name": null,
+              "run_slug": null,
+              "reminder_id": "7e3b2c10-4d5a-4e6f-8a9b-0c1d2e3f4a5b",
+              "reminder_name": "office-library-book"
             },
             {
               "id": "n1a2b3c4-0000-4c1a-8f30-2b7e5c918d05",
@@ -157,7 +174,7 @@ extension PaiFixtures {
         """#
 
     public static let notificationsSummary = #"""
-        {"unread": 3, "latest_id": "n1a2b3c4-0000-4c1a-8f30-2b7e5c918d01"}
+        {"unread": 4, "latest_id": "n1a2b3c4-0000-4c1a-8f30-2b7e5c918d01"}
         """#
 
     public static let notificationsMarked = #"""

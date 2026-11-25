@@ -6,36 +6,6 @@ import XCTest
 
 @testable import PAIKit
 
-private actor FakeLocationApi: LocationApiClient {
-    private(set) var posted: [LocationReport] = []
-    private var signIns: [SignIn]
-    private var postError: Error?
-
-    init(signIns: [SignIn] = [SignIn(id: "me", active: true, current: true)]) { self.signIns = signIns }
-
-    func failPosts(with error: Error?) { postError = error }
-
-    func postLocation(_ report: LocationReport) async throws {
-        if let postError { throw postError }
-        posted.append(report)
-    }
-
-    func listMySignIns() async throws -> [SignIn] { signIns }
-}
-
-private actor PlaceCounter {
-    private(set) var asked = 0
-    func next(_ name: String?) -> String? {
-        asked += 1
-        return name
-    }
-}
-
-private final class Clock: @unchecked Sendable {
-    var date: Date
-    init(_ date: Date) { self.date = date }
-}
-
 /// The weather wire shape, the two rows' wording, and what the location store lets through.
 final class WeatherTests: XCTestCase {
 
@@ -103,16 +73,6 @@ final class WeatherTests: XCTestCase {
         XCTAssertNil(store.locationSignInId, "a cleared phone is null, not absent")
         let sent = await api.personPatches
         XCTAssertEqual(sent.map { $0["location_sign_in_id"] }, [.string("abc"), .null])
-    }
-
-    func testTheLocationReportEncodesTheContractsNames() throws {
-        let report = LocationReport(
-            lat: 50.776, lon: 6.084, accuracyM: 65, place: "Aachen", recordedAt: "2026-11-16T12:40:00+00:00")
-        let json = try XCTUnwrap(
-            try JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any])
-        XCTAssertEqual(
-            Set(json.keys), ["lat", "lon", "accuracy_m", "place", "recorded_at", "source"])
-        XCTAssertEqual(json["source"] as? String, "ios")
     }
 
     // MARK: Rows
@@ -191,153 +151,6 @@ final class WeatherTests: XCTestCase {
         XCTAssertEqual(p.age(of: reference.addingTimeInterval(-2 * 86400)), "2 d ago")
     }
 
-    // MARK: Location store
-
-    @MainActor
-    private func makeStore(
-        api: FakeLocationApi, chosen: String?, places: PlaceCounter = PlaceCounter(), place: String? = "Aachen",
-        clock: Clock = Clock(Date(timeIntervalSince1970: 1_800_000_000))
-    ) async -> LocationReportStore {
-        var response = try! JSONDecoder().decode(
-            SettingsResponse.self, from: Data(PaiFixtures.settingsRegistryOwner.utf8))
-        var person = response.person
-        person["location_sign_in_id"] = chosen.map { .string($0) } ?? .null
-        response = SettingsResponse(schema: response.schema, person: person, instance: response.instance)
-        let settings = SettingsRegistryStore(
-            api: FakeSettingsRegistryApi(response: response), cache: SettingsInMemoryKeyValueStore())
-        await settings.load()
-        let store = LocationReportStore(
-            api: api, settings: settings, cache: SettingsInMemoryKeyValueStore(),
-            placeName: { _, _ in await places.next(place) }, now: { clock.date })
-        await store.resolveCurrentSignIn()
-        return store
-    }
-
-    private func fix(_ lat: Double = 50.77612, _ lon: Double = 6.08391, at seconds: TimeInterval = 1_800_000_000)
-        -> LocationFix
-    {
-        LocationFix(
-            latitude: lat, longitude: lon, accuracy: 64.6, timestamp: Date(timeIntervalSince1970: seconds))
-    }
-
-    @MainActor
-    func testTheChosenPhoneSendsARoundedFixWithItsPlace() async throws {
-        let api = FakeLocationApi()
-        let store = await makeStore(api: api, chosen: "me")
-        XCTAssertTrue(store.usesThisDevice)
-        let delivered = await store.report(fix())
-        XCTAssertTrue(delivered)
-        let posted = await api.posted
-        XCTAssertEqual(posted.count, 1)
-        XCTAssertEqual(posted[0].lat, 50.776)
-        XCTAssertEqual(posted[0].lon, 6.084)
-        XCTAssertEqual(posted[0].accuracyM, 65)
-        XCTAssertEqual(posted[0].place, "Aachen")
-        XCTAssertEqual(posted[0].recordedAt, AlarmTime.wireString(Date(timeIntervalSince1970: 1_800_000_000)))
-    }
-
-    @MainActor
-    func testAPhoneThatIsNotTheChosenOneNeverSends() async {
-        let api = FakeLocationApi()
-        let other = await makeStore(api: api, chosen: "someone-else")
-        XCTAssertFalse(other.usesThisDevice)
-        let none = await makeStore(api: api, chosen: nil)
-        let delivered = [await other.report(fix()), await none.report(fix())]
-        XCTAssertEqual(delivered, [false, false])
-        let posted = await api.posted
-        XCTAssertTrue(posted.isEmpty)
-    }
-
-    @MainActor
-    func testAnInvalidFixIsDropped() async {
-        let api = FakeLocationApi()
-        let store = await makeStore(api: api, chosen: "me")
-        let invalid = LocationFix(latitude: 50, longitude: 6, accuracy: -1, timestamp: Date())
-        let delivered = await store.report(invalid)
-        XCTAssertFalse(delivered)
-        let posted = await api.posted
-        XCTAssertTrue(posted.isEmpty)
-    }
-
-    @MainActor
-    func testTheSameSpotTwiceWithinHalfAMinuteIsOneReport() async {
-        let api = FakeLocationApi()
-        let clock = Clock(Date(timeIntervalSince1970: 1_800_000_000))
-        let store = await makeStore(api: api, chosen: "me", clock: clock)
-        _ = await store.report(fix())
-        clock.date.addTimeInterval(10)
-        let second = await store.report(fix(at: 1_800_000_010))
-        XCTAssertFalse(second)
-        clock.date.addTimeInterval(60)
-        let third = await store.report(fix(at: 1_800_000_070))
-        XCTAssertTrue(third, "a later fix at the same spot refreshes the stored age")
-        let posted = await api.posted
-        XCTAssertEqual(posted.count, 2)
-    }
-
-    @MainActor
-    func testThePlaceNameIsKeptNearbyAndLookedUpAgainFarAway() async {
-        let api = FakeLocationApi()
-        let places = PlaceCounter()
-        let clock = Clock(Date(timeIntervalSince1970: 1_800_000_000))
-        let store = await makeStore(api: api, chosen: "me", places: places, clock: clock)
-        _ = await store.report(fix(50.776, 6.084))
-        clock.date.addTimeInterval(120)
-        _ = await store.report(fix(50.779, 6.084, at: 1_800_000_120))  // ~330 m
-        let nearby = await places.asked
-        XCTAssertEqual(nearby, 1)
-        clock.date.addTimeInterval(120)
-        _ = await store.report(fix(50.9, 6.084, at: 1_800_000_240))  // ~14 km
-        let far = await places.asked
-        XCTAssertEqual(far, 2)
-    }
-
-    @MainActor
-    func testAnUnresolvedPlaceIsSentAsNoneRatherThanAnOldCity() async {
-        let api = FakeLocationApi()
-        let store = await makeStore(api: api, chosen: "me", place: nil)
-        _ = await store.report(fix())
-        let posted = await api.posted
-        XCTAssertNil(posted.first?.place)
-    }
-
-    @MainActor
-    func testAFailedPostIsReportedAndNotRemembered() async {
-        let api = FakeLocationApi()
-        await api.failPosts(with: PaiError.detail("nope", statusCode: 500))
-        let store = await makeStore(api: api, chosen: "me")
-        let delivered = await store.report(fix())
-        XCTAssertFalse(delivered)
-        XCTAssertNotNil(store.errorMessage)
-        XCTAssertNil(store.lastReport)
-    }
-
-    @MainActor
-    func testTheToggleWritesThisPhonesSignInAndTurnsOffOnlyItsOwnChoice() async {
-        let api = FakeLocationApi()
-        let store = await makeStore(api: api, chosen: "other")
-        XCTAssertFalse(store.usesThisDevice)
-        let off = await store.setUsesThisDevice(false)
-        XCTAssertTrue(off)
-        XCTAssertFalse(store.usesThisDevice)
-
-        let on = await store.setUsesThisDevice(true)
-        XCTAssertTrue(on)
-        XCTAssertTrue(store.usesThisDevice)
-
-        _ = await store.setUsesThisDevice(false)
-        XCTAssertFalse(store.usesThisDevice)
-    }
-
-    @MainActor
-    func testTheToggleRefusesWhenThisSignInCannotBeNamed() async {
-        let api = FakeLocationApi(signIns: [SignIn(id: "x", active: true, current: false)])
-        let store = await makeStore(api: api, chosen: nil)
-        let on = await store.setUsesThisDevice(true)
-        XCTAssertFalse(on)
-        XCTAssertNotNil(store.errorMessage)
-    }
-
     func testTheWeatherLinkOpensTheWeatherScreenFromEverySpelling() {
         XCTAssertEqual(DeepLink.from(url: URL(string: "pai://weather")!), .weather)
         XCTAssertNil(DeepLink.from(url: URL(string: "pai://weather/extra")!))
@@ -359,18 +172,15 @@ final class WeatherTests: XCTestCase {
         XCTAssertEqual(meters, 334, accuracy: 5)
     }
 
-    func testTheWeatherAndLocationRequestsHitTheContractsPaths() async throws {
+    func testTheWeatherRequestHitsTheContractsPath() async throws {
         AlarmRecordingURLProtocol.configure(reply: PaiFixtures.weather(state: nil, now: reference))
         let factory = try PaiRequestFactory(
             baseURL: "https://pai.example.com", deviceName: "Test iPhone", tokenProvider: { "jwt" })
         let client = PaiApiClient(requestFactory: factory, urlSession: AlarmRecordingURLProtocol.makeSession())
         let weather = try await client.getWeather()
         XCTAssertEqual(weather.now.verdict, .rain)
-        AlarmRecordingURLProtocol.configure(reply: "")
-        try await client.postLocation(
-            LocationReport(lat: 50.776, lon: 6.084, accuracyM: nil, place: "Aachen", recordedAt: "x"))
         let seen = AlarmRecordingURLProtocol.seen
-        XCTAssertEqual(seen.map(\.method), ["POST"])
-        XCTAssertEqual(seen.map(\.path), ["/api/location"])
+        XCTAssertEqual(seen.map(\.method), ["GET"])
+        XCTAssertEqual(seen.map(\.path), ["/api/weather"])
     }
 }

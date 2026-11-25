@@ -9,10 +9,27 @@ import Foundation
 /// `notify`, and an alert transition. `alert` is non-nil only for `kind == .alert`; `sessionId`/
 /// `sessionTitle`/`anchor` only ever populate for `kind == .agent`.
 
-/// `"agent"` or `"alert"` on the wire — mirrors the backend's `PUSH_CHANNELS`.
+/// `"agent"`, `"alert"` or `"reminder"` on the wire. A kind this build does not know decodes as
+/// `agent` (a message that may have no session), so one new kind never fails a whole page.
 public enum PaiNotificationKind: String, Codable, Sendable, Equatable, CaseIterable {
     case agent
     case alert
+    case reminder
+
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = Self(rawValue: raw) ?? .agent
+    }
+
+    /// The kinds beyond `agent` and `alert` this build decodes, sent as `accept_kinds` on every
+    /// read of the feed: the server serves any other kind as a plain `agent` row, so a client adds
+    /// a kind to this list in the same build that decodes it.
+    public static let acceptedBeyondDefault = [PaiNotificationKind.reminder]
+
+    /// The `accept_kinds` query value (a comma list).
+    public static var acceptKindsQueryValue: String {
+        acceptedBeyondDefault.map(\.rawValue).joined(separator: ",")
+    }
 }
 
 /// Where in the transcript an agent notification came from, once resolved.
@@ -84,6 +101,10 @@ public struct PaiNotification: Codable, Sendable, Equatable, Identifiable {
     /// carries. The backend decides it (`nil` where the push adds nothing, and for every alert);
     /// the app never derives it from the task or session name.
     public let runSlug: String?
+    /// The reminder that fired (`kind == .reminder`). `reminderId` goes null once the reminder is
+    /// deleted; the name stays.
+    public let reminderId: String?
+    public let reminderName: String?
 
     enum CodingKeys: String, CodingKey {
         case id, kind, title, body, anchor, alert
@@ -94,12 +115,15 @@ public struct PaiNotification: Codable, Sendable, Equatable, Identifiable {
         case taskId = "task_id"
         case taskName = "task_name"
         case runSlug = "run_slug"
+        case reminderId = "reminder_id"
+        case reminderName = "reminder_name"
     }
 
     public init(
         id: String, kind: PaiNotificationKind, title: String, body: String, createdAt: String, readAt: String?,
         sessionId: String?, sessionTitle: String?, anchor: PaiNotificationAnchor?, alert: PaiNotificationAlert?,
-        taskId: String?, taskName: String?, runSlug: String? = nil
+        taskId: String?, taskName: String?, runSlug: String? = nil, reminderId: String? = nil,
+        reminderName: String? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -114,6 +138,8 @@ public struct PaiNotification: Codable, Sendable, Equatable, Identifiable {
         self.taskId = taskId
         self.taskName = taskName
         self.runSlug = runSlug
+        self.reminderId = reminderId
+        self.reminderName = reminderName
     }
 
     /// The same row with a different read state or alert — the one place a row is rebuilt from
@@ -122,7 +148,7 @@ public struct PaiNotification: Codable, Sendable, Equatable, Identifiable {
         PaiNotification(
             id: id, kind: kind, title: title, body: body, createdAt: createdAt, readAt: readAt,
             sessionId: sessionId, sessionTitle: sessionTitle, anchor: anchor, alert: alert, taskId: taskId,
-            taskName: taskName, runSlug: runSlug)
+            taskName: taskName, runSlug: runSlug, reminderId: reminderId, reminderName: reminderName)
     }
 
     public var isUnread: Bool { readAt == nil }

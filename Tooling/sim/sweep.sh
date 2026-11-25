@@ -21,7 +21,8 @@ SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscre
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
 watch-keys alarm-facts alarm-sheet weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke
-camera-import-result me-screens session-filters new-session-usage quick-actions settings-owner settings-guest sleep-mode"
+camera-import-result me-screens session-filters new-session-usage quick-actions settings-owner settings-guest sleep-mode
+reminders-feed reminders-scheduler me-where"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
@@ -520,6 +521,31 @@ if want notifications-filter; then
   screenshot notifications-scheduled -PaiFixtureRoute notifications -PaiFixtureNotificationSource only
   xcrun simctl terminate "$udid" "$bundle" || true
   screenshot notifications-not-scheduled -PaiFixtureRoute notifications -PaiFixtureNotificationSource exclude
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want reminders-feed; then
+  # The feed with its reminder row (name chip, "open reminder"),.
+  screenshot reminders-feed -PaiFixtureRoute notifications
+  fact_assert reminders-feed notificationKinds "agent,reminder,agent,alert,agent,agent,alert"
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want reminders-scheduler; then
+  # The Scheduler on its reminder list (five reminders: place, Home Assistant, two scripts, one
+  # fired) and the detail of the polling script (state, limits, last result, script, history).
+  screenshot reminders-list -PaiFixtureRoute schedulerList -PaiFixtureSchedulerSection reminders
+  fact_assert reminders-list reminderRows "door-bins,office-library-book,page-date,status-page,parcel-pickup"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot reminder-detail -PaiFixtureRoute reminder
+  fact_assert reminder-detail reminderDetail "page-date armed"
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want me-where; then
+  # The day detail's Where line over invented places: four stays, no gaps.
+  screenshot me-where -PaiFixtureRoute me -PaiFixtureMeTab days -PaiFixtureScrollTo meDayDetail
+  fact_assert me-where meWhere "stays=4 gaps=false"
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 

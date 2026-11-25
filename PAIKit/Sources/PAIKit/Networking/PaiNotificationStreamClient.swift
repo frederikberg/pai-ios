@@ -129,7 +129,10 @@ public final class PaiNotificationStreamClient {
     }
 
     private func runConnection() async {
-        guard let request = try? requestFactory.makeRequest(path: "/api/notifications/stream") else {
+        guard
+            let request = try? requestFactory.makeRequest(
+                path: "/api/notifications/stream", query: PaiApiClient.acceptedKindsQuery)
+        else {
             handleDisconnect()
             return
         }

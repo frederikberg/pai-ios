@@ -500,9 +500,12 @@ final class AppEnvironment {
             secretGrants: secretGrants,
             location: LocationReportStore(
                 api: client, settings: settingsStore.registry, cache: defaults,
+                queue: LocationQueue(
+                    fileURL: URL.applicationSupportDirectory.appending(path: "Location/location-queue.jsonl")),
                 placeName: { latitude, longitude in
                     await LocationReporter.placeName(latitude: latitude, longitude: longitude)
-                }),
+                },
+                capabilities: { [weak me] in me?.capabilities ?? .unknown }),
             selfReports: selfReports
         )
         PlaybackController.shared.configure(

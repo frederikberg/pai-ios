@@ -7,6 +7,7 @@ public enum NotificationFilter: String, CaseIterable, Sendable, Equatable {
     case all
     case agent
     case alert
+    case reminder
 
     /// What the segmented control's label reads. "Sessions" rather than "Agent" — this is the
     /// word the rest of the app already uses for the same concept (`SessionListView`), and
@@ -16,6 +17,7 @@ public enum NotificationFilter: String, CaseIterable, Sendable, Equatable {
         case .all: "All"
         case .agent: "Sessions"
         case .alert: "Alerts"
+        case .reminder: "Reminders"
         }
     }
 
@@ -26,7 +28,14 @@ public enum NotificationFilter: String, CaseIterable, Sendable, Equatable {
         case .all: nil
         case .agent: .agent
         case .alert: .alert
+        case .reminder: .reminder
         }
+    }
+
+    /// The segments a person may pick: every one for the owner, whose feed holds reminders;
+    /// a guest's does not, and the server refuses a reminder-only read from one.
+    public static func available(for capabilities: Capabilities) -> [NotificationFilter] {
+        capabilities.canOpenReminders ? allCases : allCases.filter { $0 != .reminder }
     }
 }
 
