@@ -104,7 +104,13 @@ struct ArcSpecView: View {
         .navigationDestination(item: $detailTarget) { target in
             switch target {
             case .block(let block):
-                ArcBlockDetailView(block: block, specUuid: specUuid, topRowID: detailScrollBinding(for: target))
+                // Links come from the live timeline, so a neighbour that appeared since this
+                // page opened is reachable. Selecting another block swaps this same page's
+                // target rather than stacking a second one on the back button.
+                ArcBlockDetailView(
+                    block: block, specUuid: specUuid, topRowID: detailScrollBinding(for: target),
+                    links: store?.timeline.flatMap { ArcBlockTimes.threads($0)[block.id] },
+                    onOpenBlock: { detailTarget = .block($0) })
             case .unassigned(let rows):
                 ArcUnassignedDetailView(
                     rows: rows, specUuid: specUuid, topRowID: detailScrollBinding(for: target))
@@ -460,6 +466,16 @@ private struct ArcFlowBlockCard: View {
                     Text(rowCountText)
                         .font(PaiTypography.caption.font)
                         .foregroundStyle(PaiPalette.Semantic.textMuted)
+                    // Read at render, not on a timer: the 15 s refresh redraws the card and the
+                    // minute granularity keeps it truthful in between.
+                    let timeLines = ArcBlockTimes.lines(leader: block.leader, state: block.badge, now: Date())
+                    ForEach(Array(timeLines.enumerated()), id: \.offset) { index, line in
+                        let awaitingReview = block.badge == .returned && index == timeLines.count - 1
+                        Text(line)
+                            .font(PaiTypography.caption.font)
+                            .foregroundStyle(
+                                awaitingReview ? PaiPalette.Semantic.warningText : PaiPalette.Semantic.textFaint)
+                    }
                 }
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)

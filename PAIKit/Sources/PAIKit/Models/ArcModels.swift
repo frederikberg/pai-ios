@@ -76,28 +76,37 @@ extension ArcRowStatus: Codable {
 /// always writes one) can omit it — a present-but-invalid nested object would otherwise throw
 /// out of `decodeIfPresent` and fail the whole spec's decode, not just this one row. `agentId`
 /// (the subagent transcript stem) and `returnedAt` are written by the agent path once the agent
-/// has actually run.
+/// has actually run. `startedAt` and `endedAt` are the server's stamps on the leader's own
+/// transitions (first in-progress; done or cancelled), ISO-8601 UTC, absent on rows older than
+/// the stamps.
 public struct ArcLeaderAgent: Codable, Sendable, Equatable {
     public let type: String?
     public let model: String?
     public let name: String?
     public let agentId: String?
     public let returnedAt: String?
+    public let startedAt: String?
+    public let endedAt: String?
 
     enum CodingKeys: String, CodingKey {
         case type, model, name
         case agentId = "agent_id"
         case returnedAt = "returned_at"
+        case startedAt = "started_at"
+        case endedAt = "ended_at"
     }
 
     public init(
-        type: String?, model: String? = nil, name: String? = nil, agentId: String? = nil, returnedAt: String? = nil
+        type: String?, model: String? = nil, name: String? = nil, agentId: String? = nil, returnedAt: String? = nil,
+        startedAt: String? = nil, endedAt: String? = nil
     ) {
         self.type = type
         self.model = model
         self.name = name
         self.agentId = agentId
         self.returnedAt = returnedAt
+        self.startedAt = startedAt
+        self.endedAt = endedAt
     }
 }
 
