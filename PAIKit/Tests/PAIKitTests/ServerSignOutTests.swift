@@ -67,7 +67,7 @@ final class ServerSignOutTests: XCTestCase {
     func testForgettingTheBackendRegistrationMakesTheNextLaunchRegisterAgain() async {
         let store = PushRegistrationStore(
             storage: SettingsInMemoryKeyValueStore(), isRegistrationAllowed: { true },
-            registerToken: { token, _ in
+            registerToken: { token, _, _ in
                 DeviceRegistration(token: token, registered: true, lastSeenAt: nil, mutedChannels: [])
             })
         store.recordDeviceToken("abcd")

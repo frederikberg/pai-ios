@@ -1043,14 +1043,19 @@ public struct ResumeResponse: Codable, Sendable, Equatable {
 // A secret's value never appears in any of these — every shape here is presence and a
 // timestamp, or a short-lived third-party token, never the stored value itself.
 
-/// Every allowlisted secret name a client can set. The backend's own allowlist
-/// (`secrets_store.ALLOWED_SECRET_NAMES`) holds more — `vapid` and `apns_auth_key` are managed
-/// by their own flows, never typed into a field.
-public enum SecretName: String, Sendable, Equatable {
-    case elevenlabs
-    case smtpPassword = "smtp_password"
-    case homeAssistantToken = "home_assistant_token"
-    case todoistToken = "todoist_token"
+/// The name of a stored secret. The four constants are the ones read at launch; a connection names
+/// its own (`ConnectionCredential.secret`), so any allowlisted name can be set or cleared.
+public struct SecretName: Sendable, Equatable, Hashable, RawRepresentable {
+    public let rawValue: String
+
+    public init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    public static let elevenlabs = SecretName(rawValue: "elevenlabs")
+    public static let smtpPassword = SecretName(rawValue: "smtp_password")
+    public static let homeAssistantToken = SecretName(rawValue: "home_assistant_token")
+    public static let todoistToken = SecretName(rawValue: "todoist_token")
 }
 
 public struct SecretStatus: Codable, Sendable, Equatable {
@@ -1107,6 +1112,7 @@ public struct SecretStatusMap: Codable, Sendable, Equatable {
         case .smtpPassword: smtpPassword
         case .homeAssistantToken: homeAssistantToken
         case .todoistToken: todoistToken
+        default: nil
         }
     }
 }

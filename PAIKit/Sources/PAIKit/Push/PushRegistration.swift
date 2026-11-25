@@ -41,6 +41,11 @@ public struct PushRegistration: Codable, Sendable, Equatable {
     /// the two token fields are held apart. `nil` means the backend has never been told, which is
     /// distinct from having been told "nothing is muted".
     public var registeredMutedChannels: Set<String>?
+    /// The sleep window this phone holds, which the server must hold too so it keeps pushes back.
+    public var sleep: DeviceSleepChoice
+    /// The window the backend last confirmed; `nil` until it has been told. Held apart from `sleep`
+    /// for the same reason the two token fields are.
+    public var registeredSleep: DeviceSleepChoice?
     /// Why the last attempt failed, for the diagnostics screen. Never shown as an alert: a
     /// person who has just granted permission does not want an error about plumbing.
     public var lastError: String?
@@ -51,6 +56,8 @@ public struct PushRegistration: Codable, Sendable, Equatable {
         registeredToken: String? = nil,
         mutedChannels: Set<String> = [],
         registeredMutedChannels: Set<String>? = nil,
+        sleep: DeviceSleepChoice = .none,
+        registeredSleep: DeviceSleepChoice? = nil,
         lastError: String? = nil
     ) {
         self.status = status
@@ -58,6 +65,8 @@ public struct PushRegistration: Codable, Sendable, Equatable {
         self.registeredToken = registeredToken
         self.mutedChannels = mutedChannels
         self.registeredMutedChannels = registeredMutedChannels
+        self.sleep = sleep
+        self.registeredSleep = registeredSleep
         self.lastError = lastError
     }
 
@@ -85,6 +94,7 @@ public struct PushRegistration: Codable, Sendable, Equatable {
     public var needsBackendRegistration: Bool {
         guard let deviceToken, !deviceToken.isEmpty else { return false }
         return deviceToken != registeredToken || registeredMutedChannels != mutedChannels
+            || registeredSleep != sleep
     }
 
     /// Decoded leniently so a registration persisted before a field existed still loads. A
@@ -98,6 +108,8 @@ public struct PushRegistration: Codable, Sendable, Equatable {
         mutedChannels = try container.decodeIfPresent(Set<String>.self, forKey: .mutedChannels) ?? []
         registeredMutedChannels = try container.decodeIfPresent(
             Set<String>.self, forKey: .registeredMutedChannels)
+        sleep = try container.decodeIfPresent(DeviceSleepChoice.self, forKey: .sleep) ?? .none
+        registeredSleep = try container.decodeIfPresent(DeviceSleepChoice.self, forKey: .registeredSleep)
         lastError = try container.decodeIfPresent(String.self, forKey: .lastError)
     }
 
