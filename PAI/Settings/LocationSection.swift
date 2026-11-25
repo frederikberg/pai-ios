@@ -38,7 +38,7 @@ struct LocationSection: View {
                     }
                 }
             } header: {
-                Text("Location")
+                Text("Location · \(SettingsScope.synced.label)")
             } footer: {
                 Text(
                     "Only your latest location is kept on your PAI server, to answer whether it will rain where you are. One iPhone reports it; the others stay silent."
