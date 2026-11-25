@@ -320,9 +320,7 @@ final class AppEnvironment {
         let outbox = OutboxStore(api: client, storage: FileOutboxStorage(rootURL: outboxRoot))
         let selfReports = SelfReportStore(api: client, storage: defaults, drafts: draftStore)
         let notesStore = Self.makeNotesStore(client: client, budgetBytes: settingsStore.notesCacheBudgetBytes)
-        // A fixture run keeps no filters: the screenshot sweep launches the same simulator many
-        // times and each launch must start from the unfiltered list.
-        let sessions = SessionListStore(api: client, storage: PaiFixtureLaunch.isEnabled() ? nil : defaults)
+        let sessions = SessionListStore(api: client, storage: Self.persistentFilterStorage(defaults))
         // What happens the moment the server has the row lives in `installHandover` rather than
         // in a closure written out here, so the join between a landed send and the screen waiting
         // on it is covered by the package's own tests instead of by this line.
@@ -424,7 +422,7 @@ final class AppEnvironment {
             voice: voice,
             computerCall: computerCall,
             wakeWordSamples: wakeWordSamples,
-            notifications: NotificationCenterStore(api: client, storage: PaiFixtureLaunch.isEnabled() ? nil : defaults),
+            notifications: NotificationCenterStore(api: client, storage: Self.persistentFilterStorage(defaults)),
             transcriptJumps: TranscriptJumpRequests(),
             decisions: DecisionsStore(api: client, capabilities: { [weak me] in me?.capabilities ?? .unknown }),
             secretGrants: secretGrants,
@@ -492,6 +490,16 @@ final class AppEnvironment {
     /// The notes store over its two directories in Application Support. `NotesCache` holds only
     /// what the server has and is kept out of the device backup; `NoteOutbox` holds edits the
     /// server has not seen and is backed up, like the send outbox.
+    /// Where the list filters are kept. A fixture run keeps none, so each launch of the same
+    /// simulator starts unfiltered. Fixture mode exists only in a Debug build, which is why the
+    /// check is guarded: `PaiFixtureLaunch` does not compile in Release.
+    private static func persistentFilterStorage(_ defaults: UserDefaults) -> UserDefaults? {
+        #if DEBUG
+            if PaiFixtureLaunch.isEnabled() { return nil }
+        #endif
+        return defaults
+    }
+
     private static func makeNotesStore(client: PaiApiClient, budgetBytes: Int) -> NotesStore {
         let support =
             (try? FileManager.default.url(
