@@ -63,7 +63,7 @@ final class PushRegistrationTests: XCTestCase {
     func testAnAcknowledgedTokenNeedsNothing() {
         let state = PushRegistration(
             status: .authorized, deviceToken: "same", registeredToken: "same",
-            registeredMutedChannels: [])
+            registeredMutedChannels: [], registeredSleep: DeviceSleepChoice.none)
         XCTAssertFalse(state.needsBackendRegistration)
     }
 
@@ -149,11 +149,21 @@ final class PushRegistrationDecodingTests: XCTestCase {
     /// the same mutes now that channels are plain ids.
     func testMutesStoredByAnEarlierBuildLoadAsIds() throws {
         let state = try decode(
-            #"{"status":"authorized","deviceToken":"abc","registeredToken":"abc","mutedChannels":["alerts"],"registeredMutedChannels":["alerts"]}"#
+            #"{"status":"authorized","deviceToken":"abc","registeredToken":"abc","mutedChannels":["alerts"],"registeredMutedChannels":["alerts"],"registeredSleep":{}}"#
         )
         XCTAssertEqual(state.mutedChannels, ["alerts"])
         XCTAssertEqual(state.registeredMutedChannels, ["alerts"])
         XCTAssertFalse(state.needsBackendRegistration)
+    }
+
+    /// A registration saved before the sleep window existed was never told one, so it posts once to
+    /// make the server's copy agree (a cleared window), and not again.
+    func testARegistrationFromBeforeTheSleepWindowIsToldOnce() throws {
+        let state = try decode(
+            #"{"status":"authorized","deviceToken":"abc","registeredToken":"abc","mutedChannels":[],"registeredMutedChannels":[]}"#
+        )
+        XCTAssertNil(state.registeredSleep)
+        XCTAssertTrue(state.needsBackendRegistration)
     }
 
     func testAnEmptyObjectLoadsAsAFreshInstall() throws {
