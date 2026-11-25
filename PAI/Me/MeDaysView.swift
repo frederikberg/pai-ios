@@ -103,7 +103,7 @@ struct MeDaysView: View {
                     }
                 }
             case .sleepScore:
-                row("sleep score", height: 15) { day in
+                row("score", height: 15) { day in
                     numberCell(day.body?.sleepScore, color: PaiPalette.Semantic.textSecondary, size: 10)
                 }
             case .battery:
@@ -112,7 +112,8 @@ struct MeDaysView: View {
                 }
             case .moved:
                 row("moved", height: 22) { day in
-                    Text(day.activities.prefix(2).compactMap(\.emoji).joined())
+                    // One emoji in a narrow column, two from 26 points.
+                    Text(day.activities.prefix(cell >= 26 ? 2 : 1).compactMap(\.emoji).joined())
                         .font(.system(size: 13))
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)

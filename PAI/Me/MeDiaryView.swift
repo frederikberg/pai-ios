@@ -105,9 +105,12 @@ struct MeDiaryView: View {
                 .accessibilityLabel("\(feel.spokenName) entries")
             }
             chip(selected: store.privateOnly, id: "private") {
-                Label(counts.map { "\($0.locked)" } ?? "Private", systemImage: "lock")
-                    .font(PaiTypography.bodyEmphasized.font)
-                    .foregroundStyle(MeColor.lock(dark: dark))
+                HStack(spacing: 4) {
+                    Image(systemName: "lock")
+                    if let locked = counts?.locked, locked > 0 { Text("\(locked)") }
+                }
+                .font(PaiTypography.bodyEmphasized.font)
+                .foregroundStyle(MeColor.lock(dark: dark))
             } action: {
                 store.privateOnly.toggle()
             }
@@ -132,17 +135,19 @@ struct MeDiaryView: View {
 
     private func count(of feel: SelfReportFeel) -> Int? {
         guard let counts else { return nil }
+        let count: Int
         switch feel {
-        case .good: return counts.good
-        case .okay: return counts.okay
-        case .heavy: return counts.heavy
+        case .good: count = counts.good
+        case .okay: count = counts.okay
+        case .heavy: count = counts.heavy
         case .unrecognized: return nil
         }
+        return count > 0 ? count : nil
     }
 
     private func counted(_ title: String, _ count: Int?) -> String {
-        guard let count else { return title }
-        return title.isEmpty ? "\(count)" : "\(title) \(count)"
+        guard let count, count > 0 else { return title }
+        return "\(title) \(count)"
     }
 
     /// The counts are the grid's days, not everything below: say so beside them.

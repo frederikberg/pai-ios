@@ -10,7 +10,7 @@ struct MeRibbonView: View {
     @Environment(\.colorScheme) private var scheme
 
     private let gutter: CGFloat = 36
-    private let laneTops: [CGFloat] = [16, 29, 42, 55]
+    private let laneTops: [CGFloat] = [24, 37, 50, 63]
     private let laneNames = ["body", "plans", "you", "done"]
     private let laneHeight: CGFloat = 9
 
@@ -18,7 +18,7 @@ struct MeRibbonView: View {
 
     var body: some View {
         Canvas { context, size in draw(context, size) }
-            .frame(height: 86)
+            .frame(height: 94)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Day ribbon")
             .accessibilityValue(summary)
@@ -54,9 +54,9 @@ struct MeRibbonView: View {
         let guide = PaiPalette.Semantic.borderDefault
         for hour in MePresenter.ribbonHours(width: Double(size.width)) {
             let at = x(Double(hour * 60))
-            context.fill(Path(CGRect(x: at, y: 14, width: 1, height: 54)), with: .color(guide))
+            context.fill(Path(CGRect(x: at, y: 22, width: 1, height: 50)), with: .color(guide))
             label(
-                "\(hour)", at: CGPoint(x: at, y: 78), anchor: .center, color: PaiPalette.Semantic.textMuted)
+                "\(hour)", at: CGPoint(x: at, y: 85), anchor: .center, color: PaiPalette.Semantic.textMuted)
         }
         for (index, top) in laneTops.enumerated() {
             let rect = CGRect(x: gutter, y: top, width: track, height: laneHeight)
@@ -70,24 +70,26 @@ struct MeRibbonView: View {
         for span in ribbon.activities { block(span, top: laneTops[0], color: MeColor.movement(dark: dark)) }
         for span in ribbon.plans { block(span, top: laneTops[1], color: MeColor.calendar.opacity(0.75)) }
         for span in ribbon.you { block(span, top: laneTops[2], color: MeColor.you.opacity(0.85)) }
-        for minute in ribbon.done {
-            let rect = CGRect(x: x(minute) - 1.25, y: laneTops[3], width: 2.5, height: laneHeight)
-            context.fill(Path(rect), with: .color(MeColor.done))
+        for span in ribbon.done {
+            // A tick has no length; it is drawn as a thin bar centred on its minute.
+            let width = max(3, x(span.end) - x(span.start))
+            let left = min(max(gutter, x(span.start) - (span.end > span.start ? 0 : 1.5)), size.width - width)
+            let rect = CGRect(x: left, y: laneTops[3], width: width, height: laneHeight)
+            context.fill(Path(roundedRect: rect, cornerRadius: 1.5), with: .color(MeColor.done))
         }
 
         // The 22:00 line: the day's end for him, a mark and never a countdown.
         var evening = Path()
-        evening.move(to: CGPoint(x: x(22 * 60), y: 14))
-        evening.addLine(to: CGPoint(x: x(22 * 60), y: 68))
+        evening.move(to: CGPoint(x: x(22 * 60), y: 22))
+        evening.addLine(to: CGPoint(x: x(22 * 60), y: 72))
         context.stroke(evening, with: .color(PaiPalette.surface600), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
-        label("22", at: CGPoint(x: x(22 * 60), y: 78), anchor: .center, color: PaiPalette.Semantic.textSecondary)
+        label("22", at: CGPoint(x: x(22 * 60), y: 85), anchor: .center, color: PaiPalette.Semantic.textSecondary)
 
         let nowX = ribbon.now.map(x)
         for dot in ribbon.diary {
             let at = x(dot.minute)
-            // A face near the "now" label moves below its line.
-            let centerY: CGFloat = nowX.map { abs($0 - at) < 14 } == true ? 12 : 7
-            let rect = CGRect(x: at - 4, y: centerY - 4, width: 8, height: 8)
+            // The faces have a row of their own, so the "now" label never touches one.
+            let rect = CGRect(x: at - 4, y: 12, width: 8, height: 8)
             if let feel = dot.feel {
                 context.fill(Path(ellipseIn: rect), with: .color(MeColor.feel(feel, dark: dark)))
             } else if dot.isPrivate {
@@ -100,8 +102,8 @@ struct MeRibbonView: View {
 
         if let nowX, let minute = ribbon.now {
             var line = Path()
-            line.move(to: CGPoint(x: nowX, y: 12))
-            line.addLine(to: CGPoint(x: nowX, y: 70))
+            line.move(to: CGPoint(x: nowX, y: 11))
+            line.addLine(to: CGPoint(x: nowX, y: 74))
             context.stroke(line, with: .color(PaiPalette.primary400), lineWidth: 1.5)
             let whole = Int(minute)
             let time = String(format: "%02d:%02d", whole / 60, whole % 60)
