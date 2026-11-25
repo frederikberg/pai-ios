@@ -49,8 +49,9 @@ final class LocationReporter: NSObject, CLLocationManagerDelegate {
     let permission = LocationPermission(access: .undetermined)
     private let manager = CLLocationManager()
     private let defaults = UserDefaults.standard
-    private var monitor: CLMonitor?
-    private var monitorTask: Task<Void, Never>?
+    private lazy var places = PlaceMonitorController { [weak self] in
+        await Self.openMonitor { [weak self] event in self?.handle(event) }
+    }
     private var serviceSession: CLServiceSession?
     private var pending: [Pending] = []
 
@@ -76,7 +77,7 @@ final class LocationReporter: NSObject, CLLocationManagerDelegate {
         }
         store.syncRole()
         store.onPlacesChange = { [weak self] places, changed in
-            Task { @MainActor in await self?.applyPlaces(places, versionChanged: changed) }
+            Task { @MainActor in await self?.places.converge(places: places, versionChanged: changed) }
         }
         drainPending(into: store)
         switch permission.access {
@@ -140,56 +141,37 @@ final class LocationReporter: NSObject, CLLocationManagerDelegate {
     }
 
     /// Visits and the geofence monitor. The monitor is a named object whose conditions iOS keeps
-    /// across launches; recreating it by name and reading its events is what a relaunch needs.
+    /// across launches; opening it by name and reading its events is what a relaunch needs. It is
+    /// opened once per process (``PlaceMonitorController``), never again after a stop.
     private func startHistoryMonitoring() {
         defaults.set(true, forKey: Self.historyKey)
         manager.startMonitoringVisits()
         if serviceSession == nil { serviceSession = CLServiceSession(authorization: .always) }
-        guard monitorTask == nil else { return }
-        monitorTask = Task { @MainActor in
-            let monitor = await CLMonitor(Self.monitorName)
-            self.monitor = monitor
-            await self.applyPlaces(self.store?.monitoredPlaces ?? [], versionChanged: false)
-            do {
-                for try await event in await monitor.events {
-                    self.handle(event)
-                }
-            } catch {
-                // The sequence ended; the next reconcile starts a new one.
-            }
-            self.monitorTask = nil
-        }
+        places.isActive = true
+        Task { await self.places.converge(places: self.store?.monitoredPlaces ?? [], versionChanged: false) }
     }
 
     private func stopHistoryMonitoring() {
         defaults.set(false, forKey: Self.historyKey)
         manager.stopMonitoringVisits()
-        let task = monitorTask
-        let held = monitor
-        monitorTask = nil
-        monitor = nil
-        task?.cancel()
         serviceSession?.invalidate()
         serviceSession = nil
-        guard let held else { return }
-        Task {
-            for id in await held.identifiers { await held.remove(id) }
-        }
+        places.isActive = false
+        Task { await self.places.converge(places: [], versionChanged: false) }
     }
 
-    /// Makes the monitor's conditions match the places the server named: the plan says which to add
-    /// (or add again, replacing a moved circle) and which to drop.
-    private func applyPlaces(_ places: [MonitoredPlace], versionChanged: Bool) async {
-        guard let monitor else { return }
-        let held = Set(await monitor.identifiers)
-        let plan = PlaceMonitorPlan.make(desired: places, held: held, versionChanged: versionChanged)
-        for id in plan.remove { await monitor.remove(id) }
-        for place in plan.add {
-            let center = CLLocationCoordinate2D(latitude: place.lat, longitude: place.lon)
-            let radius = CLLocationDistance(PlaceMonitorPlan.radius(of: place))
-            await monitor.add(
-                CLMonitor.CircularGeographicCondition(center: center, radius: radius), identifier: place.id)
+    /// Opens the named monitor and reads its events for the rest of the process. If the sequence
+    /// ends, events stop until the next launch: opening the name again would trap.
+    private static func openMonitor(onEvent: @escaping @MainActor @Sendable (CLMonitor.Event) -> Void) async
+        -> any PlaceMonitor
+    {
+        let monitor = await CLMonitor(monitorName)
+        Task { @MainActor in
+            do {
+                for try await event in await monitor.events { onEvent(event) }
+            } catch {}
         }
+        return CoreLocationPlaceMonitor(monitor: monitor)
     }
 
     private func handle(_ event: CLMonitor.Event) {
@@ -272,4 +254,28 @@ final class LocationReporter: NSObject, CLLocationManagerDelegate {
     /// `requestLocation()` requires the delegate to implement this; a failed one-shot fix is
     /// retried by the next foreground or significant change.
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {}
+}
+
+/// Core Location's monitor as ``PlaceMonitor``: a place is a circle of its radius, never smaller
+/// than iOS reliably detects.
+private final class CoreLocationPlaceMonitor: PlaceMonitor {
+    let monitor: CLMonitor
+
+    init(monitor: CLMonitor) {
+        self.monitor = monitor
+    }
+
+    var identifiers: [String] {
+        get async { await monitor.identifiers }
+    }
+
+    func add(_ place: MonitoredPlace) async {
+        let center = CLLocationCoordinate2D(latitude: place.lat, longitude: place.lon)
+        let radius = CLLocationDistance(PlaceMonitorPlan.radius(of: place))
+        await monitor.add(CLMonitor.CircularGeographicCondition(center: center, radius: radius), identifier: place.id)
+    }
+
+    func remove(_ identifier: String) async {
+        await monitor.remove(identifier)
+    }
 }
