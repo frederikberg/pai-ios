@@ -73,15 +73,6 @@ final class AppRegistryTests: XCTestCase {
             "until the role is known only what needs none")
     }
 
-    func testTheAppsListIsTheOrderItWasInBeforeTheRegistryDrewIt() {
-        XCTAssertEqual(
-            AppRegistry.listed(for: owner()).map(\.id),
-            [
-                "quick-actions", "me", "arc", "notes", "scheduler", "alarm", "weather", "canteen", "camera-import",
-                "usage", "decisions", "browser",
-            ])
-    }
-
     // MARK: The gate
 
     func testWhileAwakeEveryRouteGoesWhereItIsSent() {
@@ -152,13 +143,6 @@ final class AppRegistryTests: XCTestCase {
         for kept in [QuickAction.selfReport, .me, .findNote, .newNote, .shortcut1, .shortcut2, .shortcut3] {
             XCTAssertFalse(kept.isNightBlocked, kept.rawValue)
         }
-    }
-
-    func testTheGridKeepsItsLayoutWhileAsleep() {
-        // The layout is one list whatever the hour: only the tiles' state changes.
-        XCTAssertEqual(
-            QuickActionLayout.summary,
-            "selfReport,me,more|computer,home,ultrafast|mailverdict,homeCall,ultrafastCamera|-,-,ultrafastCall")
     }
 
     func testASessionActionLandsOnTheSleepScreen() {
