@@ -50,6 +50,11 @@ final class SignInsStoreTests: XCTestCase {
         try JSONDecoder().decode([SignIn].self, from: Data(PaiFixtures.allSignIns.utf8))
     }
 
+    func testTheEveryonesWatchKeysFixtureDecodesIntoPersonKeys() throws {
+        let keys = try JSONDecoder().decode([PersonWatchKey].self, from: Data(PaiFixtures.allWatchKeys.utf8))
+        XCTAssertEqual(keys.map(\.displayName), ["Owner", "Guest"])
+    }
+
     func testTheFixtureDecodesWithEveryKind() throws {
         let rows = try all()
         XCTAssertEqual(rows.map(\.kind), [.app, .browser, .app, .machine])

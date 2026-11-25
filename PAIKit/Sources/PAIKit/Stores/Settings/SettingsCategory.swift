@@ -79,7 +79,7 @@ public enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
         case .devices: "The phones and browsers signed in as you, and the keys your watch reaches your alarms with."
         case .history: "What this iPhone remembers of what you dictated and sent."
         case .thisPhone: "Notes kept for offline use, and what the app captured when it last crashed."
-        case .system: "What needs attention, and the push infrastructure."
+        case .system: "What needs attention on the machine PAI runs on."
         case .alerts: "Who hears about each kind of alert, and which agent task picks them up."
         case .mail: "The account every mail from PAI goes out through."
         case .providers: "The services PAI calls, and the keys it calls them with."

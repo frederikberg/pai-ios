@@ -77,9 +77,10 @@ public struct SettingField: Equatable, Sendable, Identifiable {
     /// The chosen entry of a `choice`.
     public var choice: String { value.stringValue ?? schema.defaultValue.stringValue ?? "" }
 
-    /// What a choice is called: its wire value in sentence case.
+    /// What a choice is called: a word in sentence case, an identifier (a model id such as
+    /// `eleven_flash_v2_5`) as it is, since changing its spelling would name something else.
     public static func choiceLabel(_ choice: String) -> String {
-        choice.prefix(1).uppercased() + choice.dropFirst()
+        choice.contains("_") ? choice : choice.prefix(1).uppercased() + choice.dropFirst()
     }
 
     /// Whether an optional number is on.
