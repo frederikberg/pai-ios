@@ -12,6 +12,9 @@ struct ArcBlockDetailView: View {
     let block: ArcTimelineBlock
     let specUuid: String
     @Binding var topRowID: Int?
+    /// The blocks the same agent worked before and after this one, when it worked more than one.
+    var links: ArcBlockTimes.ThreadLinks?
+    var onOpenBlock: (ArcTimelineBlock) -> Void = { _ in }
 
     var body: some View {
         List {
@@ -28,6 +31,22 @@ struct ArcBlockDetailView: View {
                                     .font(PaiTypography.monoLabel.font)
                                     .foregroundStyle(PaiPalette.Semantic.textFaint)
                             }
+                        }
+                        let timeLines = ArcBlockTimes.lines(leader: leader, state: block.badge, now: Date())
+                        ForEach(timeLines, id: \.self) { line in
+                            Text(line)
+                                .font(PaiTypography.caption.font)
+                                .foregroundStyle(PaiPalette.Semantic.textMuted)
+                        }
+                        if let prev = links?.prev {
+                            Button("continues block \(prev.id)") { onOpenBlock(prev) }
+                                .font(PaiTypography.caption.font)
+                                .buttonStyle(.borderless)
+                        }
+                        if let next = links?.next {
+                            Button("continued in block \(next.id)") { onOpenBlock(next) }
+                                .font(PaiTypography.caption.font)
+                                .buttonStyle(.borderless)
                         }
                         // The leader's own reports — `block.rows` deliberately excludes the
                         // leader itself (see `ArcTimeline.swift`), so this is the one place
