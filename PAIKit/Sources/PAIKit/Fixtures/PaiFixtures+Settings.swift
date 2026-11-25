@@ -740,7 +740,7 @@ extension PaiFixtures {
             "user_id": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d", "display_name": "Guest", "user_agent": null,
             "first_seen_at": "2026-10-01T09:00:00.000000+00:00", "last_seen_at": "2026-11-24T18:20:00.000000+00:00",
             "revoked_at": null, "active": true, "current": false, "agent_slug": null },
-          { "id": "s4", "kind": "machine", "name": "pai-agent", "client_id": "pai-agent",
+          { "id": "s4", "kind": "machine", "name": "agent", "client_id": "agent",
             "user_id": null, "display_name": null, "user_agent": null,
             "first_seen_at": "2026-08-30T22:30:00.506812+00:00", "last_seen_at": "2026-11-25T11:03:00.000000+00:00",
             "revoked_at": null, "active": true, "current": false, "agent_slug": "vm" }

@@ -24,6 +24,12 @@ extension PaiApiClient {
         try await send(path: "/api/sign-ins/\(id)/revoke", method: "POST", body: nil, contentType: nil)
     }
 
+    /// Lets a signed-out sign-in in again; the answer is the row as it now stands.
+    @discardableResult
+    public func restoreSignIn(id: String) async throws -> SignIn {
+        try await send(path: "/api/sign-ins/\(id)/restore", method: "POST", body: nil, contentType: nil)
+    }
+
     /// Signs every phone and browser of one person out, the caller's own without `userId`.
     @discardableResult
     public func signOutEverywhere(userId: String? = nil) async throws -> Int {

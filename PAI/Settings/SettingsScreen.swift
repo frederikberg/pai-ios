@@ -1,166 +1,74 @@
 import PAIKit
 import SwiftUI
 
-/// What the web's settings panel offers, minus what is out of scope: the VM shell, the memory
-/// pipeline and the keyboard shortcuts. A topic with many controls (alert routing, mail)
-/// opens on a screen of its own from a row, as on the web.
+/// Settings as a list of pages in two halves: what is yours (everyone has it, a guest included) and,
+/// for the owner, Administration. A page opens on a screen of its own, and every card on it carries
+/// a tag that says whose settings it holds.
 struct SettingsScreen: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(SettingsStore.self) private var settings
-    @State private var watchKeys = WatchKeysPresenter()
+    /// The page a launch argument opens at once; always `nil` in a Release build.
+    @State private var fixtureCategory: SettingsCategory?
 
-    var hidesSignOut = false
+    private var capabilities: Capabilities { environment.connection?.me.capabilities ?? .unknown }
 
     var body: some View {
-        Form {
-            Section("Appearance") {
-                Picker("Theme", selection: themeBinding) {
-                    ForEach(AppTheme.allCases, id: \.self) { theme in
-                        Text(theme.rawValue.capitalized).tag(theme)
-                    }
-                }
-                .accessibilityIdentifier("theme-picker")
-            }
-
-            // Alerts, their routing and their mail are the owner's, as on the web.
-            if environment.connection?.me.isGuest != true {
-                AlertsSection(alerts: settings.alerts, routing: settings.alertRouting, smtp: settings.smtp)
-            }
-
-            // What scheduled agents are told is the owner's, as with the alerts.
-            if environment.connection?.me.isGuest != true {
-                StatusMessageSection(store: settings.statusMessage)
-            }
-
-            // The memory pipeline's settings row, as on the web.
-            if environment.connection?.me.isGuest != true {
-                SessionDefaultsSection(store: settings.sessionDefaults)
-            }
-
-            // Device push registration is a person's own route, a guest's included.
-            if environment.connection?.me.capabilities.canRegisterPush == true {
-                NotificationsSection()
-            }
-
-            EmailNotificationsSection(store: settings.userSettings)
-
-            // A person's own keys, so a guest has them too.
-            if environment.connection?.me.capabilities.canOpenAlarm == true {
-                WatchKeysSection(presenter: watchKeys)
-            }
-
-            // A person's own location setting, so a guest has it too.
-            if environment.connection?.me.capabilities.canOpenWeather == true {
-                LocationSection()
-            }
-
-            VoiceSection(settings: settings)
-
-            ComputerSection(settings: settings)
-
-            PlaybackVoiceSection(userSettings: settings.userSettings, voices: settings.playbackVoices)
-
-            HistorySection(settings: settings)
-
-            NotesCacheSection(settings: settings)
-
-            LastCrashSection()
-
-            if !hidesSignOut {
-                Section {
-                    Button("Sign out", role: .destructive) { Task { await environment.signOut() } }
-                        .accessibilityIdentifier("sign-out")
-                }
+        List {
+            section("Yours", .yours)
+            section("Administration", .administration)
+            Section {
+                Button("Sign out", role: .destructive) { Task { await environment.signOut() } }
+                    .accessibilityIdentifier("sign-out")
             }
         }
-        .fixtureScrollsToAnchor()
-        .watchKeyPresentations(watchKeys)
-        .task { await settings.playbackVoices.load() }
+        .navigationDestination(for: SettingsCategory.self) { SettingsCategoryScreen(category: $0) }
+        .navigationDestination(item: $fixtureCategory) { SettingsCategoryScreen(category: $0) }
         .paiListBackground()
         .navigationTitle("Settings")
+        .task { await openFixtureCategory() }
         .accessibilityIdentifier("settings-screen")
+        .fixtureFact(
+            "settingsCategories",
+            SettingsCategory.allCases.filter { $0.isAvailable(to: capabilities) }.map(\.rawValue).joined(separator: ",")
+        )
     }
 
-    private var themeBinding: Binding<AppTheme> {
-        Binding(get: { settings.theme }, set: { settings.setTheme($0) })
-    }
-}
-
-/// This device's notifications: whether it can receive a push, and which channels it takes.
-///
-/// A notification is always kept in the notifications screen. A push is the delivery of one to
-/// this device, and a channel is what this device can switch off; the choice is stored on the
-/// server per device. Both channels off means no push here, and nothing in the notifications
-/// screen changes.
-///
-/// Enabling is an explicit opt-in rather than a prompt at launch. iOS shows the system permission
-/// alert at most once per install and never again — so asking at a moment the person did not
-/// choose spends the only chance there is, over whatever screen they were actually looking at,
-/// for a feature they have not asked about yet. Here, the tap is the consent.
-private struct NotificationsSection: View {
-    @Environment(AppEnvironment.self) private var environment
-
-    var body: some View {
-        Section {
-            if let push = environment.connection?.push, let channels = environment.connection?.pushChannels {
-                switch push.registration.status {
-                case .notRequested:
-                    Button("Enable push on this device") {
-                        Task {
-                            await PushRegistrar.requestAuthorizationIfNeeded(store: push)
-                            await push.registerWithBackendIfNeeded()
-                        }
-                    }
-                    .accessibilityIdentifier("enable-notifications")
-                case .authorized:
-                    LabeledContent(
-                        "Push on this device",
-                        value: push.registration.deviceStatusText(offeredChannelIds: channels.offeredIds))
-                    ForEach(channels.rows(muted: push.registration.mutedChannels)) { channel in
-                        Toggle(isOn: channelBinding(push, channel.id)) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(channel.label)
-                                Text(channel.description)
+    @ViewBuilder
+    private func section(_ title: String, _ area: SettingsArea) -> some View {
+        let categories = SettingsCategory.listed(in: area, for: capabilities)
+        if !categories.isEmpty {
+            Section(title) {
+                ForEach(categories) { category in
+                    NavigationLink(value: category) {
+                        HStack(spacing: 12) {
+                            CategoryIcon(category: category)
+                            Text(category.title)
+                            Spacer(minLength: 8)
+                            if let value = value(of: category) {
+                                Text(value)
                                     .font(PaiTypography.caption.font)
                                     .foregroundStyle(PaiPalette.Semantic.textMuted)
                             }
                         }
-                        .accessibilityIdentifier("push-channel-\(channel.id)")
                     }
-                case .denied:
-                    LabeledContent("Push on this device", value: "Off")
-                case .failed:
-                    LabeledContent("Push on this device", value: "Unavailable")
+                    .accessibilityIdentifier("settings-open-\(category.rawValue)")
                 }
             }
-        } header: {
-            Text("Notifications")
-        } footer: {
-            Text(footer)
         }
-        .task { await environment.connection?.pushChannels.load() }
     }
 
-    /// The toggle reads "receive this", the store holds "muted" — the two are opposites, and this
-    /// is the only place they meet. See ``PushRegistration/mutedChannels`` for why what is stored
-    /// is the mute.
-    private func channelBinding(_ push: PushRegistrationStore, _ channelId: String) -> Binding<Bool> {
-        Binding(
-            get: { !push.registration.isMuted(channelId) },
-            set: { wanted in Task { await push.setMuted(!wanted, forChannel: channelId) } }
-        )
+    private func value(of category: SettingsCategory) -> String? {
+        category.value(
+            theme: settings.theme, sleepWindow: environment.sleepMode.window,
+            openAlerts: settings.alerts.alerts?.count)
     }
 
-    private var footer: String {
-        switch environment.connection?.push.registration.status {
-        case .denied:
-            "Turned off in iOS Settings. Only the Settings app can turn it back on."
-        case .failed:
-            "This device could not be registered with Apple. It will try again next launch."
-        case .authorized:
-            "Everything is always kept in the notifications screen. These switches decide what this device also gets as a push. While you are using PAI on any device, nothing is pushed: a short banner at the top of the app shows what arrives."
-        default:
-            "Get a push on this device when something needs you."
-        }
+    private func openFixtureCategory() async {
+        #if DEBUG
+            guard PaiFixtureLaunch.isEnabled(), let name = PaiFixtureLaunch.requestedSettingsCategory(),
+                let category = SettingsCategory(rawValue: name)
+            else { return }
+            fixtureCategory = category
+        #endif
     }
 }

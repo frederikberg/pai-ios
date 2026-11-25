@@ -52,4 +52,11 @@ public struct Capabilities: Sendable, Equatable {
 
     /// The Weather app and the location it is answered for: person routes, open to a guest.
     public var canOpenWeather: Bool { isPerson }
+
+    /// The settings that belong to a person (their registry values, their sign-ins and devices):
+    /// the owner and a guest have them.
+    public var canOpenPersonSettings: Bool { isPerson }
+
+    /// The Administration side of Settings: instance settings, keys and everyone's devices.
+    public var canAdminister: Bool { isOwner }
 }

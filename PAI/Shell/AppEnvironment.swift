@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import PAIKit
 import SwiftUI
+import UserNotifications
 
 /// Where the app's connection and its stores live.
 ///
@@ -17,6 +18,11 @@ final class AppEnvironment {
 
     private(set) var router: Router
     private(set) var connection: Connection?
+
+    /// Whether the sessions are put away for the night on this phone. Held here rather than on the
+    /// connection: it belongs to the phone, works before and without a sign-in, and the router
+    /// asks it on every navigation.
+    let sleepMode: SleepModeStore
 
     /// Set when the backend refused the stored token, so the shell can offer a way back that is
     /// distinct from first launch.
@@ -171,7 +177,10 @@ final class AppEnvironment {
         self.defaults = defaults
         self.tokens = tokens
         self.backendURL = defaults.string(forKey: Self.backendURLKey) ?? Self.defaultBackendURL
+        self.sleepMode = Self.makeSleepMode(defaults)
         self.router = Router(gate: .needsConfiguration)
+        router.sleepMode = sleepMode
+        sleepMode.onSleepBegan = { [weak self] in Task { @MainActor in self?.sleepBegan() } }
 
         tokens.discardLegacyCredential()
         if tokens.read() != nil {
@@ -226,6 +235,47 @@ final class AppEnvironment {
         connection = nil
         lastAuthFailure = nil
         router = Router(gate: .needsConfiguration)
+        router.sleepMode = sleepMode
+    }
+
+    /// Everything about the agents that is running when sleep time begins ends with it: the screens
+    /// leave the path, a dictation into a session is stopped (its words reach that session's draft
+    /// and nothing is sent), a call is hung up, a reply stops being read aloud, a wake-word sample
+    /// run stops. Dictation into Me or Notes goes on, and the outbox keeps sending what was queued.
+    /// The app badge is cleared; the notification summary restores it when the window ends.
+    private func sleepBegan() {
+        router.sleepBegan()
+        guard let connection else { return }
+        Task {
+            let voice = connection.voice
+            if let key = voice.activeDraftKey, !DraftKey.isLocal(key), voice.state != .idle { await voice.stop() }
+            await connection.computerCall.end()
+            PlaybackController.shared.pause()
+            connection.wakeWordSamples.stopRun()
+            try? await UNUserNotificationCenter.current().setBadgeCount(0)
+        }
+    }
+
+    /// The sleep-mode store of this process. A fixture run puts it in a window with a PIN of
+    /// 1234 on a clock held still, so a screenshot shows the same screen at any hour; Fixture mode
+    /// exists only in a Debug build, which is why the check is guarded.
+    private static func makeSleepMode(_ defaults: UserDefaults) -> SleepModeStore {
+        #if DEBUG
+            if PaiFixtureLaunch.isEnabled(), let state = PaiFixtureLaunch.requestedSleep() {
+                let berlin = TimeZone(identifier: "Europe/Berlin")!
+                let moment = IsoTimestamp.date(
+                    from: state == "on" ? "2026-11-25T23:30:00+01:00" : "2026-11-25T12:00:00+01:00")!
+                let store = SleepModeStore(
+                    storage: EphemeralSettingsStore(), now: { moment }, zone: { berlin },
+                    makeSalt: { "00112233445566778899aabbccddeeff" })
+                store.enable(window: .standard, pin: "1234")
+                return store
+            }
+            if PaiFixtureLaunch.isEnabled() {
+                return SleepModeStore(storage: EphemeralSettingsStore())
+            }
+        #endif
+        return SleepModeStore(storage: defaults)
     }
 
     /// The backend's record of this device's push registration belongs to the person who signed

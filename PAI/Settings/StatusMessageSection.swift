@@ -19,7 +19,7 @@ struct StatusMessageSection: View {
                 ProgressView()
             }
         } header: {
-            Text("Status message")
+            Text("Status message · \(SettingsScope.everyone.label)")
         } footer: {
             Text("Added to the prompt of every scheduled agent run, e.g. that you are away and how to handle things.")
         }

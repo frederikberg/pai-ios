@@ -1,26 +1,25 @@
 import PAIKit
 import SwiftUI
 
-/// Speech-to-text — ElevenLabs only, no provider abstraction and no fallback branch (see
-/// `CLAUDE.md`), so there is exactly one key to configure rather than a provider picker.
-struct VoiceSection: View {
+/// How this iPhone listens, and how what is dictated is transcribed. The microphone and the
+/// silence gate are properties of this phone; the rest is the person's, the same on every device.
+struct MicrophoneSections: View {
     let settings: SettingsStore
     @Environment(AppEnvironment.self) private var environment
 
     /// `nil` only in the moment between sign-out and a fresh sign-in, when this screen is not
-    /// reachable anyway — matching `NotificationsSection`'s own defensive read of the same
-    /// optional rather than assuming `SettingsScreen` guarantees it.
+    /// reachable anyway.
     private var voice: VoiceRecorderController? { environment.connection?.voice }
 
     var body: some View {
-        Section {
-            SecretField(
-                title: "ElevenLabs API Key", identifier: "elevenlabs-key", field: settings.elevenLabsKey)
-
+        ScopedSection(
+            title: "Input", scope: .thisDevice,
+            footer:
+                "The silence gate stops sending audio after 5 s of quiet and resumes with the second before speech; Auto adapts to the room."
+        ) {
             // `AVAudioSession` names every input port whether or not the mic has ever been
-            // granted, unlike the web's `enumerateDevices()` — so unlike `useAudioInputs.ts`
-            // there is no "reveal names" step, and this can be a real picker rather than a device
-            // id typed in blind.
+            // granted, unlike the web's `enumerateDevices()`, so this is a real picker rather than
+            // a device id typed in blind.
             if let voice {
                 Picker("Microphone", selection: micDeviceBinding) {
                     Text("System default").tag("")
@@ -30,14 +29,6 @@ struct VoiceSection: View {
                 }
                 .accessibilityIdentifier("mic-device")
             }
-
-            Picker("Default recording", selection: recordingModeBinding) {
-                Text("Live").tag(VoiceSttMode.live)
-                Text("Batch").tag(VoiceSttMode.batch)
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("default-recording-mode")
-
             Toggle("Silence gate", isOn: gateEnabledBinding)
                 .accessibilityIdentifier("silence-gate-enabled")
             if settings.silenceGate.enabled {
@@ -49,7 +40,7 @@ struct VoiceSection: View {
                 .accessibilityIdentifier("silence-gate-mode")
                 if settings.silenceGate.mode == .manual {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(manualThresholdLabel)
+                        Text("Quiet below \(settings.silenceGate.manualThresholdDb) dBFS")
                             .font(PaiTypography.caption.font)
                             .foregroundStyle(PaiPalette.Semantic.textSecondary)
                         Slider(
@@ -63,22 +54,20 @@ struct VoiceSection: View {
                     }
                 }
             }
-        } header: {
-            Text("Voice Settings")
-        } footer: {
-            Text(footerText)
         }
-    }
 
-    private var footerText: String {
-        "The API key is required for voice transcription. Held encrypted on the server; never shown again once set. "
-            + "The silence gate stops sending audio after 5 s of quiet and resumes with the second before speech; "
-            + "Auto adapts to the room. Pressing the microphone starts the default recording; a long press or the "
-            + "composer's plus menu starts the other. Kept on this phone only."
-    }
-
-    private var manualThresholdLabel: String {
-        "Quiet below \(settings.silenceGate.manualThresholdDb) dBFS"
+        RegistryPlaceholder(store: settings.registry)
+        ScopedSection(
+            title: "Dictation", scope: .synced,
+            footer:
+                "Applies to every dictation: the composer, a call, the laptop, and re-transcribing a recording. Pressing the microphone starts the default recording; a long press or the composer's plus menu starts the other."
+        ) {
+            RegistryRows(
+                store: settings.registry,
+                keys: [
+                    "recording_mode", "stt_language", "stt_no_verbatim", "stt_batch_pause_s", "stt_keyterms",
+                ])
+        }
     }
 
     private var gateEnabledBinding: Binding<Bool> {
@@ -109,12 +98,6 @@ struct VoiceSection: View {
                 gate.manualThresholdDb = Int(value.rounded())
                 settings.setSilenceGate(gate)
             })
-    }
-
-    private var recordingModeBinding: Binding<VoiceSttMode> {
-        Binding(
-            get: { settings.defaultRecordingMode },
-            set: { mode in Task { await settings.setDefaultRecordingMode(mode) } })
     }
 
     private var micDeviceBinding: Binding<String> {

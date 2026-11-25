@@ -1,9 +1,8 @@
 import PAIKit
 import SwiftUI
 
-/// Where the top bar's "Apps" button leads — a small picker over Quick Actions, Arc, Notes, the
-/// Scheduler, the Alarm, the Weather, Me, the Canteen, Camera Import, Usage, Decisions and the Browser, each shown to those whose
-/// capabilities admit it.
+/// Where the top bar's "Apps" button leads — a small picker over every app in `AppRegistry`, each
+/// shown to those whose capabilities admit it, and while sleep mode is on only the ones it leaves.
 /// Mirrors the web's own `AppsFlyout`/`AppsHome` pairing (a modal listing every registered app),
 /// minus Memory and Notifications: PAI Cloud's Memory app is notes plus projects/phases/search,
 /// and this repo never built a separate Memory screen — the note index (`.notes`) is the one
@@ -19,88 +18,17 @@ struct AppsHomeSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                // First, because it is the only entry here that is also a whole screen of its own
-                // shortcuts — the hardware Action Button is its other door, and a phone without
-                // that button (or a hand already on the screen) has no other way in.
-                Button(action: openQuickActions) {
-                    Label("Quick Actions", systemImage: "square.grid.2x2")
-                }
-                .accessibilityIdentifier("apps-open-quick-actions")
-                // Each row follows the capability its routes need: a guest's request for an
-                // owner-only one would be refused.
-                if capabilities.canOpenMe {
-                    Button(action: openMe) {
-                        Label("Me", systemImage: "leaf.fill")
+                // Drawn from the registry, which also decides who may open each row: a guest's
+                // request for an owner-only one would be refused. Quick Actions is first, because it
+                // is the only entry that is also a whole screen of its own shortcuts: the hardware
+                // Action Button is its other door, and a phone without that button has no other way in.
+                ForEach(AppRegistry.visible(for: capabilities, asleep: environment.router.isAsleep)) { entry in
+                    Button {
+                        open(entry)
+                    } label: {
+                        row(entry)
                     }
-                    .accessibilityIdentifier("apps-open-me")
-                }
-                if capabilities.canOpenArc {
-                    Button(action: openArc) {
-                        Label("Arc", systemImage: "shippingbox")
-                    }
-                    .accessibilityIdentifier("apps-open-arc")
-                }
-                if capabilities.canOpenNotes {
-                    Button(action: openNotes) {
-                        Label("Notes", systemImage: "note.text")
-                    }
-                    .accessibilityIdentifier("apps-open-notes")
-                }
-                if capabilities.canOpenScheduler {
-                    Button(action: openScheduler) {
-                        Label("Scheduler", systemImage: "clock.badge.checkmark")
-                    }
-                    .accessibilityIdentifier("apps-open-scheduler")
-                }
-                if capabilities.canOpenAlarm {
-                    Button(action: openAlarm) {
-                        Label("Alarm", systemImage: "alarm")
-                    }
-                    .accessibilityIdentifier("apps-open-alarm")
-                }
-                if capabilities.canOpenWeather {
-                    Button(action: openWeather) {
-                        Label("Weather", systemImage: "cloud.rain")
-                    }
-                    .accessibilityIdentifier("apps-open-weather")
-                }
-                if capabilities.canOpenCanteen {
-                    Button(action: openCanteen) {
-                        Label("Canteen", systemImage: "fork.knife")
-                    }
-                    .accessibilityIdentifier("apps-open-canteen")
-                }
-                // No capability: it reads the phone's own files and writes its own photo library,
-                // so the server has nothing to admit or refuse.
-                Button(action: openCameraImport) {
-                    Label("Camera Import", systemImage: "camera.on.rectangle")
-                }
-                .accessibilityIdentifier("apps-open-camera-import")
-                Button(action: openUsage) {
-                    Label("Usage", systemImage: "gauge.with.dots.needle.33percent")
-                }
-                .accessibilityIdentifier("apps-open-usage")
-                if capabilities.canOpenDecisions {
-                    Button(action: openDecisions) {
-                        Label {
-                            HStack {
-                                Text("Decisions")
-                                Spacer()
-                                if let count = environment.connection?.decisions.open.count, count > 0 {
-                                    Text("\(count)").foregroundStyle(PaiPalette.Semantic.textMuted)
-                                }
-                            }
-                        } icon: {
-                            Image(systemName: "checklist")
-                        }
-                    }
-                    .accessibilityIdentifier("apps-open-decisions")
-                }
-                if capabilities.canOpenBrowser {
-                    Button(action: openBrowser) {
-                        Label("Browser", systemImage: "globe")
-                    }
-                    .accessibilityIdentifier("apps-open-browser")
+                    .accessibilityIdentifier("apps-open-\(entry.id)")
                 }
             }
             .listStyle(.plain)
@@ -116,68 +44,31 @@ struct AppsHomeSheet: View {
         .accessibilityIdentifier("apps-sheet")
     }
 
-    // Push before dismissing, in both handlers below — the same order `CreateSessionView` uses
-    // and documents on itself: a push onto the stack behind a sheet that is mid-dismissal is
-    // dropped often enough to be a known iOS trap, and the failure is silent. Reversing the order
-    // would leave the user looking at the session list with the Apps sheet merely closed, having to
-    // tap the destination a second time.
-    private func openQuickActions() {
-        environment.router.push(.quickActions)
-        dismiss()
+    @ViewBuilder
+    private func row(_ entry: AppEntry) -> some View {
+        if entry.id == AppRegistry.decisionsID {
+            Label {
+                HStack {
+                    Text(entry.title)
+                    Spacer()
+                    if let count = environment.connection?.decisions.open.count, count > 0 {
+                        Text("\(count)").foregroundStyle(PaiPalette.Semantic.textMuted)
+                    }
+                }
+            } icon: {
+                Image(systemName: entry.systemImage)
+            }
+        } else {
+            Label(entry.title, systemImage: entry.systemImage)
+        }
     }
 
-    private func openMe() {
-        environment.router.push(.me)
-        dismiss()
-    }
-
-    private func openArc() {
-        environment.router.push(.arcSpecList)
-        dismiss()
-    }
-
-    private func openNotes() {
-        environment.router.push(.notes)
-        dismiss()
-    }
-
-    private func openScheduler() {
-        environment.router.push(.schedulerList)
-        dismiss()
-    }
-
-    private func openAlarm() {
-        environment.router.push(.alarm)
-        dismiss()
-    }
-
-    private func openWeather() {
-        environment.router.push(.weather)
-        dismiss()
-    }
-
-    private func openCanteen() {
-        environment.router.push(.canteen)
-        dismiss()
-    }
-
-    private func openCameraImport() {
-        environment.router.push(.cameraImport)
-        dismiss()
-    }
-
-    private func openDecisions() {
-        environment.router.push(.decisions)
-        dismiss()
-    }
-
-    private func openBrowser() {
-        environment.router.push(.browserList)
-        dismiss()
-    }
-
-    private func openUsage() {
-        environment.router.push(.usage)
+    // Push before dismissing — the same order `CreateSessionView` uses and documents on itself: a
+    // push onto the stack behind a sheet that is mid-dismissal is dropped often enough to be a known
+    // iOS trap, and the failure is silent. Reversing the order would leave the user looking at the
+    // session list with the Apps sheet merely closed, having to tap the destination a second time.
+    private func open(_ entry: AppEntry) {
+        environment.router.push(entry.route)
         dismiss()
     }
 }

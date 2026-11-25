@@ -1,13 +1,13 @@
 import PAIKit
 import SwiftUI
 
-/// The page behind Settings' "Alert routing" row: for each kind of alert, whether it reaches the
-/// person (push and mail), the agent task, or both. The kinds come from the server.
-struct AlertRoutingScreen: View {
+/// The Alerts & routing page: for each kind of alert, whether it reaches the person (push and
+/// mail), the agent task, or both. The kinds come from the server.
+struct AlertRoutingSections: View {
     let routing: AlertRoutingStore
 
     var body: some View {
-        Form {
+        Group {
             if let settings = routing.settings {
                 taskSection(settings)
                 kindsSection(settings)
@@ -24,9 +24,6 @@ struct AlertRoutingScreen: View {
                     .foregroundStyle(PaiPalette.Semantic.errorText)
             }
         }
-        .paiListBackground()
-        .navigationTitle("Alert routing")
-        .navigationBarTitleDisplayMode(.inline)
         .task {
             if routing.settings == nil { await routing.load() }
             await routing.loadTasks()
@@ -51,13 +48,15 @@ struct AlertRoutingScreen: View {
                     .font(PaiTypography.caption.font)
                     .foregroundStyle(PaiPalette.Semantic.warningText)
             }
+        } header: {
+            Text("Alert routing · \(SettingsScope.everyone.label)")
         } footer: {
             Text("Who hears about each kind of alert: you (push and mail), the agent task, or both.")
         }
     }
 
     private func kindsSection(_ settings: AlertRoutingSettings) -> some View {
-        Section("Kinds") {
+        Section("Kinds · \(SettingsScope.everyone.label)") {
             ForEach(settings.kinds) { kind in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(kind.label)

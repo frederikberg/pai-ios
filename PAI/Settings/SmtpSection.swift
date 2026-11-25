@@ -1,20 +1,6 @@
 import PAIKit
 import SwiftUI
 
-/// The page behind Settings' "Mail" row.
-struct AlertMailScreen: View {
-    let smtp: SmtpSettingsStore
-
-    var body: some View {
-        Form {
-            SmtpSection(smtp: smtp)
-        }
-        .paiListBackground()
-        .navigationTitle("Mail")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
 /// Mail — the backend's mail account, the master switch, and whether alerts are mailed as well as
 /// pushed.
 /// Server-persisted, draft-and-save: nothing here is sent until Save, except the password, which
@@ -33,6 +19,8 @@ struct SmtpSection: View {
                     .font(PaiTypography.caption.font)
                     .foregroundStyle(PaiPalette.Semantic.errorText)
             }
+        } header: {
+            Text("Mail server · \(SettingsScope.everyone.label)")
         } footer: {
             Text(
                 "Lets PAI email you: mail an agent asks for, and optionally an alert when something breaks. Alerts and relayed messages are always kept in the notifications screen and pushed to your devices; mail is an addition."
