@@ -17,6 +17,23 @@ enum MeColor {
     static let battery = PaiPalette.relay500
     static func movement(dark: Bool) -> Color { dark ? PaiPalette.orange400 : PaiPalette.orange500 }
     static func pai(dark: Bool) -> Color { dark ? PaiPalette.surface500 : PaiPalette.surface400 }
+    /// Calendar appointments: Tailwind's sky-400, the web's calendar tone.
+    static let calendar = Color(red: 0.220, green: 0.741, blue: 0.973)
+    /// The person's own messages on the ribbon.
+    static let you = PaiPalette.surface400
+    static let done = PaiPalette.relay500
+
+    /// The colour a day-detail fact line carries.
+    static func fact(_ tone: MeFactTone, dark: Bool) -> Color {
+        switch tone {
+        case .sleep: sleep
+        case .movement: movement(dark: dark)
+        case .calendar: calendar
+        case .ambient, .agents, .morning: PaiPalette.surface500
+        case .you: you
+        case .done: done
+        }
+    }
 }
 
 /// A drawn face, not an emoji, so it looks the same on every device and takes the tint. A circle

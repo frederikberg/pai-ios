@@ -385,21 +385,30 @@ if want weather-states; then
 fi
 
 if want me-screens; then
-  # The three Me views, the composer over a seeded draft, and the two states with less data.
+  # The three Me views, the composer over a seeded draft, and the states with less data. A Today
+  # screenshot shows its top; `-PaiFixtureScrollTo` brings the Todoist card, the plan and the diary
+  # rows below the fold into view, and the day detail sits under the grid.
   me_screen() {
-    name=$1 tab=$2 fact=$3
+    name=$1 tab=$2 facts=$3
     shift 3
     screenshot "me-$name" -PaiFixtureRoute me -PaiFixtureMeTab "$tab" "$@"
     fact_assert "me-$name" meTab "$tab"
-    [ -z "$fact" ] || fact_assert "me-$name" "${fact%%=*}" "${fact#*=}"
+    for fact in $facts; do fact_assert "me-$name" "${fact%%=*}" "${fact#*=}"; done
     xcrun simctl terminate "$udid" "$bundle" || true
   }
-  me_screen today today meOverviewDays=14
-  me_screen days days meOverviewDays=14
-  me_screen diary diary meDiaryRows=7
-  me_screen no-garmin today meOverviewDays=14 -PaiFixtureMe noGarmin
+  today_order=ribbon,body,write,review,tasks,plan,diary,pai,notes
+  me_screen today today "meOverviewDays=14 meTodaySections=$today_order meTasksOpen=6"
+  me_screen today-tasks today "meTasksOpen=6" -PaiFixtureScrollTo meTasks
+  me_screen today-plan today "meTodaySections=$today_order" -PaiFixtureScrollTo mePlan
+  me_screen today-diary today "meOverviewDays=14" -PaiFixtureScrollTo meDiary
+  me_screen tasks-down today "meTasksOpen=6" -PaiFixtureMe tasksDown -PaiFixtureScrollTo meTasks
+  me_screen days days "meOverviewDays=14"
+  me_screen days-detail days "meOverviewDays=14" -PaiFixtureScrollTo meDayDetail
+  me_screen days-past days "meOverviewDays=14" -PaiFixtureMeDay 2 -PaiFixtureScrollTo meDayDetail
+  me_screen diary diary "meDiaryRows=7"
+  me_screen no-garmin today "meOverviewDays=14 meTodaySections=$today_order" -PaiFixtureMe noGarmin
   me_screen no-garmin-days days "" -PaiFixtureMe noGarmin
-  me_screen empty-diary diary meDiaryRows=0 -PaiFixtureMe empty
+  me_screen empty-diary diary "meDiaryRows=0" -PaiFixtureMe empty
   # Last: it leaves the seeded draft on the simulator, which the screens above must not show.
   me_screen composer today "" -PaiFixtureMeComposer
 fi

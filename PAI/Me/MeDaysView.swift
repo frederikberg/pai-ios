@@ -1,15 +1,18 @@
 import PAIKit
 import SwiftUI
 
-/// The last 14 days as small multiples: a column per day, a row per kind of thing. Colours name
-/// what a row is; nothing here scores a day. A row whose source is not connected is not drawn.
+/// The last 14 days as columns, a row per kind of thing, every row printing its number. Colours
+/// name what a row is; nothing here scores a day. A row whose source is not connected is not
+/// drawn, and a day without a value leaves its cell blank.
 struct MeDaysView: View {
     let store: MeOverviewStore
     let edit: (SelfReport) -> Void
     @Environment(\.colorScheme) private var scheme
-    @State private var heldSheet: MeHeld?
+    @State private var workedSheet: MeWorkedProject?
+    @State private var showAllWorked = false
+    @State private var showTasks = false
 
-    private let gap: CGFloat = 2
+    private let gutter: CGFloat = 60
     private let sidePadding: CGFloat = 16
     private var dark: Bool { scheme == .dark }
 
@@ -34,9 +37,10 @@ struct MeDaysView: View {
                         .frame(maxWidth: .infinity).padding(.top, 60)
                 }
             }
+            .fixtureScrollsToAnchor()
             .refreshable { await store.load() }
         }
-        .sheet(item: $heldSheet) { held in HeldSheet(held: held, presenter: store.presenter) }
+        .sheet(item: $workedSheet) { project in WorkedSheet(project: project, presenter: store.presenter) }
     }
 
     // MARK: Title and paging
@@ -61,16 +65,21 @@ struct MeDaysView: View {
 
     private func grid(_ overview: MeOverview, width: CGFloat) -> some View {
         let days = overview.days
-        let cell = max(10, (width - gap * CGFloat(days.count - 1)) / CGFloat(max(1, days.count)))
+        let cell = max(10, (width - gutter) / CGFloat(max(1, days.count)))
         let presenter = store.presenter
-        let garmin = overview.sources.garminConnected
+        let busiest = presenter.busiestDay(days)
         let selected = days.firstIndex { $0.date == store.selectedDate }
+        let rows = MeLayout.gridRows(garminConnected: overview.sources.garminConnected)
 
-        func cells<Content: View>(height: CGFloat, @ViewBuilder _ content: @escaping (MeDay) -> Content) -> some View {
-            HStack(spacing: gap) {
+        func row<Content: View>(
+            _ label: String?, height: CGFloat, @ViewBuilder _ content: @escaping (MeDay) -> Content
+        ) -> some View {
+            HStack(spacing: 0) {
+                gutterLabel(label).frame(width: gutter, height: height)
                 ForEach(days) { day in
                     content(day)
                         .frame(width: cell, height: height)
+                        .clipped()
                         .contentShape(Rectangle())
                         .onTapGesture { Task { await store.select(date: day.date) } }
                 }
@@ -78,166 +87,186 @@ struct MeDaysView: View {
         }
 
         @ViewBuilder
-        func gridRow(_ row: MeLayout.GridRow) -> some View {
-            switch row {
+        func gridRow(_ kind: MeLayout.GridRow) -> some View {
+            switch kind {
             case .diary:
-                rowCaption("Diary", color: PaiPalette.amber400, source: "your words · blank = nothing written")
-                cells(height: 42) { day in diaryCell(day, presenter) }
-            case .sleep:
-                rowCaption("Sleep", color: MeColor.sleep, source: "hours · Garmin")
-                cells(height: 58) { day in sleepCell(day, presenter) }
-            case .bodyBattery:
-                rowCaption("Body battery on waking", color: MeColor.battery, source: "0–100 · Garmin")
-                batteryRow(days, cell: cell, today: overview.today, selected: selected)
-            case .movement:
-                rowCaption("Movement", color: MeColor.movement(dark: dark), source: "activities · Garmin")
-                cells(height: 28) { day in
-                    Text(day.activities.prefix(2).compactMap(\.emoji).joined()).font(.system(size: 13))
-                        .minimumScaleFactor(0.6)
+                row("diary", height: 22) { day in diaryCell(day, presenter, cell: cell) }
+            case .night:
+                HStack(spacing: 0) {
+                    nightGutter.frame(width: gutter, height: MePresenter.nightRowHeight)
+                    ForEach(days) { day in
+                        nightCell(day, presenter, cell: cell, isToday: day.date == overview.today)
+                            .frame(width: cell, height: MePresenter.nightRowHeight)
+                            .clipped()
+                            .contentShape(Rectangle())
+                            .onTapGesture { Task { await store.select(date: day.date) } }
+                    }
                 }
-            case .calendar:
-                rowCaption("Calendar", color: PaiPalette.green500, source: "events · titles in the day")
-                cells(height: 22) { day in calendarCell(day) }
-            case .pai:
-                rowCaption("PAI", color: MeColor.pai(dark: dark), source: "your messages · ☾ agents ran overnight")
-                cells(height: 52) { day in paiCell(day, presenter) }
+            case .sleepScore:
+                row("sleep score", height: 15) { day in
+                    numberCell(day.body?.sleepScore, color: PaiPalette.Semantic.textSecondary, size: 10)
+                }
+            case .battery:
+                row("battery", height: 15) { day in
+                    numberCell(day.body?.bodyBatteryWake, color: MeColor.battery, size: 10)
+                }
+            case .moved:
+                row("moved", height: 22) { day in
+                    Text(day.activities.prefix(2).compactMap(\.emoji).joined())
+                        .font(.system(size: 13))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .padding(.bottom, 3)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                }
+            case .messages:
+                row("messages", height: 44) { day in messageCell(day, presenter, busiest: busiest, cell: cell) }
+            case .agents:
+                row("☾ agents", height: 14) { day in
+                    Text(presenter.overnightLabel(minutes: day.pai?.overnightAgentMinutes) ?? "")
+                        .font(.system(size: 9.5))
+                        .monospacedDigit()
+                        .foregroundStyle(PaiPalette.Semantic.textMuted)
+                        .lineLimit(1)
+                }
             }
         }
 
-        return VStack(alignment: .leading, spacing: 14) {
-            cells(height: 38) { day in
-                VStack(spacing: 2) {
+        return VStack(alignment: .leading, spacing: 0) {
+            row(nil, height: 34) { day in
+                VStack(spacing: 0) {
                     Text(presenter.weekdayLetter(key: day.date))
-                        .font(PaiTypography.captionEmphasized.font)
+                        .font(.system(size: 10.5, weight: .semibold))
                         .foregroundStyle(
                             day.date == overview.today ? PaiPalette.primary400 : PaiPalette.Semantic.textMuted)
                     Text(presenter.dayNumber(key: day.date))
                         .font(.system(size: 11, weight: day.date == store.selectedDate ? .bold : .regular))
+                        .monospacedDigit()
                         .foregroundStyle(
                             day.date == store.selectedDate
-                                ? PaiPalette.Semantic.textStrong : PaiPalette.Semantic.textMuted)
+                                ? PaiPalette.Semantic.textStrong : PaiPalette.Semantic.textMuted
+                        )
+                        .padding(.bottom, 3)
                 }
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(presenter.shortDay(key: day.date))
+                .accessibilityAddTraits(.isButton)
             }
-            ForEach(
-                MeLayout.gridRows(garminConnected: garmin, calendarConnected: overview.sources.calendarConnected),
-                id: \.self
-            ) { row in
-                gridRow(row)
-            }
+            ForEach(rows, id: \.self) { kind in gridRow(kind) }
         }
         .background(alignment: .topLeading) {
             if let selected {
-                RoundedRectangle(cornerRadius: 8)
+                Rectangle()
                     .fill(PaiPalette.Semantic.insetBackground)
                     .frame(width: cell)
-                    .offset(x: CGFloat(selected) * (cell + gap))
+                    .offset(x: gutter + CGFloat(selected) * cell)
             }
         }
         .accessibilityIdentifier("me-days-grid")
     }
 
-    private func rowCaption(_ name: String, color: Color, source: String) -> some View {
-        HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 10, height: 10)
-            Text(name).font(PaiTypography.bodyEmphasized.font).foregroundStyle(PaiPalette.Semantic.textPrimary)
-            Spacer(minLength: 8)
-            Text(source)
-                .font(.system(size: 11))
-                .foregroundStyle(PaiPalette.Semantic.textFaint)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-        .padding(.top, 4)
+    private func gutterLabel(_ text: String?) -> some View {
+        Text(text ?? "")
+            .font(.system(size: 10))
+            .foregroundStyle(PaiPalette.Semantic.textFaint)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .padding(.trailing, 8)
+            .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
-    private func diaryCell(_ day: MeDay, _ presenter: MePresenter) -> some View {
-        let marks = presenter.marks(of: day.entries)
-        return VStack(spacing: 2) {
-            ForEach(Array(marks.faces.enumerated()), id: \.offset) { _, feel in FeelFace(feel: feel, size: 18) }
-            if marks.more > 0 {
-                Text("+\(marks.more)").font(.system(size: 9)).foregroundStyle(PaiPalette.Semantic.textMuted)
-            }
-            if marks.lock {
-                Image(systemName: "lock").font(.system(size: 11)).foregroundStyle(MeColor.lock(dark: dark))
-            }
-        }
-        .frame(maxHeight: .infinity, alignment: .bottom)
-    }
-
-    /// A dot per event, at most three: the titles are in the day's detail.
-    private func calendarCell(_ day: MeDay) -> some View {
-        VStack(spacing: 3) {
-            ForEach(0..<min(3, day.events.count), id: \.self) { _ in
-                Circle().fill(PaiPalette.green500.opacity(0.85)).frame(width: 6, height: 6)
+    /// The night row's gutter marks the two hours its hairlines sit on.
+    private var nightGutter: some View {
+        ZStack(alignment: .topTrailing) {
+            ForEach([0.0, 6.0], id: \.self) { hour in
+                Text(hour == 0 ? "0:00" : "6:00")
+                    .font(.system(size: 10))
+                    .foregroundStyle(PaiPalette.Semantic.textFaint)
+                    .padding(.trailing, 8)
+                    .offset(y: CGFloat(MePresenter.nightY(hour: hour)) - 7)
             }
         }
-        .frame(maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
     }
 
-    private func sleepCell(_ day: MeDay, _ presenter: MePresenter) -> some View {
-        let seconds = day.body?.sleepSeconds
-        return VStack(spacing: 2) {
-            Spacer(minLength: 0)
-            if let height = presenter.sleepBarHeight(seconds: seconds) {
-                if day.date == store.selectedDate, let label = presenter.sleepHoursLabel(seconds: seconds) {
-                    Text(label).font(.system(size: 10)).foregroundStyle(PaiPalette.Semantic.textSecondary)
-                }
-                UnevenRoundedRectangle(topLeadingRadius: 4, topTrailingRadius: 4)
-                    .fill(MeColor.sleep.opacity(day.final ? 0.9 : 0.45))
-                    .frame(height: min(52, height))
-            } else {
-                Text("–").font(.system(size: 11)).foregroundStyle(PaiPalette.surface600)
-            }
-        }
-    }
-
-    private func batteryRow(_ days: [MeDay], cell: CGFloat, today: String, selected: Int?) -> some View {
-        let color = MeColor.battery
-        let height: CGFloat = 44
-        let step = cell + gap
-        return Canvas { context, size in
-            func point(_ index: Int, _ value: Int) -> CGPoint {
-                CGPoint(
-                    x: CGFloat(index) * step + cell / 2,
-                    y: 6 + (height - 12) * (1 - CGFloat(max(0, min(100, value))) / 100))
-            }
-            var line = Path()
-            var previous: Int?
-            for (index, day) in days.enumerated() {
-                guard let value = day.body?.bodyBatteryWake else {
-                    previous = nil
-                    continue
-                }
-                let here = point(index, value)
-                if previous != nil { line.addLine(to: here) } else { line.move(to: here) }
-                previous = index
-            }
-            context.stroke(line, with: .color(color.opacity(0.55)), lineWidth: 1.6)
-            for (index, day) in days.enumerated() {
-                guard let value = day.body?.bodyBatteryWake else { continue }
-                let center = point(index, value)
-                let dot = Path(ellipseIn: CGRect(x: center.x - 2.6, y: center.y - 2.6, width: 5.2, height: 5.2))
-                if day.date == today && !day.final {
-                    context.stroke(dot, with: .color(color), lineWidth: 1.4)
-                } else {
-                    context.fill(dot, with: .color(color))
+    /// One dot per entry, in the face's colour; a ring for an entry without a face and violet for
+    /// a private one. Rows of three, six dots at most, in a cell of fixed height.
+    private func diaryCell(_ day: MeDay, _ presenter: MePresenter, cell: CGFloat) -> some View {
+        let dots = presenter.diaryDots(day.entries)
+        let size = min(6, (cell - 3) / 3)
+        let lines = stride(from: 0, to: dots.count, by: 3).map { Array(dots[$0..<min($0 + 3, dots.count)]) }
+        return VStack(spacing: 1.5) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                HStack(spacing: 1.5) {
+                    ForEach(Array(line.enumerated()), id: \.offset) { _, dot in dotView(dot, size: size) }
                 }
             }
         }
-        .frame(width: step * CGFloat(days.count) - gap, height: height)
-        .accessibilityHidden(true)
+        .padding(.bottom, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
-    private func paiCell(_ day: MeDay, _ presenter: MePresenter) -> some View {
-        VStack(spacing: 2) {
+    @ViewBuilder
+    private func dotView(_ dot: MeDiaryDot, size: CGFloat) -> some View {
+        switch dot {
+        case .face(let feel): Circle().fill(MeColor.feel(feel, dark: dark)).frame(width: size, height: size)
+        case .noFace:
+            Circle().stroke(PaiPalette.surface500, lineWidth: 1).frame(width: size, height: size)
+        case .privateNoFace: Circle().fill(MeColor.lock(dark: dark)).frame(width: size, height: size)
+        }
+    }
+
+    /// The night as one bar from bed to waking on a 21:00 to 11:00 axis, hairlines at midnight and 06:00.
+    private func nightCell(_ day: MeDay, _ presenter: MePresenter, cell: CGFloat, isToday: Bool) -> some View {
+        let bar = presenter.nightBar(day.body)
+        let width = max(8, cell - 12)
+        return ZStack(alignment: .topLeading) {
+            ForEach([0.0, 6.0], id: \.self) { hour in
+                Rectangle()
+                    .fill(PaiPalette.Semantic.borderDefault)
+                    .frame(height: 1)
+                    .offset(y: CGFloat(MePresenter.nightY(hour: hour)))
+            }
+            if let bar {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(MeColor.sleep.opacity(isToday ? 0.5 : 0.9))
+                    .frame(width: width, height: CGFloat(bar.height))
+                    .offset(x: (cell - width) / 2, y: CGFloat(bar.top))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func numberCell(_ value: Int?, color: Color, size: CGFloat) -> some View {
+        Text(value.map { "\($0)" } ?? "")
+            .font(.system(size: size))
+            .monospacedDigit()
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+    }
+
+    /// A grey bar against the busiest day on screen, the count printed under it.
+    private func messageCell(_ day: MeDay, _ presenter: MePresenter, busiest: Int, cell: CGFloat) -> some View {
+        VStack(spacing: 0) {
             Spacer(minLength: 0)
             if let pai = day.pai {
-                if (pai.overnightAgentMinutes ?? 0) > 0 {
-                    Text("☾").font(.system(size: 11)).foregroundStyle(PaiPalette.Semantic.textMuted)
-                }
-                UnevenRoundedRectangle(topLeadingRadius: 3, topTrailingRadius: 3)
-                    .fill(MeColor.pai(dark: dark).opacity(0.85))
-                    .frame(height: presenter.paiBarHeight(messages: pai.messages, cap: 40))
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 3, bottomLeadingRadius: 1, bottomTrailingRadius: 1, topTrailingRadius: 3
+                )
+                .fill(PaiPalette.surface500)
+                .frame(
+                    width: max(8, cell - 12),
+                    height: CGFloat(presenter.messageBarHeight(messages: pai.messages, busiest: busiest))
+                )
+                Text("\(pai.messages)")
+                    .font(.system(size: 9.5))
+                    .monospacedDigit()
+                    .foregroundStyle(PaiPalette.Semantic.textMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(height: 13)
             }
         }
     }
@@ -248,14 +277,18 @@ struct MeDaysView: View {
     private func detail(_ overview: MeOverview) -> some View {
         if let day = store.selectedDetail {
             let presenter = store.presenter
+            let tasks = store.selectedTasks
+            let facts = presenter.facts(day: day, tasks: tasks, garmin: overview.sources.garminConnected)
+            let ribbon = presenter.ribbon(day: day, tasks: tasks, now: Date())
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(presenter.longDay(key: day.date))
-                        .font(PaiTypography.screenTitle.font)
-                        .foregroundStyle(PaiPalette.Semantic.textStrong)
-                    Spacer()
+                Text(presenter.longDay(key: day.date))
+                    .font(PaiTypography.screenTitle.font)
+                    .foregroundStyle(PaiPalette.Semantic.textStrong)
+                if ribbon.hasData {
+                    MeRibbonView(ribbon: ribbon)
                 }
-                factRows(bodyFacts(day, presenter, garmin: overview.sources.garminConnected))
+                factRows(facts, tasks: tasks, presenter: presenter)
+                worked(day, presenter)
                 if !day.entries.isEmpty {
                     Divider().overlay(PaiPalette.Semantic.borderDefault)
                     ForEach(day.entries) { entry in
@@ -265,113 +298,118 @@ struct MeDaysView: View {
                         .contextMenu { Button("Edit", systemImage: "pencil") { edit(entry) } }
                     }
                 }
-                let pai = paiFacts(day, presenter)
-                if !pai.isEmpty {
-                    Divider().overlay(PaiPalette.Semantic.borderDefault)
-                    factRows(pai)
-                }
-                if !day.held.isEmpty {
-                    Divider().overlay(PaiPalette.Semantic.borderDefault)
-                    Text("WHAT THE DAY HELD")
-                        .font(PaiTypography.captionEmphasized.font).tracking(0.8)
-                        .foregroundStyle(PaiPalette.Semantic.textMuted)
-                    FlowChips(items: day.held) { held in
-                        Button {
-                            heldSheet = held
-                        } label: {
-                            Text(
-                                [held.title, presenter.roundedMinutes(held.totalMinutes)].compactMap { $0 }.joined(
-                                    separator: " · ")
-                            )
-                            .font(PaiTypography.body.font)
-                            .foregroundStyle(PaiPalette.Semantic.textSecondary)
-                            .padding(.horizontal, 12).padding(.vertical, 6)
-                            .background(PaiPalette.Semantic.insetBackground, in: Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(PaiPalette.Semantic.raisedSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(PaiPalette.Semantic.borderDefault, lineWidth: 1))
+            .meCard(padding: 16)
+            .id(FixtureScrollAnchor.meDayDetail.rawValue)
             .accessibilityIdentifier("me-day-detail")
         }
     }
 
-    private struct Fact { let text: String; let color: Color }
-
-    private func factRows(_ facts: [Fact]) -> some View {
-        ForEach(facts, id: \.text) { fact in
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Circle().fill(fact.color).frame(width: 9, height: 9)
-                Text(fact.text).font(.system(size: 15)).foregroundStyle(PaiPalette.Semantic.textPrimary)
+    /// One line per fact, a coloured dot first; the line about ticked tasks opens the list.
+    @ViewBuilder
+    private func factRows(_ facts: [MeFact], tasks: MeTasks?, presenter: MePresenter) -> some View {
+        ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
+            if fact.tone == .done, let tasks {
+                VStack(alignment: .leading, spacing: 6) {
+                    Button {
+                        showTasks.toggle()
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            factLine(fact)
+                            Image(systemName: showTasks ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 10))
+                                .foregroundStyle(PaiPalette.Semantic.textFaint)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    if showTasks {
+                        ForEach(tasks.done, id: \.rowKey) { row in
+                            HStack {
+                                Text(row.kind == .task ? row.title : "🛒 \(row.size) \(row.title) items")
+                                    .foregroundStyle(PaiPalette.Semantic.textSecondary)
+                                Spacer()
+                                Text(presenter.clock(wire: row.completedAt) ?? "")
+                                    .monospacedDigit()
+                                    .foregroundStyle(PaiPalette.Semantic.textMuted)
+                            }
+                            .font(.system(size: 13))
+                            .padding(.leading, 17)
+                        }
+                    }
+                }
+            } else {
+                factLine(fact)
             }
         }
     }
 
-    /// Sleep and movement: the body and life lines, first in the card.
-    private func bodyFacts(_ day: MeDay, _ presenter: MePresenter, garmin: Bool) -> [Fact] {
-        var facts: [Fact] = []
-        if garmin, let body = day.body, let slept = presenter.hoursMinutes(seconds: body.sleepSeconds) {
-            var text = "Slept \(slept)"
-            if let woke = presenter.clock(wire: body.wakeAt) { text += ", woke \(woke)" }
-            if let battery = body.bodyBatteryWake { text += " · battery \(battery)" }
-            facts.append(Fact(text: text, color: MeColor.sleep))
+    private func factLine(_ fact: MeFact) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Circle().fill(MeColor.fact(fact.tone, dark: dark)).frame(width: 9, height: 9)
+            Text(fact.text).font(.system(size: 15)).foregroundStyle(PaiPalette.Semantic.textPrimary)
         }
-        if garmin {
-            for activity in day.activities {
-                let parts = [
-                    "\(activity.emoji ?? "") \(activity.name?.capitalized ?? activity.type ?? "Activity")",
-                    presenter.clock(wire: activity.startAt), presenter.duration(seconds: activity.durationS),
-                    presenter.kilometres(meters: activity.distanceM),
-                ].compactMap { $0 }
-                facts.append(Fact(text: parts.joined(separator: " · "), color: MeColor.movement(dark: dark)))
-            }
-        }
-        for event in day.events {
-            facts.append(Fact(text: presenter.eventLine(event), color: PaiPalette.green500))
-        }
-        return facts
     }
 
-    /// The numbers about PAI, below the diary entries: first and last message, the morning
-    /// measure, the day's messages and the agents' overnight work.
-    private func paiFacts(_ day: MeDay, _ presenter: MePresenter) -> [Fact] {
-        guard let pai = day.pai else { return [] }
-        var facts: [Fact] = []
-        var first = [String]()
-        if let at = presenter.clock(wire: pai.firstMessageAt) { first.append("First PAI message \(at)") }
-        if let at = presenter.clock(wire: pai.lastMessageAt) { first.append("last \(at)") }
-        if !first.isEmpty { facts.append(Fact(text: first.joined(separator: ", "), color: MeColor.lock(dark: dark))) }
-        if let minutes = day.wakeToFirstMessageMin {
-            facts.append(Fact(text: "\(minutes) min from waking to the first message", color: MeColor.lock(dark: dark)))
+    /// Agent time per project: a row each, the short ones behind one line.
+    @ViewBuilder
+    private func worked(_ day: MeDay, _ presenter: MePresenter) -> some View {
+        let worked = presenter.workedOn(day.held)
+        if !worked.shown.isEmpty || !worked.rest.isEmpty {
+            Divider().overlay(PaiPalette.Semantic.borderDefault)
+            Text("WORKED ON · AGENT TIME PER PROJECT")
+                .font(PaiTypography.captionEmphasized.font).tracking(0.8)
+                .foregroundStyle(PaiPalette.Semantic.textMuted)
+            ForEach(showAllWorked ? worked.shown + worked.rest : worked.shown) { project in
+                Button {
+                    workedSheet = project
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(project.name)
+                            .foregroundStyle(PaiPalette.Semantic.textPrimary)
+                            .lineLimit(1)
+                        Text("· \(presenter.workedLine(project))")
+                            .foregroundStyle(PaiPalette.Semantic.textMuted)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11))
+                            .foregroundStyle(PaiPalette.Semantic.textFaint)
+                    }
+                    .font(.system(size: 14))
+                    .padding(.vertical, 3)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            if let label = worked.restLabel {
+                Button {
+                    showAllWorked.toggle()
+                } label: {
+                    Text(showAllWorked ? "Fewer ⌃" : label)
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(PaiPalette.Semantic.textMuted)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
         }
-        var line = "\(pai.messages) messages"
-        if let sessions = pai.sessions { line += " in \(sessions) sessions" }
-        if let minutes = pai.overnightAgentMinutes, minutes > 0, let hours = presenter.roundedMinutes(minutes) {
-            line += " · agents ran \(hours) overnight"
-        }
-        facts.append(Fact(text: line, color: MeColor.pai(dark: dark)))
-        return facts
     }
 }
 
-/// The phases a project held that day, with their summaries.
-private struct HeldSheet: View {
-    let held: MeHeld
+/// The topics a project held that day, with their summaries.
+private struct WorkedSheet: View {
+    let project: MeWorkedProject
     let presenter: MePresenter
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List {
-                if held.phases.isEmpty {
+                if project.phases.allSatisfy({ $0.summary == nil }) {
                     Text("No summaries for this day.").foregroundStyle(PaiPalette.Semantic.textMuted)
                 }
-                ForEach(Array(held.phases.enumerated()), id: \.offset) { _, phase in
+                ForEach(Array(project.phases.enumerated()), id: \.offset) { _, phase in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(
                             [phase.title, presenter.roundedMinutes(phase.minutes)].compactMap { $0 }.joined(
@@ -386,58 +424,10 @@ private struct HeldSheet: View {
                 }
             }
             .listStyle(.plain)
-            .navigationTitle(held.title)
+            .navigationTitle(project.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
         }
         .presentationDetents([.medium, .large])
-    }
-}
-
-/// Chips that wrap onto further lines.
-private struct FlowChips<Item: Identifiable, Content: View>: View {
-    let items: [Item]
-    @ViewBuilder let content: (Item) -> Content
-
-    var body: some View {
-        FlowLayout(spacing: 8) { ForEach(items) { content($0) } }
-    }
-}
-
-private struct FlowLayout: Layout {
-    var spacing: CGFloat
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let rows = arrange(width: proposal.width ?? .infinity, subviews: subviews)
-        return CGSize(width: proposal.width ?? rows.maxX, height: rows.height)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let rows = arrange(width: bounds.width, subviews: subviews)
-        for (index, frame) in rows.frames.enumerated() {
-            subviews[index].place(
-                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY), proposal: .unspecified)
-        }
-    }
-
-    private func arrange(width: CGFloat, subviews: Subviews) -> (frames: [CGRect], height: CGFloat, maxX: CGFloat) {
-        var frames: [CGRect] = []
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        var maxX: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > 0, x + size.width > width {
-                x = 0
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-            maxX = max(maxX, x - spacing)
-        }
-        return (frames, y + rowHeight, maxX)
     }
 }

@@ -19,22 +19,6 @@ final class MePresenterTests: XCTestCase {
         XCTAssertEqual(groups.map(\.title), ["Today", "Yesterday"])
     }
 
-    func testAMissingSleepFigureIsNotAZeroBar() {
-        XCTAssertNil(presenter.sleepBarHeight(seconds: nil))
-        XCTAssertEqual(presenter.sleepBarHeight(seconds: 7200), 10)
-    }
-
-    func testPrivateEntryWithoutFaceIsALockAndFacesCapAtTwo() {
-        let entries = [
-            SelfReport(id: "1", at: "x", feel: .good), SelfReport(id: "2", at: "x", feel: .heavy),
-            SelfReport(id: "3", at: "x", feel: .okay), SelfReport(id: "4", at: "x", isPrivate: true),
-        ]
-        let marks = presenter.marks(of: entries)
-        XCTAssertEqual(marks.faces.count, 2)
-        XCTAssertEqual(marks.more, 1)
-        XCTAssertTrue(marks.lock)
-    }
-
     func testSelfReportDecodesTheWireShapeIncludingAnUnknownFeel() throws {
         let json = #"""
             {"self_reports": [{"id": "1", "at": "2026-11-24T19:41:00.506812+00:00", "text": null, "feel": "ecstatic",
@@ -74,20 +58,21 @@ final class MePresenterTests: XCTestCase {
         XCTAssertNil(presenter.words(of: onlyMarker).text)
     }
 
-    func testBodyLifeAndDiaryComeBeforeThePaiNumbersAndMorningIsNotAGridRow() {
-        XCTAssertEqual(
-            MeLayout.gridRows(garminConnected: true), [.diary, .sleep, .bodyBattery, .movement, .pai])
-        XCTAssertEqual(MeLayout.gridRows(garminConnected: false), [.diary, .pai])
-
+    func testTodayDrawsOnlyWhatExistsAndTheNumbersAboutPaiComeLast() {
         let day = MeDay(date: "2026-11-24")
-        let review = MeReview(title: "t", noteId: "n")
         let full = MeOverview(
             today: "2026-11-24", days: [day], lookingBack: SelfReport(id: "1", at: "x"),
-            notes: [MeNote(key: "now", title: "Now", noteId: "n")], review: review)
-        let sections = MeLayout.todaySections(for: full)
-        XCTAssertEqual(sections, [.write, .review, .soFar, .week, .diary, .lookingBack, .pai, .notes])
+            notes: [MeNote(key: "now", title: "Now", noteId: "n")], review: MeReview(title: "t", noteId: "n"))
+        XCTAssertEqual(
+            MeLayout.todaySections(for: full, ribbon: true, tasks: true, plan: true),
+            [.ribbon, .body, .write, .review, .tasks, .plan, .diary, .lookingBack, .pai, .notes])
         let bare = MeOverview(today: "2026-11-24", days: [day])
-        XCTAssertEqual(MeLayout.todaySections(for: bare), [.write, .soFar, .week, .diary, .pai])
+        XCTAssertEqual(
+            MeLayout.todaySections(for: bare, ribbon: false, tasks: false, plan: false), [.body, .write, .diary, .pai])
+        XCTAssertEqual(
+            MeLayout.gridRows(garminConnected: true),
+            [.diary, .night, .sleepScore, .battery, .moved, .messages, .agents])
+        XCTAssertEqual(MeLayout.gridRows(garminConnected: false), [.diary, .messages, .agents])
     }
 
     func testTheReviewNamesTheCompassSessionByIdAndAnOldPromptFieldIsIgnored() throws {
@@ -102,7 +87,7 @@ final class MePresenterTests: XCTestCase {
     }
 
     func testCalendarEventsDecodeOptionallyAndTheRowFollowsTheSource() throws {
-        // An older server sends no events and no calendar source: nothing breaks, no row.
+        // An older server sends no events, no kind and no calendar source: nothing breaks.
         let old = try JSONDecoder().decode(MeDay.self, from: Data(#"{"date": "2026-11-24"}"#.utf8))
         XCTAssertEqual(old.events, [])
         let day = try JSONDecoder().decode(
@@ -112,19 +97,15 @@ final class MePresenterTests: XCTestCase {
                 {"date": "2026-11-24", "events": [
                  {"title": "Dentist", "start_at": "2026-11-24T08:30:00+00:00", "end_at": "2026-11-24T09:15:00+00:00",
                   "all_day": false, "calendar": "Personal"},
-                 {"title": "Conference", "start_at": "2026-11-23T23:00:00+00:00", "end_at": "2026-11-25T23:00:00+00:00",
-                  "all_day": true, "calendar": "Work"}]}
+                 {"title": "Holiday", "start_at": "2026-11-23T23:00:00+00:00", "end_at": "2026-11-25T23:00:00+00:00",
+                  "all_day": true, "calendar": "Holidays", "kind": "ambient"},
+                 {"title": "Odd", "kind": "something-new"}]}
                 """#.utf8))
-        XCTAssertEqual(day.events.map(presenter.eventLine), ["09:30 Dentist", "Conference"])
+        XCTAssertEqual(day.events.map(\.isPlan), [true, false, false])
+        XCTAssertEqual(day.events.map(presenter.eventDetailLine), ["Dentist 09:30–10:15", "Holiday · all day", "Odd"])
 
-        let ok = MeSources(calendar: MeSource(status: .ok))
-        let off = MeSources(calendar: MeSource(status: .notConfigured))
-        XCTAssertTrue(ok.calendarConnected)
-        XCTAssertFalse(off.calendarConnected)
+        XCTAssertTrue(MeSources(calendar: MeSource(status: .ok)).calendarConnected)
+        XCTAssertFalse(MeSources(calendar: MeSource(status: .notConfigured)).calendarConnected)
         XCTAssertFalse(MeSources().calendarConnected)
-        XCTAssertEqual(
-            MeLayout.gridRows(garminConnected: true, calendarConnected: true),
-            [.diary, .sleep, .bodyBattery, .movement, .calendar, .pai])
-        XCTAssertEqual(MeLayout.gridRows(garminConnected: false, calendarConnected: true), [.diary, .calendar, .pai])
     }
 }

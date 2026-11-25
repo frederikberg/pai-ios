@@ -12,6 +12,7 @@ private actor FakeSelfReportApi: SelfReportApiClient {
 
     func getMeOverview(days: Int, end: String?) async throws -> MeOverview { throw PaiError.transport("unused") }
     func getMeDay(date: String) async throws -> MeDay { throw PaiError.transport("unused") }
+    func getMeTasks(date: String?, fresh: Bool) async throws -> MeTasks { throw PaiError.transport("unused") }
     func getSelfReports(before: String?, limit: Int, feel: String?, privateOnly: Bool) async throws
         -> SelfReportPage
     { SelfReportPage(selfReports: []) }

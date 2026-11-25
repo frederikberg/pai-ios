@@ -53,7 +53,7 @@ struct MeView: View {
                 case .days:
                     MeDaysView(store: overview, edit: edit)
                 case .diary:
-                    MeDiaryView(write: { write(nil) }, edit: edit)
+                    MeDiaryView(overview: overview, write: { write(nil) }, edit: edit)
                 }
             } else {
                 Spacer()
@@ -101,6 +101,11 @@ struct MeView: View {
     #if DEBUG
         private func applyFixtureLaunch() {
             if let named = MeTab(fixtureName: PaiFixtureLaunch.requestedMeTab()) { tab = named }
+            if let offset = PaiFixtureLaunch.requestedMeDayOffset(),
+                let key = overview?.presenter.shift(key: overview?.presenter.dayKey(Date()) ?? "", byDays: -offset)
+            {
+                overview?.selectedDate = key
+            }
             if PaiFixtureLaunch.opensMeComposer() {
                 reports.updateDraft {
                     $0 = SelfReportDraft(

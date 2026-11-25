@@ -4,6 +4,8 @@ import SwiftUI
 /// The person's own words, newest first, grouped by Berlin day. A day without entries does not
 /// exist here: no gap marker, no count.
 struct MeDiaryView: View {
+    /// The 14-day window the grid shows; its entries are what the chips count.
+    let overview: MeOverviewStore
     let write: () -> Void
     let edit: (SelfReport) -> Void
     @Environment(SelfReportStore.self) private var store
@@ -30,6 +32,7 @@ struct MeDiaryView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     filters
+                    countsCaption
                     if searching { searchField }
                     if groups.isEmpty && !store.isLoading {
                         Text(
@@ -85,26 +88,30 @@ struct MeDiaryView: View {
     private var filters: some View {
         HStack(spacing: 8) {
             chip(selected: store.feelFilter == nil && !store.privateOnly, id: "all") {
-                Text("All").font(PaiTypography.bodyEmphasized.font)
+                Text(counted("All", counts?.all)).font(PaiTypography.bodyEmphasized.font)
             } action: {
                 store.feelFilter = nil
                 store.privateOnly = false
             }
             ForEach([SelfReportFeel.good, .okay, .heavy], id: \.wire) { feel in
                 chip(selected: store.feelFilter == feel, id: "feel-\(feel.wire ?? "")") {
-                    FeelFace(feel: feel, size: 20)
+                    HStack(spacing: 5) {
+                        FeelFace(feel: feel, size: 20)
+                        if let count = count(of: feel) { Text("\(count)").font(PaiTypography.bodyEmphasized.font) }
+                    }
                 } action: {
                     store.feelFilter = store.feelFilter == feel ? nil : feel
                 }
                 .accessibilityLabel("\(feel.spokenName) entries")
             }
             chip(selected: store.privateOnly, id: "private") {
-                Label("Private", systemImage: "lock")
+                Label(counts.map { "\($0.locked)" } ?? "Private", systemImage: "lock")
                     .font(PaiTypography.bodyEmphasized.font)
                     .foregroundStyle(MeColor.lock(dark: dark))
             } action: {
                 store.privateOnly.toggle()
             }
+            .accessibilityLabel("Private entries")
             Spacer(minLength: 0)
             Button {
                 searching.toggle()
@@ -116,6 +123,37 @@ struct MeDiaryView: View {
             .accessibilityIdentifier("me-diary-search")
         }
         .padding(.vertical, 4)
+    }
+
+    /// How many entries the 14 days on screen hold, by face; nil until the overview has loaded.
+    private var counts: MeDiaryCounts? {
+        overview.overview.map { presenter.diaryCounts(days: $0.days) }
+    }
+
+    private func count(of feel: SelfReportFeel) -> Int? {
+        guard let counts else { return nil }
+        switch feel {
+        case .good: return counts.good
+        case .okay: return counts.okay
+        case .heavy: return counts.heavy
+        case .unrecognized: return nil
+        }
+    }
+
+    private func counted(_ title: String, _ count: Int?) -> String {
+        guard let count else { return title }
+        return title.isEmpty ? "\(count)" : "\(title) \(count)"
+    }
+
+    /// The counts are the grid's days, not everything below: say so beside them.
+    @ViewBuilder
+    private var countsCaption: some View {
+        if let loaded = overview.overview, let first = loaded.days.first?.date, let last = loaded.days.last?.date {
+            Text("counts for \(presenter.rangeTitle(from: first, to: last))")
+                .font(.system(size: 11))
+                .foregroundStyle(PaiPalette.Semantic.textFaint)
+                .accessibilityIdentifier("me-diary-counts-range")
+        }
     }
 
     private func chip<Label: View>(
@@ -144,7 +182,7 @@ struct MeDiaryView: View {
     // MARK: Rows
 
     private func row(_ item: MeDiaryItem) -> some View {
-        MeEntryCard(item: item, presenter: presenter)
+        MeEntryRow(item: item, presenter: presenter)
             .contextMenu {
                 if item.refusal != nil {
                     Button("Put back in composer", systemImage: "arrow.uturn.backward") {
