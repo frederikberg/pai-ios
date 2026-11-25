@@ -42,6 +42,19 @@ POLL_SECONDS = 20
 POLL_ATTEMPTS = 45
 
 
+class AscError(SystemExit):
+    """An HTTP error answer, still a plain exit with the same message when nothing catches it."""
+
+    def __init__(self, message: str, body: str) -> None:
+        super().__init__(message)
+        self.body = body
+
+
+# Apple caps how many builds may be waiting for beta review at once. The build is already with the
+# Internal group; it goes out with the next submission once a slot is free.
+SUBMISSION_LIMIT_CODE = "SUBMISSION_LIMIT_REACHED"
+
+
 def token() -> str:
     key = base64.b64decode(os.environ["ASC_KEY_P8_BASE64"]).decode()
     now = int(time.time())
@@ -69,7 +82,7 @@ def call(method: str, path: str, body: dict | None = None) -> dict:
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as error:
         detail = error.read().decode()[:400]
-        raise SystemExit(f"{method} {path} -> HTTP {error.code}: {detail}") from error
+        raise AscError(f"{method} {path} -> HTTP {error.code}: {detail}", detail) from error
 
 
 def group_id() -> str:
@@ -143,16 +156,25 @@ def distribute_external(app: str, build: dict) -> None:
             # incomplete would be rejected rather than reviewed: wait for the test information.
             print(f"::warning::build {version} not submitted to Beta App Review: the review contact is not set")
             return
-        call(
-            "POST",
-            "betaAppReviewSubmissions",
-            {
-                "data": {
-                    "type": "betaAppReviewSubmissions",
-                    "relationships": {"build": {"data": {"type": "builds", "id": build_id}}},
-                }
-            },
-        )
+        try:
+            call(
+                "POST",
+                "betaAppReviewSubmissions",
+                {
+                    "data": {
+                        "type": "betaAppReviewSubmissions",
+                        "relationships": {"build": {"data": {"type": "builds", "id": build_id}}},
+                    }
+                },
+            )
+        except AscError as error:
+            if SUBMISSION_LIMIT_CODE not in error.body:
+                raise
+            print(
+                f"::warning::build {version} not submitted to Beta App Review: Apple's submission limit is "
+                "reached; it waits for the next submission"
+            )
+            return
         print(f"build {version} submitted to Beta App Review")
     elif state in {"WAITING_FOR_BETA_REVIEW", "IN_BETA_REVIEW", "READY_FOR_BETA_TESTING", "IN_BETA_TESTING"}:
         print(f"build {version} for external testers: {state}")
