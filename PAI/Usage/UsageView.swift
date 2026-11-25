@@ -20,26 +20,14 @@ extension UsagePaceTone {
 /// Plan usage: the 5-hour, 7-day and per-model weekly windows, each against the even pace to its
 /// reset. Swift port of `UsageApp.tsx`; the pace itself is the server's.
 struct UsageView: View {
-    @Environment(AppEnvironment.self) private var environment
-    @State private var store: UsageStore?
+    @Environment(UsageStore.self) private var store
 
     var body: some View {
-        Group {
-            if let store {
-                content(store)
-            } else {
-                ProgressView()
-            }
-        }
-        .navigationTitle("Usage")
-        .navigationBarTitleDisplayMode(.inline)
-        .accessibilityIdentifier("usage-screen")
-        .task {
-            guard store == nil, let client = environment.connection?.apiClient else { return }
-            let newStore = UsageStore(api: client)
-            store = newStore
-            await newStore.load()
-        }
+        content(store)
+            .navigationTitle("Usage")
+            .navigationBarTitleDisplayMode(.inline)
+            .accessibilityIdentifier("usage-screen")
+            .task { await store.load() }
     }
 
     @ViewBuilder

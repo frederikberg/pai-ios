@@ -2,7 +2,7 @@ import PAIKit
 import SwiftUI
 
 /// One row in the notification centre. Unread state is a dot plus weight, never colour alone
-/// (`MachineChip`'s own doc comment gives the same reasoning for the same accessibility concern),
+/// (selection elsewhere in the app follows the same accessibility rule),
 /// and read rows dim — nothing is ever removed, this is a log.
 ///
 /// A body is clamped to a few lines: one raised from a chat message carries the whole message.

@@ -43,7 +43,8 @@ public enum UsageDisplay {
     }
 }
 
-/// The Usage app's state. Swift port of `UsageApp.tsx`.
+/// The account's plan usage, app-wide: the Usage app, the session header's badge and the
+/// new-session screen's badge all read this one store. Swift port of `UsageApp.tsx`.
 @MainActor
 @Observable
 public final class UsageStore {
@@ -57,6 +58,22 @@ public final class UsageStore {
 
     public init(api: UsageApiClient) {
         self.api = api
+    }
+
+    /// A quiet re-read for the badge shown beside a session and on the new-session screen: no
+    /// loading state, and a failed read keeps the last figures, since stale beats none.
+    public func refresh() async {
+        guard let fresh = try? await api.getUsage() else { return }
+        usage = fresh
+    }
+
+    /// Re-reads on a fixed cadence until the calling task is cancelled; a screen showing the
+    /// badge runs this from its `.task`.
+    public func poll(every interval: Duration = .seconds(30)) async {
+        while !Task.isCancelled {
+            await refresh()
+            try? await Task.sleep(for: interval)
+        }
     }
 
     public func load() async {

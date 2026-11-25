@@ -38,6 +38,11 @@ struct SessionListView: View {
             list
         }
         .paiScreenBackground()
+        .fixtureFact("sessionListRows", "\(sessions.rows.count)")
+        .fixtureFact(
+            "sessionListFilters",
+            "\(sessions.scope.rawValue) hideClosed=\(sessions.hideClosed) machine=\(sessions.machineFilter ?? "-")"
+        )
         .navigationTitle("Sessions")
         // The system search field: scroll-to-reveal and a Cancel button for free, rather than
         // the hand-rolled field the web needs (it has no such control to reach for).
@@ -112,6 +117,9 @@ struct SessionListView: View {
             // `loadInitialSessions` replaces the list wholesale and resets the paging cursor, so
             // returning from a session would silently discard everything scrolled to so far.
             guard !hasLoadedInitialSessions else { return }
+            #if DEBUG
+                applyFixtureFilters()
+            #endif
             await sessions.loadInitialSessions()
             hasLoadedInitialSessions = true
         }
@@ -322,9 +330,19 @@ struct SessionListView: View {
         sessions.semanticMode ? "Search by meaning…" : "Filter sessions or paste an id…"
     }
 
+    #if DEBUG
+        /// `-PaiFixtureSessionFilters hideClosed|machine|both`: starts with the filters set, since
+        /// a menu opens only on a tap and a screenshot shows the chips it leaves behind.
+        private func applyFixtureFilters() {
+            guard let named = PaiFixtureLaunch.requestedSessionFilters() else { return }
+            if named == "hideClosed" || named == "both" { sessions.setHideClosed(true) }
+            if named == "machine" || named == "both" { sessions.setMachineFilter("laptop") }
+        }
+    #endif
+
     // MARK: - Filter chips
 
-    /// All / All+ / Scheduled: which sessions the list is about, independent of the machine chips
+    /// Manual / Scheduled / Both: which sessions the list is about, independent of the filters
     /// below it, which narrow further within the chosen view.
     private var scopePicker: some View {
         Picker("Sessions", selection: scopeBinding) {
@@ -342,45 +360,124 @@ struct SessionListView: View {
         Binding(get: { sessions.scope }, set: { sessions.setScope($0) })
     }
 
-    /// Per-machine chips only earn their place once there is a choice to make — one machine means
-    /// no per-machine chips, not a disabled row. The chip row stays even then: it also carries the
-    /// time-window chip.
-    private var showsMachineChips: Bool {
+    /// The machine choice only earns its place once there is a choice to make: one machine means
+    /// no machine section in the filters menu.
+    private var showsMachineChoice: Bool {
         MachineStore.hasMultipleAgents(machines.allMachines)
+    }
+
+    /// The chosen machine's display name; the slug itself while the machine list has not named it.
+    private var machineFilterName: String? {
+        guard let slug = sessions.machineFilter else { return nil }
+        return machines.allMachines.first { $0.slug == slug }?.displayName ?? slug
+    }
+
+    private var filtersAreSet: Bool {
+        sessions.hideClosed || sessions.machineFilter != nil
+    }
+
+    private var hideClosedBinding: Binding<Bool> {
+        Binding(get: { sessions.hideClosed }, set: { sessions.setHideClosed($0) })
+    }
+
+    private var machineBinding: Binding<String?> {
+        Binding(get: { sessions.machineFilter }, set: { sessions.setMachineFilter($0) })
     }
 
     private var filterChips: some View {
         HStack(spacing: 0) {
             chipScroller
+            FiltersMenuButton(
+                hideClosed: hideClosedBinding,
+                machine: machineBinding,
+                machines: showsMachineChoice ? machines.allMachines : [],
+                isSet: filtersAreSet
+            )
             TimeWindowButton(window: timeWindowBinding)
                 .padding(.trailing, 8)
         }
         .padding(.bottom, 6)
     }
 
+    /// Only what is set, each clearable with a tap: the machine, "Closed hidden" and the time
+    /// window. Nothing shows while no filter is on.
     private var chipScroller: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                // Offline machines stay selectable here, unlike the launch picker: this filters
-                // what to look at, not where to launch, and a grey laptop session is exactly
-                // what a chip here is for finding.
-                if showsMachineChips {
-                    MachineChip(title: "All", isSelected: sessions.machineFilter == nil) {
+                if let name = machineFilterName {
+                    ClearableChip(title: name, label: "Clear machine \(name)", id: "machine-filter-chip") {
                         sessions.setMachineFilter(nil)
                     }
-                    ForEach(machines.allMachines) { machine in
-                        MachineChip(
-                            title: machine.displayName,
-                            isSelected: sessions.machineFilter == machine.slug
-                        ) {
-                            sessions.setMachineFilter(machine.slug)
-                        }
+                }
+                if sessions.hideClosed {
+                    ClearableChip(title: "Closed hidden", label: "Clear Closed hidden", id: "hide-closed-chip") {
+                        sessions.setHideClosed(false)
                     }
                 }
                 TimeWindowChip(window: timeWindowBinding)
             }
             .padding(.horizontal, 12)
         }
+        .frame(maxWidth: .infinity, minHeight: 32)
+    }
+}
+
+/// The sliders button beside the clock: "Hide closed sessions" and, with more than one machine,
+/// the machine choice. Drawn in the accent colour while either is set, like the clock.
+private struct FiltersMenuButton: View {
+    @Binding var hideClosed: Bool
+    @Binding var machine: String?
+    let machines: [Machine]
+    let isSet: Bool
+
+    var body: some View {
+        Menu {
+            Toggle("Hide closed sessions", isOn: $hideClosed)
+            if !machines.isEmpty {
+                Picker("Machine", selection: $machine) {
+                    Text("All machines").tag(String?.none)
+                    ForEach(machines) { machine in
+                        Text(machine.displayName).tag(String?.some(machine.slug))
+                    }
+                }
+                .pickerStyle(.inline)
+            }
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 17))
+                .foregroundStyle(isSet ? PaiPalette.primary500 : PaiPalette.Semantic.textMuted)
+                .frame(width: 36, height: 32)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(isSet ? "More filters, active" : "More filters")
+        .accessibilityIdentifier("session-filters-button")
+    }
+}
+
+/// A set filter as a small accent pill with an X; tapping clears it. Same look as
+/// ``TimeWindowChip``.
+private struct ClearableChip: View {
+    let title: String
+    let label: String
+    let id: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Text(title)
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+            }
+            .font(PaiTypography.captionEmphasized.font)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(PaiPalette.Semantic.accentBackground, in: Capsule())
+            .foregroundStyle(PaiPalette.Semantic.accentText)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(id)
     }
 }
 
@@ -400,35 +497,6 @@ private struct SessionRowButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("session-row-\(row.id)")
-    }
-}
-
-/// One machine filter pill. Selection is shown by fill and colour, never colour alone, matching
-/// the accessible radiogroup semantics `AgentFilterChips` uses on the web.
-private struct MachineChip: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(PaiTypography.captionEmphasized.font)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    isSelected ? PaiPalette.Semantic.accentBackground : PaiPalette.Semantic.raisedSurface,
-                    in: Capsule()
-                )
-                .foregroundStyle(
-                    isSelected ? PaiPalette.Semantic.accentText : PaiPalette.Semantic.textSecondary
-                )
-                .overlay(
-                    Capsule().strokeBorder(PaiPalette.Semantic.borderDefault, lineWidth: isSelected ? 0 : 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 

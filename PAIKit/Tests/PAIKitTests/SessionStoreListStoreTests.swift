@@ -1034,20 +1034,56 @@ final class SessionStoreListStoreTests: XCTestCase {
         return store
     }
 
-    /// Fresh store: the ordinary list, without the scheduled session. Scheduled and All+ then
+    /// Fresh store: the manual list, without the scheduled session. Scheduled and Both then
     /// each show their own set.
     func testScopeDecidesWhetherScheduledSessionsAreListed() async {
         let store = await storeWithOrdinaryAndScheduledSessions()
         XCTAssertEqual(store.rows.map(\.id), ["ordinary"])
 
-        store.setScope(.allPlus)
+        store.setScope(.both)
         XCTAssertEqual(Set(store.rows.map(\.id)), ["ordinary", "scheduled"])
 
         store.setScope(.scheduled)
         XCTAssertEqual(store.rows.map(\.id), ["scheduled"])
 
-        store.setScope(.all)
+        store.setScope(.manual)
         XCTAssertEqual(store.rows.map(\.id), ["ordinary"])
+    }
+
+    /// Hide closed drops every row whose dot is grey (closed, no display state, an unknown one)
+    /// and keeps the coloured ones, in every scope.
+    func testHideClosedDropsGreyDotsInEveryScope() async {
+        let api = FakeSessionListApi()
+        await api.setGetSessionsResult { _ in
+            .success(
+                SessionsPage(
+                    sessions: [
+                        SessionFixture.make(id: "done", displayState: .done),
+                        SessionFixture.make(id: "working", displayState: .working),
+                        SessionFixture.make(id: "blocked", displayState: .blocked),
+                        SessionFixture.make(id: "error", displayState: .error),
+                        SessionFixture.make(id: "starting", displayState: .starting),
+                        SessionFixture.make(id: "closed", displayState: .closed),
+                        SessionFixture.make(id: "absent", displayState: nil),
+                        SessionFixture.make(id: "unknown", displayState: .unrecognized("snoozing")),
+                        SessionFixture.make(id: "sched-done", displayState: .done, taskId: "t"),
+                        SessionFixture.make(id: "sched-closed", displayState: .closed, taskId: "t"),
+                    ], nextCursor: nil))
+        }
+        let store = makeStore(api: api)
+        await store.loadInitialSessions()
+        store.setHideClosed(true)
+
+        let coloured: Set<String> = ["done", "working", "blocked", "error", "starting"]
+        store.setScope(.manual)
+        XCTAssertEqual(Set(store.rows.map(\.id)), coloured)
+        store.setScope(.scheduled)
+        XCTAssertEqual(store.rows.map(\.id), ["sched-done"])
+        store.setScope(.both)
+        XCTAssertEqual(Set(store.rows.map(\.id)), coloured.union(["sched-done"]))
+
+        store.setHideClosed(false)
+        XCTAssertEqual(store.rows.count, 10)
     }
 
     /// The scope narrows within a machine chip's list instead of replacing it.
@@ -1064,11 +1100,11 @@ final class SessionStoreListStoreTests: XCTestCase {
         let store = makeStore(api: api)
         await store.loadInitialSessions()
 
-        store.setScope(.allPlus)
+        store.setScope(.both)
         store.setMachineFilter("vm")
 
         XCTAssertEqual(store.machineFilter, "vm")
-        XCTAssertEqual(store.scope, .allPlus)
+        XCTAssertEqual(store.scope, .both)
     }
 
     /// Same trap, same shape, for the badge the session header shows next to the token
