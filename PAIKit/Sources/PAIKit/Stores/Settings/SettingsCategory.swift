@@ -75,7 +75,7 @@ public enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
         case .notifications: "What reaches you, and where. Everything is always kept in Notifications."
         case .voices: "How replies, calls and Computer sound to you."
         case .appearance: "How PAI looks on this iPhone."
-        case .location: "Where the weather answers for, and the iPhone that keeps it current."
+        case .location: "The iPhone that keeps your location current, for the weather and places."
         case .devices: "The phones and browsers signed in as you, and the keys your watch reaches your alarms with."
         case .history: "What this iPhone remembers of what you dictated and sent."
         case .thisPhone: "Notes kept for offline use, and what the app captured when it last crashed."
