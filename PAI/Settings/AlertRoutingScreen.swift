@@ -49,14 +49,14 @@ struct AlertRoutingSections: View {
                     .foregroundStyle(PaiPalette.Semantic.warningText)
             }
         } header: {
-            Text("Alert routing · \(SettingsScope.everyone.label)")
+            Text("Alert routing")
         } footer: {
             Text("Who hears about each kind of alert: you (push and mail), the agent task, or both.")
         }
     }
 
     private func kindsSection(_ settings: AlertRoutingSettings) -> some View {
-        Section("Kinds · \(SettingsScope.everyone.label)") {
+        Section("Kinds") {
             ForEach(settings.kinds) { kind in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(kind.label)

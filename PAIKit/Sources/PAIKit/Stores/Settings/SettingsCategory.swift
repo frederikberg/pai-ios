@@ -15,14 +15,14 @@ public enum SettingsScope: Sendable, Equatable {
     case synced
     /// This iPhone only.
     case thisDevice
-    /// The whole instance; administration only.
+    /// A setting of the instance that changes what guests get; administration only.
     case everyone
 
     public var label: String {
         switch self {
         case .synced: "Synced"
         case .thisDevice: "This iPhone"
-        case .everyone: "Everyone"
+        case .everyone: "All users"
         }
     }
 }

@@ -2,10 +2,11 @@ import PAIKit
 import SwiftUI
 
 /// A section whose header names whose settings it holds: "Input · This iPhone", "Dictation ·
-/// Synced", "Defaults · Everyone". The tag is the one place "is this global?" is answered.
+/// Synced". Administration cards carry "All users" only where a setting changes what guests get;
+/// the rest are the owner's or the server's own and carry no tag.
 struct ScopedSection<Content: View>: View {
     let title: String
-    let scope: SettingsScope
+    var scope: SettingsScope?
     var footer: String?
     @ViewBuilder var content: Content
 
@@ -13,7 +14,7 @@ struct ScopedSection<Content: View>: View {
         Section {
             content
         } header: {
-            Text("\(title) · \(scope.label)")
+            Text(scope.map { "\(title) · \($0.label)" } ?? title)
         } footer: {
             if let footer { Text(footer) }
         }

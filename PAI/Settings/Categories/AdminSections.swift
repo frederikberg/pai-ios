@@ -11,7 +11,7 @@ struct SystemSections: View {
 
     var body: some View {
         if let claude = environment.connection?.claudeAuth {
-            ScopedSection(title: "Machine", scope: .everyone) {
+            ScopedSection(title: "Machine") {
                 LabeledContent("Claude sign-in") {
                     Text(Self.claudeText(claude.auth))
                         .multilineTextAlignment(.trailing)
@@ -56,13 +56,21 @@ struct VoiceSoundSections: View {
 
     var body: some View {
         RegistryPlaceholder(store: settings.registry)
-        ScopedSection(title: "For everyone", scope: .everyone) {
+        ScopedSection(
+            title: "Reading aloud",
+            scope: settings.registry.affectsGuests(Self.readAloudKeys) ? .everyone : nil
+        ) {
             VoiceKeyRow(
                 registry: settings.registry, voices: settings.playbackVoices, key: "default_voice_id",
                 title: "Default voice", emptyLabel: { _ in "Built-in" })
-            RegistryRows(store: settings.registry, keys: ["playback_model", "debug_recordings_enabled"])
+            RegistryRows(store: settings.registry, keys: ["playback_model"])
+        }
+        ScopedSection(title: "Diagnosing") {
+            RegistryRows(store: settings.registry, keys: ["debug_recordings_enabled"])
         }
     }
+
+    private static let readAloudKeys = ["default_voice_id", "playback_model"]
 }
 
 struct AgentsSections: View {
@@ -107,7 +115,7 @@ struct PeopleSections: View {
                 }
             }
         } header: {
-            Text("Watch keys · \(SettingsScope.everyone.label)")
+            Text("Watch keys")
         }
         Section {
             if store.machines.isEmpty {
@@ -137,7 +145,7 @@ struct PeopleSections: View {
                 .accessibilityIdentifier("access-key-\(machine.id)")
             }
         } header: {
-            Text("Access keys · \(SettingsScope.everyone.label)")
+            Text("Access keys")
         } footer: {
             Text("Each key appears the first time it is used. Binding one to an agent is done on the web.")
         }
@@ -153,7 +161,7 @@ struct DiagnosticsSections: View {
     var body: some View {
         if let connection = environment.connection {
             ScopedSection(
-                title: "Recordings", scope: .everyone,
+                title: "Recordings",
                 footer:
                     "Debug recordings and wake-word samples live on the server, so every device sees the same ones."
             ) {

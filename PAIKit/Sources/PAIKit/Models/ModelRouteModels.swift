@@ -55,7 +55,8 @@ public struct ModelFeature: Codable, Sendable, Equatable, Identifiable {
     public let fallbackChoices: ModelChoices?
 
     enum CodingKeys: String, CodingKey {
-        case id, label, group, editable, `default`, fallback, choices
+        case id, label, group, editable, fallback, choices
+        case `default` = "default"
         case fallbackAllowed = "fallback_allowed"
         case chainNow = "chain_now"
         case fallbackChoices = "fallback_choices"
@@ -140,5 +141,8 @@ public struct ModelRouteUpdate: Encodable, Sendable, Equatable {
         try c.encode(fallback, forKey: .fallback)
     }
 
-    enum CodingKeys: String, CodingKey { case `default`, fallback }
+    enum CodingKeys: String, CodingKey {
+        case `default` = "default"
+        case fallback
+    }
 }

@@ -66,6 +66,12 @@ public final class SettingsRegistryStore {
         return SettingField(key: key, schema: schema, value: value)
     }
 
+    /// Whether any of `keys` changes what guests get. The one rule for tagging an Administration card
+    /// "All users"; a key the schema does not list counts as not.
+    public func affectsGuests(_ keys: [String]) -> Bool {
+        keys.contains { schema[$0]?.affectsGuests == true }
+    }
+
     /// The rows of `keys`, in the order given, without the ones the caller does not have.
     public func fields(_ keys: [String]) -> [SettingField] {
         keys.compactMap(field)

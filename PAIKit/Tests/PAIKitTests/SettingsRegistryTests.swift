@@ -80,6 +80,27 @@ final class SettingsRegistryTests: XCTestCase {
         XCTAssertNotNil(response.schema["playback_speed"])
     }
 
+    func testOnlyAKeyTheServerFlagsMakesACardAllUsersAndAnAbsentFieldIsNo() throws {
+        let response = try owner()
+        XCTAssertFalse(response.schema["debug_recordings_enabled"]?.affectsGuests ?? true)
+        XCTAssertTrue(response.schema["default_voice_id"]?.affectsGuests ?? false)
+        // A server that predates the field sends none: read as not affecting guests.
+        let bare = try JSONDecoder().decode(
+            SettingSchema.self,
+            from: Data(
+                #"{"scope":"instance","kind":"bool","default":false,"nullable":false,"owner_only":true,"ui":true,"label":"x","help":"","warning":null}"#
+                    .utf8))
+        XCTAssertFalse(bare.affectsGuests)
+    }
+
+    @MainActor
+    func testACardIsTaggedWhenAnyKeyOnItIsFlagged() async throws {
+        let (store, _) = store(try owner())
+        await store.load()
+        XCTAssertTrue(store.affectsGuests(["debug_recordings_enabled", "default_voice_id"]))
+        XCTAssertFalse(store.affectsGuests(["debug_recordings_enabled", "no_such_key"]))
+    }
+
     func testAKindThisBuildDoesNotKnowDecodesAndIsNotDrawn() throws {
         let json = """
             {"schema": {"later": {"scope": "person", "kind": "colour", "default": null, "nullable": false,
