@@ -42,7 +42,16 @@ public final class PushRegistrationStore {
         self.isRegistrationAllowed = isRegistrationAllowed
         self.registerToken = registerToken
         registration = storage.value(forKey: Keys.registration) ?? PushRegistration()
+        // The per-channel switches for agent messages and alerts are the person's registry switches
+        // now, which the server migrated from the devices' mutes. A mute this phone still holds for
+        // them would be sent back at the next registration with no switch left to undo it.
+        if !registration.mutedChannels.isDisjoint(with: Self.retiredChannels) {
+            registration.mutedChannels.subtract(Self.retiredChannels)
+            persist()
+        }
     }
+
+    private static let retiredChannels: Set<String> = ["default", "alerts"]
 
     /// Whether it is worth showing the system prompt. The prompt appears once per install and
     /// never again, so this is the difference between asking at a moment that makes sense and

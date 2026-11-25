@@ -434,6 +434,158 @@ extension PaiFixtures {
               "label": "Call interrupt",
               "help": "Whether a session's replies are read aloud while you dictate in its call.",
               "warning": null
+            },
+            "push_agent_messages": {
+              "scope": "person",
+              "kind": "bool",
+              "default": true,
+              "min": null,
+              "max": null,
+              "step": null,
+              "choices": null,
+              "max_len": null,
+              "max_items": null,
+              "item_max_len": null,
+              "item_max_words": null,
+              "nullable": false,
+              "owner_only": false,
+              "ui": true,
+              "label": "Agent messages: push",
+              "help": "Whether an agent's message to you is pushed to your devices.",
+              "warning": null
+            },
+            "push_alerts": {
+              "scope": "person",
+              "kind": "bool",
+              "default": true,
+              "min": null,
+              "max": null,
+              "step": null,
+              "choices": null,
+              "max_len": null,
+              "max_items": null,
+              "item_max_len": null,
+              "item_max_words": null,
+              "nullable": false,
+              "owner_only": true,
+              "ui": true,
+              "label": "Alerts: push",
+              "help": "Whether an alert about PAI Cloud or the VM is pushed to your devices.",
+              "warning": null
+            },
+            "mail_alerts": {
+              "scope": "person",
+              "kind": "bool",
+              "default": false,
+              "min": null,
+              "max": null,
+              "step": null,
+              "choices": null,
+              "max_len": null,
+              "max_items": null,
+              "item_max_len": null,
+              "item_max_words": null,
+              "nullable": false,
+              "owner_only": true,
+              "ui": true,
+              "label": "Alerts: mail",
+              "help": "Whether an alert is also mailed to you.",
+              "warning": null
+            },
+            "mail_address": {
+              "scope": "person",
+              "kind": "string",
+              "default": null,
+              "min": null,
+              "max": null,
+              "step": null,
+              "choices": null,
+              "max_len": 320,
+              "max_items": null,
+              "item_max_len": null,
+              "item_max_words": null,
+              "nullable": true,
+              "owner_only": true,
+              "ui": true,
+              "label": "Mail goes to",
+              "help": "The address your alerts and agent mail are sent to; empty uses the address you sign in with.",
+              "warning": null
+            },
+            "infomaniak_product_id": {
+              "scope": "instance",
+              "kind": "string",
+              "default": null,
+              "min": null,
+              "max": null,
+              "step": null,
+              "choices": null,
+              "max_len": 64,
+              "max_items": null,
+              "item_max_len": null,
+              "item_max_words": null,
+              "nullable": true,
+              "owner_only": true,
+              "ui": true,
+              "label": "Infomaniak product id",
+              "help": "",
+              "warning": null
+            },
+            "anthropic_cycle_day": {
+              "scope": "instance",
+              "kind": "int",
+              "default": null,
+              "min": 1,
+              "max": 28,
+              "step": 1,
+              "choices": null,
+              "max_len": null,
+              "max_items": null,
+              "item_max_len": null,
+              "item_max_words": null,
+              "nullable": true,
+              "owner_only": true,
+              "ui": true,
+              "label": "Anthropic billing day",
+              "help": "The day of the month the billing cycle starts.",
+              "warning": null
+            },
+            "turn_summary_history_count": {
+              "scope": "instance",
+              "kind": "int",
+              "default": 5,
+              "min": 0,
+              "max": 50,
+              "step": 1,
+              "choices": null,
+              "max_len": null,
+              "max_items": null,
+              "item_max_len": null,
+              "item_max_words": null,
+              "nullable": false,
+              "owner_only": true,
+              "ui": true,
+              "label": "Turn summary history",
+              "help": "How many earlier turns a summary is given.",
+              "warning": null
+            },
+            "turn_summary_history_tokens": {
+              "scope": "instance",
+              "kind": "int",
+              "default": 2000,
+              "min": 0,
+              "max": 20000,
+              "step": 100,
+              "choices": null,
+              "max_len": null,
+              "max_items": null,
+              "item_max_len": null,
+              "item_max_words": null,
+              "nullable": false,
+              "owner_only": true,
+              "ui": true,
+              "label": "Turn summary history tokens",
+              "help": "How many tokens of earlier turns a summary is given.",
+              "warning": null
             }
           },
           "person": {
@@ -457,13 +609,21 @@ extension PaiFixtures {
             "mail_from_agents": true,
             "alarm_ring_interval_s": 5,
             "alarm_ring_duration_s": 60,
-            "location_sign_in_id": null
+            "location_sign_in_id": null,
+            "push_agent_messages": true,
+            "push_alerts": true,
+            "mail_alerts": false,
+            "mail_address": null
           },
           "instance": {
             "default_voice_id": null,
             "playback_model": "eleven_flash_v2_5",
             "debug_recordings_enabled": true,
-            "call_interrupt": false
+            "call_interrupt": false,
+            "infomaniak_product_id": null,
+            "anthropic_cycle_day": null,
+            "turn_summary_history_count": 5,
+            "turn_summary_history_tokens": 2000
           }
         }
         """#
@@ -683,6 +843,25 @@ extension PaiFixtures {
               "label": "Location from",
               "help": "The iPhone that reports where you are in the background.",
               "warning": null
+            },
+            "push_agent_messages": {
+              "scope": "person",
+              "kind": "bool",
+              "default": true,
+              "min": null,
+              "max": null,
+              "step": null,
+              "choices": null,
+              "max_len": null,
+              "max_items": null,
+              "item_max_len": null,
+              "item_max_words": null,
+              "nullable": false,
+              "owner_only": false,
+              "ui": true,
+              "label": "Agent messages: push",
+              "help": "Whether an agent's message to you is pushed to your devices.",
+              "warning": null
             }
           },
           "person": {
@@ -696,7 +875,8 @@ extension PaiFixtures {
             "mail_from_agents": true,
             "alarm_ring_interval_s": 5,
             "alarm_ring_duration_s": 60,
-            "location_sign_in_id": null
+            "location_sign_in_id": null,
+            "push_agent_messages": true
           },
           "instance": null
         }
@@ -745,5 +925,110 @@ extension PaiFixtures {
             "first_seen_at": "2026-08-30T22:30:00.506812+00:00", "last_seen_at": "2026-11-25T11:03:00.000000+00:00",
             "revoked_at": null, "active": true, "current": false, "agent_slug": "vm" }
         ]
+        """#
+}
+
+extension PaiFixtures {
+    /// `GET /api/push/devices`: this iPhone, awake and with a sleep window, and a browser.
+    public static let pushDevices: String = #"""
+        {"devices": [
+          {"id": "6f1c2d3e-0000-4000-8000-000000000001", "kind": "iphone", "name": "Test iPhone", "this_device": true,
+           "push_enabled": true, "paused_until": null,
+           "sleep": {"start": "22:00", "end": "05:00", "tz": "Europe/Berlin", "active": false, "skip_until": null},
+           "sleep_skip_until": null, "muted_channels": [], "last_success_at": null},
+          {"id": "6f1c2d3e-0000-4000-8000-000000000002", "kind": "browser", "name": "Firefox", "this_device": false,
+           "push_enabled": true, "paused_until": null, "sleep": null, "sleep_skip_until": null,
+           "muted_channels": [], "last_success_at": "2026-11-25T09:00:00.000000+00:00"}
+        ]}
+        """#
+
+    /// `GET /api/settings/connections`: a model provider with a stored key and spend, one with no key,
+    /// speech, the Claude login, and two integrations.
+    public static let connections: String = #"""
+        {"connections": [
+          {"id": "anthropic", "label": "Anthropic", "kind": "model", "base_url": "https://api.anthropic.com",
+           "base_url_param": null,
+           "credential": {"secret": "anthropic_api_key", "set": true, "updated_at": "2026-11-01T10:00:00.000000+00:00", "source": "stored"},
+           "extra": [], "status": "ok", "status_detail": null, "note": null, "testable": true,
+           "used_by": [{"feature": "turn_summary", "label": "Turn summaries"}, {"feature": "ultrafast", "label": "Ultra-fast sessions"}],
+           "spend": {"cycle_start": "2026-11-01T00:00:00+00:00", "calls": 412, "cost_usd": 3.18}},
+          {"id": "infomaniak", "label": "Infomaniak AI", "kind": "model",
+           "base_url": "https://api.infomaniak.com/2/ai/0000/openai/v1",
+           "base_url_param": {"key": "infomaniak_product_id", "value": "0000", "source": "environment"},
+           "credential": {"secret": "infomaniak_api_key", "set": false, "updated_at": null, "source": "environment"},
+           "extra": [], "status": "ok", "status_detail": null, "note": null, "testable": true,
+           "used_by": [{"feature": "embeddings", "label": "Embeddings"}], "spend": null},
+          {"id": "ovhcloud", "label": "OVHcloud AI Endpoints", "kind": "model", "base_url": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1",
+           "base_url_param": null,
+           "credential": {"secret": "ovhcloud_api_key", "set": false, "updated_at": null, "source": "none"},
+           "extra": [], "status": "no_key", "status_detail": null, "note": null, "testable": true,
+           "used_by": [], "spend": null},
+          {"id": "elevenlabs", "label": "ElevenLabs", "kind": "speech", "base_url": "https://api.elevenlabs.io",
+           "base_url_param": null,
+           "credential": {"secret": "elevenlabs", "set": true, "updated_at": "2026-10-01T10:00:00.000000+00:00", "source": "stored"},
+           "extra": [{"secret": "elevenlabs_playback", "label": "Read-aloud key (optional)", "set": false, "updated_at": null}],
+           "status": "ok", "status_detail": null, "note": null, "testable": true,
+           "used_by": [{"feature": "read_aloud", "label": "Read aloud"}], "spend": null},
+          {"id": "claude", "label": "Claude subscription", "kind": "subscription", "base_url": null, "base_url_param": null,
+           "credential": null, "extra": [], "status": "ok", "status_detail": null,
+           "note": "The VM's Claude Code login.", "testable": false, "used_by": [], "spend": null},
+          {"id": "todoist", "label": "Todoist", "kind": "integration", "base_url": "https://api.todoist.com",
+           "base_url_param": null,
+           "credential": {"secret": "todoist_token", "set": false, "updated_at": null, "source": "environment"},
+           "extra": [], "status": "ok", "status_detail": null, "note": null, "testable": true,
+           "used_by": [{"feature": "computer", "label": "Computer"}, {"feature": "me", "label": "Me"}], "spend": null},
+          {"id": "home_assistant", "label": "Home Assistant", "kind": "integration", "base_url": "https://ha.example.invalid",
+           "base_url_param": null,
+           "credential": {"secret": "home_assistant_token", "set": true, "updated_at": "2026-09-01T10:00:00.000000+00:00", "source": "stored"},
+           "extra": [], "status": "ok", "status_detail": null, "note": null, "testable": true,
+           "used_by": [{"feature": "computer", "label": "Computer"}], "spend": null},
+          {"id": "mailverdict", "label": "MailVerdict", "kind": "integration", "base_url": "https://mail.example.invalid",
+           "base_url_param": null, "credential": null, "extra": [], "status": "ok", "status_detail": null,
+           "note": "Signed in by each device's own login. Agents cannot use it unattended.", "testable": false,
+           "used_by": [{"feature": "me", "label": "Me"}], "spend": null}
+        ]}
+        """#
+
+    /// `GET /api/settings/models`: memory features with a default and a fallback, a display-only
+    /// embeddings row, and a session feature with no fallback slot.
+    public static let models: String = #"""
+        {"features": [
+          {"id": "turn_summary", "label": "Turn summaries", "group": "memory", "editable": true,
+           "default": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "medium"},
+           "fallback": {"provider": "infomaniak", "model": "gemma-4-31B-it", "effort": null},
+           "fallback_allowed": true,
+           "chain_now": [{"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "medium", "skipped_reason": null},
+                         {"provider": "infomaniak", "model": "gemma-4-31B-it", "effort": null, "skipped_reason": null}],
+           "choices": {"anthropic": {"claude-haiku-5-5": ["low", "medium", "high"], "claude-opus-5-5": ["low", "high"]},
+                       "infomaniak": {"gemma-4-31B-it": [null], "Qwen3.8-27B-FP8": [null]}},
+           "fallback_choices": {"infomaniak": {"gemma-4-31B-it": [null], "Qwen3.8-27B-FP8": [null]}}},
+          {"id": "overview_compaction", "label": "Overview compaction", "group": "memory", "editable": true,
+           "default": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "high"},
+           "fallback": {"provider": "infomaniak", "model": "Qwen3.8-27B-FP8", "effort": null},
+           "fallback_allowed": true,
+           "chain_now": [{"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "high", "skipped_reason": "no key"},
+                         {"provider": "infomaniak", "model": "Qwen3.8-27B-FP8", "effort": null, "skipped_reason": null}],
+           "choices": {"anthropic": {"claude-haiku-5-5": ["low", "medium", "high"]}, "infomaniak": {"Qwen3.8-27B-FP8": [null]}},
+           "fallback_choices": {"infomaniak": {"Qwen3.8-27B-FP8": [null]}}},
+          {"id": "embeddings", "label": "Embeddings", "group": "memory", "editable": false,
+           "default": {"provider": "infomaniak", "model": "Qwen3-Embedding-8B", "effort": null}, "fallback": null,
+           "fallback_allowed": false,
+           "chain_now": [{"provider": "infomaniak", "model": "Qwen3-Embedding-8B", "effort": null, "skipped_reason": null}],
+           "choices": {"infomaniak": {"Qwen3-Embedding-8B": []}}, "fallback_choices": null},
+          {"id": "ultrafast", "label": "Ultra-fast sessions", "group": "sessions", "editable": true,
+           "default": {"provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "low"},
+           "fallback": {"provider": "infomaniak", "model": "gemma-4-31B-it", "effort": null},
+           "fallback_allowed": true,
+           "chain_now": [{"provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "low", "skipped_reason": null},
+                         {"provider": "infomaniak", "model": "gemma-4-31B-it", "effort": null, "skipped_reason": null}],
+           "choices": {"anthropic": {"claude-sonnet-5-5": ["low", "high"]}, "infomaniak": {"gemma-4-31B-it": [null]}},
+           "fallback_choices": {"infomaniak": {"gemma-4-31B-it": [null]}}},
+          {"id": "fast", "label": "Fast sessions", "group": "sessions", "editable": true,
+           "default": {"provider": "claude", "model": "sonnet", "effort": "low"}, "fallback": null,
+           "fallback_allowed": false,
+           "chain_now": [{"provider": "claude", "model": "sonnet", "effort": "low", "skipped_reason": null}],
+           "choices": {"claude": {"sonnet": ["low", "medium", "high"], "opus": ["low", "high"]}}, "fallback_choices": null}
+        ], "embedding": {}, "memory": {"turn_summary_history_count": 5, "turn_summary_history_tokens": 2000},
+        "providers": ["anthropic", "infomaniak", "ovhcloud"]}
         """#
 }

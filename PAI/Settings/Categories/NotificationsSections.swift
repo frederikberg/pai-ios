@@ -3,9 +3,9 @@ import SwiftUI
 
 /// What reaches the person, and where. The inbox keeps everything whatever is chosen here.
 ///
-/// Until the server serves the notification matrix and the device list, this page is what the
-/// older routes can say: whether an agent's notification may also be mailed, this iPhone's push
-/// and its channels, and the sleep window.
+/// Three layers, each with its own scope tag: what the person wants (registry switches, the same on
+/// every device), what this iPhone does with a push (on or off, paused for a while, the alarm
+/// switch, and the sleep window), and the person's other devices.
 struct NotificationsSections: View {
     let settings: SettingsStore
     /// Opens the sleep-mode screen from a launch argument; always `false` in a Release build.
@@ -14,12 +14,14 @@ struct NotificationsSections: View {
     var body: some View {
         RegistryPlaceholder(store: settings.registry)
         ScopedSection(
-            title: "Mail from agents", scope: .synced,
-            footer: "Everything is always kept in Notifications. Push and mail are only how it also reaches you."
+            title: "What reaches you", scope: .synced,
+            footer: footer
         ) {
-            RegistryRows(store: settings.registry, keys: ["mail_from_agents"])
+            RegistryRows(
+                store: settings.registry,
+                keys: ["push_alerts", "mail_alerts", "push_agent_messages", "mail_from_agents", "mail_address"])
         }
-        PushOnThisPhoneSection()
+        ThisPhoneDeliverySection(settings: settings)
         Section {
             NavigationLink {
                 SleepModeSettingsScreen()
@@ -30,7 +32,9 @@ struct NotificationsSections: View {
         } header: {
             Text("Sleep mode · \(SettingsScope.thisDevice.label)")
         } footer: {
-            Text("Puts the sessions and every push away on this iPhone for a window each day, guarded by a PIN.")
+            Text(
+                "Puts the sessions away on this iPhone and holds back every push except alarms, for a window each day, guarded by a PIN."
+            )
         }
         .navigationDestination(isPresented: $fixtureSleepSettings) { SleepModeSettingsScreen() }
         .task {
@@ -38,6 +42,15 @@ struct NotificationsSections: View {
                 if PaiFixtureLaunch.isEnabled(), PaiFixtureLaunch.opensSleepSettings() { fixtureSleepSettings = true }
             #endif
         }
+        OtherDevicesSection(store: settings.pushDevices)
+    }
+
+    private var footer: String {
+        var text = "Everything is always kept in Notifications. Push and mail are only how it also reaches you."
+        if NotificationMatrix.reachesNoDevice(person: settings.registry.person) {
+            text += " No push reaches any of your devices."
+        }
+        return text
     }
 }
 
@@ -51,84 +64,163 @@ private struct SleepModeRowLabel: View {
     }
 }
 
-/// This iPhone's notifications: whether it can receive a push, and which channels it takes.
-///
-/// A notification is always kept in the notifications screen. A push is the delivery of one to
-/// this device, and a channel is what this device can switch off; the choice is stored on the
-/// server per device. Both channels off means no push here, and nothing in the notifications
-/// screen changes.
+/// This iPhone's push: whether it can receive one, on or off, paused for a while, and the alarm
+/// switch. Which kinds reach the person at all is the registry switches above.
 ///
 /// Enabling is an explicit opt-in rather than a prompt at launch. iOS shows the system permission
 /// alert at most once per install and never again, so asking at a moment the person did not
 /// choose spends the only chance there is, over whatever screen they were actually looking at,
 /// for a feature they have not asked about yet. Here, the tap is the consent.
-struct PushOnThisPhoneSection: View {
+struct ThisPhoneDeliverySection: View {
+    let settings: SettingsStore
     @Environment(AppEnvironment.self) private var environment
+
+    private var devices: PushDevicesStore { settings.pushDevices }
 
     var body: some View {
         // Device push registration is a person's own route, a guest's included.
-        if environment.connection?.me.capabilities.canRegisterPush == true {
+        if environment.connection?.me.capabilities.canRegisterPush == true,
+            let push = environment.connection?.push
+        {
             Section {
-                if let push = environment.connection?.push, let channels = environment.connection?.pushChannels {
-                    switch push.registration.status {
-                    case .notRequested:
-                        Button("Enable push on this iPhone") {
-                            Task {
-                                await PushRegistrar.requestAuthorizationIfNeeded(store: push)
-                                await push.registerWithBackendIfNeeded()
-                            }
+                switch push.registration.status {
+                case .notRequested:
+                    Button("Enable push on this iPhone") {
+                        Task {
+                            await PushRegistrar.requestAuthorizationIfNeeded(store: push)
+                            await push.registerWithBackendIfNeeded()
+                            await devices.load()
                         }
-                        .accessibilityIdentifier("enable-notifications")
-                    case .authorized:
-                        LabeledContent(
-                            "Push on this iPhone",
-                            value: push.registration.deviceStatusText(offeredChannelIds: channels.offeredIds))
-                        ForEach(channels.rows(muted: push.registration.mutedChannels)) { channel in
-                            Toggle(isOn: channelBinding(push, channel.id)) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(channel.label)
-                                    Text(channel.description)
-                                        .font(PaiTypography.caption.font)
-                                        .foregroundStyle(PaiPalette.Semantic.textMuted)
-                                }
-                            }
-                            .accessibilityIdentifier("push-channel-\(channel.id)")
-                        }
-                    case .denied:
-                        LabeledContent("Push on this iPhone", value: "Off")
-                    case .failed:
-                        LabeledContent("Push on this iPhone", value: "Unavailable")
                     }
+                    .accessibilityIdentifier("enable-notifications")
+                case .authorized:
+                    authorized(push)
+                case .denied:
+                    LabeledContent("Push on this iPhone", value: "Off in iOS Settings")
+                case .failed:
+                    LabeledContent("Push on this iPhone", value: "Unavailable")
+                }
+                if let error = devices.errorMessage {
+                    Text(error)
+                        .font(PaiTypography.caption.font)
+                        .foregroundStyle(PaiPalette.Semantic.errorText)
                 }
             } header: {
                 Text("Push · \(SettingsScope.thisDevice.label)")
             } footer: {
-                Text(footer)
+                Text(footer(push))
             }
             .task { await environment.connection?.pushChannels.load() }
         }
     }
 
-    /// The toggle reads "receive this", the store holds "muted" — the two are opposites, and this
-    /// is the only place they meet. See ``PushRegistration/mutedChannels`` for why what is stored
-    /// is the mute.
-    private func channelBinding(_ push: PushRegistrationStore, _ channelId: String) -> Binding<Bool> {
-        Binding(
-            get: { !push.registration.isMuted(channelId) },
-            set: { wanted in Task { await push.setMuted(!wanted, forChannel: channelId) } }
-        )
+    @ViewBuilder
+    private func authorized(_ push: PushRegistrationStore) -> some View {
+        if let phone = devices.thisDevice {
+            Toggle(
+                "Push on this iPhone",
+                isOn: Binding(
+                    get: { phone.pushEnabled }, set: { on in Task { await devices.setEnabled(on, on: phone) } })
+            )
+            .accessibilityIdentifier("push-enabled")
+            pauseRow(phone)
+            // Through the registration, not the device row: the phone sends its mutes on every
+            // registration, so a mute written only to the row would be put back at the next launch.
+            if environment.connection?.pushChannels.offeredIds.contains("alarm") == true {
+                Toggle(
+                    "Ring alarms on this iPhone",
+                    isOn: Binding(
+                        get: { !push.registration.isMuted("alarm") },
+                        set: { on in Task { await push.setMuted(!on, forChannel: "alarm") } })
+                )
+                .accessibilityIdentifier("push-channel-alarm")
+            }
+        } else if push.registration.registeredToken == nil {
+            LabeledContent("Push on this iPhone", value: "Not yet registered")
+        } else {
+            ProgressView()
+        }
     }
 
-    private var footer: String {
-        switch environment.connection?.push.registration.status {
+    @ViewBuilder
+    private func pauseRow(_ phone: PushDevice) -> some View {
+        if let until = phone.pausedUntilDate(after: Date()) {
+            HStack {
+                Text("Paused until \(until.formatted(date: .omitted, time: .shortened))")
+                    .foregroundStyle(PaiPalette.Semantic.textMuted)
+                Spacer()
+                Button("Resume now") { Task { await devices.resume(phone) } }
+                    .buttonStyle(.borderless)
+                    .accessibilityIdentifier("push-resume")
+            }
+        } else {
+            Menu("Pause push…") {
+                ForEach(PushPausePreset.presets(now: Date(), zone: .current)) { preset in
+                    Button(preset.label) { Task { await devices.pause(phone, until: preset.until) } }
+                }
+            }
+            .accessibilityIdentifier("push-pause")
+        }
+    }
+
+    private func footer(_ push: PushRegistrationStore) -> String {
+        switch push.registration.status {
         case .denied:
             "Turned off in iOS Settings. Only the Settings app can turn it back on."
         case .failed:
             "This device could not be registered with Apple. It will try again next launch."
         case .authorized:
-            "These switches decide what this device also gets as a push. While you are using PAI on any device, nothing is pushed: a short banner at the top of the app shows what arrives."
+            "While you are using PAI on any device, nothing is pushed: a short banner at the top of the app shows what arrives. Nothing is caught up after a pause."
         default:
             "Get a push on this device when something needs you."
         }
+    }
+}
+
+/// The person's other iPhones and browsers: whether each is paused, and a way to pause or resume.
+struct OtherDevicesSection: View {
+    let store: PushDevicesStore
+
+    var body: some View {
+        if !store.otherDevices.isEmpty {
+            Section {
+                ForEach(store.otherDevices) { device in
+                    row(device)
+                }
+            } header: {
+                Text("Your other devices · \(SettingsScope.synced.label)")
+            }
+        }
+    }
+
+    private func row(_ device: PushDevice) -> some View {
+        let paused = device.pausedUntilDate(after: Date())
+        return HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(device.name)
+                Text(detail(device, pausedUntil: paused))
+                    .font(PaiTypography.caption.font)
+                    .foregroundStyle(PaiPalette.Semantic.textMuted)
+            }
+            Spacer(minLength: 0)
+            if paused != nil {
+                Button("Resume now") { Task { await store.resume(device) } }
+                    .buttonStyle(.borderless)
+            } else {
+                Menu("Pause") {
+                    ForEach(PushPausePreset.presets(now: Date(), zone: .current)) { preset in
+                        Button(preset.label) { Task { await store.pause(device, until: preset.until) } }
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("push-device-\(device.id)")
+    }
+
+    private func detail(_ device: PushDevice, pausedUntil: Date?) -> String {
+        if let pausedUntil { return "Paused until \(pausedUntil.formatted(date: .omitted, time: .shortened))" }
+        if !device.pushEnabled { return "Push off" }
+        if let sleep = device.sleep { return "Sleep mode \(sleep.start)–\(sleep.end)" }
+        return "Push on"
     }
 }

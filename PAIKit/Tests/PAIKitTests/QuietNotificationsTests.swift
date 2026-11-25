@@ -147,44 +147,14 @@ final class QuietNotificationsTests: XCTestCase {
         return try JSONDecoder().decode(SmtpSettings.self, from: Data(json.utf8))
     }
 
-    func testTheDraftCarriesBothSwitchesIntoTheUpdate() throws {
-        var draft = SmtpSettingsDraft(loaded: try smtp(enabled: true, alerts: false))
+    func testTheDraftCarriesTheServersSwitchAndNeverTheOwnersMailChoices() throws {
+        let draft = SmtpSettingsDraft(loaded: try smtp(enabled: true, alerts: true))
         XCTAssertTrue(draft.enabled)
-        XCTAssertFalse(draft.alertsEnabled)
-        draft.alertsEnabled = true
-        let update = draft.asUpdate()
         let object = try XCTUnwrap(
-            try JSONSerialization.jsonObject(with: JSONEncoder().encode(update)) as? [String: Any])
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(draft.asUpdate())) as? [String: Any])
         XCTAssertEqual(object["enabled"] as? Bool, true)
-        XCTAssertEqual(object["alerts_enabled"] as? Bool, true)
+        XCTAssertNil(object["alerts_enabled"])
+        XCTAssertNil(object["recipient"])
     }
 
-    func testTheRowSummaryNamesWhatIsMailed() async throws {
-        let off = try await Self.storeLoaded(with: "\"enabled\":false,\"alerts_enabled\":true")
-        let offSummary = await off.summary
-        XCTAssertEqual(offSummary, "Off")
-        let agentOnly = try await Self.storeLoaded(with: "\"enabled\":true,\"alerts_enabled\":false")
-        let agentOnlySummary = await agentOnly.summary
-        XCTAssertEqual(agentOnlySummary, "Agent mail only")
-        let both = try await Self.storeLoaded(with: "\"enabled\":true,\"alerts_enabled\":true")
-        let bothSummary = await both.summary
-        XCTAssertEqual(bothSummary, "a@b.c")
-    }
-
-    @MainActor
-    private static func storeLoaded(with switches: String) async throws -> SmtpSettingsStore {
-        PaiStubURLProtocol.stub = .init(
-            statusCode: 200, headers: ["Content-Type": "application/json"],
-            body: Data(
-                """
-                {"host":"h","port":587,"security":"starttls","username":null,"from_address":null,
-                 "recipient":"a@b.c",\(switches),"updated_at":"2026-01-01T00:00:00Z"}
-                """.utf8))
-        let factory = try PaiRequestFactory(
-            baseURL: "https://pai.example.com", deviceName: "Test iPhone", tokenProvider: { "jwt" })
-        let api = PaiApiClient(requestFactory: factory, urlSession: PaiStubURLProtocol.makeSession())
-        let store = SmtpSettingsStore(apiClient: api)
-        await store.load()
-        return store
-    }
 }

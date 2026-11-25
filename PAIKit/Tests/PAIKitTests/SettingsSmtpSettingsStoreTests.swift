@@ -102,18 +102,6 @@ final class SettingsSmtpSettingsStoreTests: XCTestCase {
         XCTAssertTrue(isPortValid)
     }
 
-    func testRecipientWithoutAtSignIsInvalid() async throws {
-        stubSmtpSettings()
-        let store = try await Self.makeStore()
-        await store.load()
-
-        await MainActor.run { store.draft?.recipient = "not-an-email" }
-        let isRecipientValid = await store.isRecipientValid
-        let canSave = await store.canSave
-        XCTAssertFalse(isRecipientValid)
-        XCTAssertFalse(canSave, "an invalid recipient blocks Save even though the draft is dirty")
-    }
-
     func testSaveSendsTheWholeDraftNotASelectivePatch() async throws {
         stubSmtpSettings()
         let store = try await Self.makeStore()
@@ -131,9 +119,13 @@ final class SettingsSmtpSettingsStoreTests: XCTestCase {
         // Every writable field must be present — SmtpSettingsUpdate's synthesized Encodable
         // cannot express "leave alone" vs "clear to null" for an omitted key, so this store
         // follows the web's whole-draft Save rather than a patch that could silently drop one.
-        for field in ["host", "port", "security", "recipient", "enabled", "alerts_enabled"] {
+        for field in ["host", "port", "security", "enabled"] {
             XCTAssertTrue(object.keys.contains(field), "\(field) missing from the PUT body")
         }
+        // Those two belong to the person (Notifications); naming them here would write back whatever
+        // this draft read when it loaded.
+        XCTAssertFalse(object.keys.contains("recipient"))
+        XCTAssertFalse(object.keys.contains("alerts_enabled"))
     }
 
     func testSaveClearsDirtyOnSuccess() async throws {

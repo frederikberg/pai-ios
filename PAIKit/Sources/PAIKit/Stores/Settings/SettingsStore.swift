@@ -67,7 +67,10 @@ public final class SettingsStore {
     public let smtp: SmtpSettingsStore
     public let alerts: AlertsStore
     public let alertRouting: AlertRoutingStore
-    public let computerModel: ComputerModelStore
+    public let computerChoices: ComputerChoicesStore
+    public let pushDevices: PushDevicesStore
+    public let connections: ConnectionsStore
+    public let modelRoutes: ModelRoutesStore
     public let statusMessage: StatusMessageStore
     public let sessionDefaults: SessionDefaultsStore
     /// The settings the server declares once: the person's own (recording mode, mail switch,
@@ -97,7 +100,10 @@ public final class SettingsStore {
         self.smtp = SmtpSettingsStore(apiClient: apiClient)
         self.alerts = AlertsStore(api: apiClient)
         self.alertRouting = AlertRoutingStore(api: apiClient)
-        self.computerModel = ComputerModelStore(api: apiClient)
+        self.computerChoices = ComputerChoicesStore(api: apiClient)
+        self.pushDevices = PushDevicesStore(api: apiClient)
+        self.connections = ConnectionsStore(api: apiClient)
+        self.modelRoutes = ModelRoutesStore(api: apiClient)
         self.statusMessage = StatusMessageStore(api: apiClient)
         self.sessionDefaults = SessionDefaultsStore(api: apiClient)
         self.registry = SettingsRegistryStore(api: apiClient, cache: storage)
@@ -114,6 +120,24 @@ public final class SettingsStore {
         let storedBudget: Int? = storage.value(forKey: Keys.notesCacheBudgetBytes)
         notesCacheBudgetBytes = storedBudget.flatMap { $0 > 0 ? $0 : nil } ?? NotesCacheBudget.defaultBytes
     }
+
+    // MARK: - Keys
+
+    /// The write-only field of a stored secret, by name. The three the app reads at launch are the
+    /// fields that gate voice and Computer, so a key set on a connection's card updates what they
+    /// show; any other allowlisted name gets a field of its own.
+    public func keyField(forSecret name: String) -> WriteOnlySecretField {
+        let secret = SecretName(rawValue: name)
+        for field in [elevenLabsKey, homeAssistantToken, todoistToken, smtp.password] where field.name == secret {
+            return field
+        }
+        if let field = extraKeyFields[name] { return field }
+        let field = WriteOnlySecretField(name: secret, apiClient: apiClient)
+        extraKeyFields[name] = field
+        return field
+    }
+
+    @ObservationIgnored private var extraKeyFields: [String: WriteOnlySecretField] = [:]
 
     // MARK: - Client-side settings, immediate apply
 
