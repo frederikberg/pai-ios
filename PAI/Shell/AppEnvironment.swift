@@ -427,7 +427,7 @@ final class AppEnvironment {
             decisions: DecisionsStore(api: client, capabilities: { [weak me] in me?.capabilities ?? .unknown }),
             secretGrants: secretGrants,
             location: LocationReportStore(
-                api: client, userSettings: settingsStore.userSettings, cache: defaults,
+                api: client, settings: settingsStore.registry, cache: defaults,
                 placeName: { latitude, longitude in
                     await LocationReporter.placeName(latitude: latitude, longitude: longitude)
                 }),
@@ -435,7 +435,7 @@ final class AppEnvironment {
         )
         PlaybackController.shared.configure(
             api: client, transcript: transcript, sessions: sessions, toasts: toasts,
-            userSettings: settingsStore.userSettings, voice: voice, computerCall: computerCall)
+            settings: settingsStore.registry, voice: voice, computerCall: computerCall)
         lastAuthFailure = nil
         router.gate = .ready
         return true
@@ -463,9 +463,10 @@ final class AppEnvironment {
         if connection.me.capabilities.canReadSecrets {
             await connection.settings.refreshSecretPresence()
         }
-        // The person's own settings (recording mode, e-mail switch, playback speed) are read once
-        // per launch; the Settings screen reads them again when it opens.
-        await connection.settings.userSettings.load()
+        // The settings registry (the person's recording mode, playback speed, mail switch, and for
+        // the owner the instance's) is read once per launch; the Settings screen reads it again
+        // when it opens.
+        await connection.settings.registry.load()
         if connection.me.capabilities.canOpenWeather {
             await connection.location.resolveCurrentSignIn()
             LocationReporter.shared.reconcile()

@@ -168,6 +168,17 @@
                 }
                 return Match(status: 200) { PaiFixtures.notePatched(id: note.id, requestBody: body) ?? Data() }
             }
+            // The settings registry answers for the role `-PaiFixtureRole` asks for, and a write is
+            // answered with the values as they stand.
+            if path == "/api/settings" || path == "/api/settings/person" || path == "/api/settings/instance",
+                let answer = PaiFixtures.settingsRoute(
+                    method: method, path: path, guest: PaiFixtureLaunch.requestedRole(arguments: arguments) == "guest")
+            {
+                return Match(status: 200) { answer }
+            }
+            if method == "GET", path == "/api/sign-ins", query.contains(where: { $0.name == "everyone" }) {
+                return Match(status: 200) { PaiFixtures.data(PaiFixtures.allSignIns) }
+            }
             // The Me routes read the state `-PaiFixtureMe` asks for and echo a create back.
             if path.hasPrefix("/api/me/"),
                 let answer = PaiFixtures.meRoute(
@@ -266,9 +277,9 @@
             exact("GET", "/api/session-models") { PaiFixtures.sessionModels },
             exact("GET", "/api/settings/llm") { PaiFixtures.sessionDefaults },
             exact("GET", "/api/playback/voices") { PaiFixtures.playbackVoices },
-            exact("GET", "/api/settings/me") { PaiFixtures.mySettings },
-            exact("PUT", "/api/settings/me") { PaiFixtures.mySettings },
-            exact("GET", "/api/me") { PaiFixtures.me },
+            exact("GET", "/api/me") {
+                PaiFixtureLaunch.requestedRole() == "guest" ? PaiFixtures.meGuest : PaiFixtures.me
+            },
             exact("GET", "/api/agents") { PaiFixtures.agents },
             exact("GET", "/api/sessions") { sessionsFixtureBody() },
             exact("GET", "/api/sessions/search") { PaiFixtures.sessionSearchResults },

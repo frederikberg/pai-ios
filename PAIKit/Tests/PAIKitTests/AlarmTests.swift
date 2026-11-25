@@ -114,15 +114,20 @@ final class AlarmTests: XCTestCase {
         XCTAssertTrue(created.key.hasPrefix("pw_"))
     }
 
-    func testRingSettingsRideTheUserSettingsWithTheContractsNames() throws {
-        let settings = try decode(UserSettings.self, PaiFixtures.mySettings)
-        XCTAssertEqual(settings.alarmRingIntervalS, 5)
-        XCTAssertEqual(settings.alarmRingDurationS, 60)
+    @MainActor
+    func testRingSettingsAreRegistryKeysWithTheContractsNames() async throws {
+        let response = try decode(SettingsResponse.self, PaiFixtures.settingsRegistryOwner)
+        let api = FakeSettingsRegistryApi(response: response)
+        let store = SettingsRegistryStore(api: api, cache: SettingsInMemoryKeyValueStore())
+        await store.load()
+        XCTAssertEqual(store.alarmRingIntervalS, 5)
+        XCTAssertEqual(store.alarmRingDurationS, 60)
 
-        let data = try JSONEncoder().encode(UserSettingsPatch(alarmRingIntervalS: 10))
-        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Int])
-        XCTAssertEqual(json, ["alarm_ring_interval_s": 10])
-        XCTAssertEqual(UserSettingsPatch(alarmRingDurationS: 90).applied(to: settings).alarmRingDurationS, 90)
+        let saved = await store.updatePerson(["alarm_ring_interval_s": .whole(10)])
+        XCTAssertTrue(saved)
+        XCTAssertEqual(store.alarmRingIntervalS, 10)
+        let sent = await api.personPatches
+        XCTAssertEqual(sent.map { $0.mapValues(\.intValue) }, [["alarm_ring_interval_s": 10]])
     }
 
     func testTheAlarmPushChannelIsServedAndMutable() throws {

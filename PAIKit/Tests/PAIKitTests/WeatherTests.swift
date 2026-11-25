@@ -8,10 +8,10 @@ import XCTest
 
 private actor FakeLocationApi: LocationApiClient {
     private(set) var posted: [LocationReport] = []
-    private var signIns: [PaiSignIn]
+    private var signIns: [SignIn]
     private var postError: Error?
 
-    init(signIns: [PaiSignIn] = [PaiSignIn(id: "me", active: true, current: true)]) { self.signIns = signIns }
+    init(signIns: [SignIn] = [SignIn(id: "me", active: true, current: true)]) { self.signIns = signIns }
 
     func failPosts(with error: Error?) { postError = error }
 
@@ -20,17 +20,7 @@ private actor FakeLocationApi: LocationApiClient {
         posted.append(report)
     }
 
-    func listMySignIns() async throws -> [PaiSignIn] { signIns }
-}
-
-private actor FakeSettingsApi: UserSettingsApiClient {
-    private var row: UserSettings
-    init(row: UserSettings) { self.row = row }
-    func getMySettings() async throws -> UserSettings { row }
-    func updateMySettings(_ patch: UserSettingsPatch) async throws -> UserSettings {
-        row = patch.applied(to: row)
-        return row
-    }
+    func listMySignIns() async throws -> [SignIn] { signIns }
 }
 
 private actor PlaceCounter {
@@ -98,18 +88,21 @@ final class WeatherTests: XCTestCase {
         XCTAssertEqual(weather.now.reason, .unrecognized("moon"))
     }
 
-    func testLocationSignInRidesUserSettingsAndCanBeCleared() throws {
-        let settings = try JSONDecoder().decode(UserSettings.self, from: Data(PaiFixtures.mySettings.utf8))
-        XCTAssertNil(settings.locationSignInId)
-        func sent(_ patch: UserSettingsPatch) throws -> [String: Any] {
-            try JSONSerialization.jsonObject(with: JSONEncoder().encode(patch)) as? [String: Any] ?? [:]
-        }
-        XCTAssertEqual(
-            try sent(UserSettingsPatch(locationSignIn: .set("abc")))["location_sign_in_id"] as? String, "abc")
-        XCTAssertTrue(try sent(UserSettingsPatch(locationSignIn: .clear))["location_sign_in_id"] is NSNull)
-        XCTAssertTrue(
-            try sent(UserSettingsPatch(emailNotifications: true)).keys.contains("location_sign_in_id") == false)
-        XCTAssertEqual(UserSettingsPatch(locationSignIn: .set("abc")).applied(to: settings).locationSignInId, "abc")
+    @MainActor
+    func testLocationSignInIsARegistryKeyAndCanBeCleared() async throws {
+        let response = try JSONDecoder().decode(
+            SettingsResponse.self, from: Data(PaiFixtures.settingsRegistryOwner.utf8))
+        let api = FakeSettingsRegistryApi(response: response)
+        let store = SettingsRegistryStore(api: api, cache: SettingsInMemoryKeyValueStore())
+        await store.load()
+        XCTAssertNil(store.locationSignInId)
+
+        await store.updatePerson(["location_sign_in_id": .string("abc")])
+        XCTAssertEqual(store.locationSignInId, "abc")
+        await store.updatePerson(["location_sign_in_id": .null])
+        XCTAssertNil(store.locationSignInId, "a cleared phone is null, not absent")
+        let sent = await api.personPatches
+        XCTAssertEqual(sent.map { $0["location_sign_in_id"] }, [.string("abc"), .null])
     }
 
     func testTheLocationReportEncodesTheContractsNames() throws {
@@ -205,11 +198,16 @@ final class WeatherTests: XCTestCase {
         api: FakeLocationApi, chosen: String?, places: PlaceCounter = PlaceCounter(), place: String? = "Aachen",
         clock: Clock = Clock(Date(timeIntervalSince1970: 1_800_000_000))
     ) async -> LocationReportStore {
-        let settings = UserSettingsStore(
-            api: FakeSettingsApi(row: UserSettings(locationSignInId: chosen)), cache: SettingsInMemoryKeyValueStore())
+        var response = try! JSONDecoder().decode(
+            SettingsResponse.self, from: Data(PaiFixtures.settingsRegistryOwner.utf8))
+        var person = response.person
+        person["location_sign_in_id"] = chosen.map { .string($0) } ?? .null
+        response = SettingsResponse(schema: response.schema, person: person, instance: response.instance)
+        let settings = SettingsRegistryStore(
+            api: FakeSettingsRegistryApi(response: response), cache: SettingsInMemoryKeyValueStore())
         await settings.load()
         let store = LocationReportStore(
-            api: api, userSettings: settings, cache: SettingsInMemoryKeyValueStore(),
+            api: api, settings: settings, cache: SettingsInMemoryKeyValueStore(),
             placeName: { _, _ in await places.next(place) }, now: { clock.date })
         await store.resolveCurrentSignIn()
         return store
@@ -333,7 +331,7 @@ final class WeatherTests: XCTestCase {
 
     @MainActor
     func testTheToggleRefusesWhenThisSignInCannotBeNamed() async {
-        let api = FakeLocationApi(signIns: [PaiSignIn(id: "x", active: true, current: false)])
+        let api = FakeLocationApi(signIns: [SignIn(id: "x", active: true, current: false)])
         let store = await makeStore(api: api, chosen: nil)
         let on = await store.setUsesThisDevice(true)
         XCTAssertFalse(on)

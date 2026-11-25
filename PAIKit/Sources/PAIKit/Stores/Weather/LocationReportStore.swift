@@ -3,7 +3,7 @@ import Observation
 
 public protocol LocationApiClient: Sendable {
     func postLocation(_ report: LocationReport) async throws
-    func listMySignIns() async throws -> [PaiSignIn]
+    func listMySignIns() async throws -> [SignIn]
 }
 
 extension PaiApiClient: LocationApiClient {}
@@ -34,7 +34,7 @@ public final class LocationReportStore {
     public private(set) var errorMessage: String?
 
     private let api: LocationApiClient
-    private let userSettings: UserSettingsStore
+    private let settings: SettingsRegistryStore
     private let cache: SettingsKeyValueStore
     private let placeName: PlaceNameResolver
     private let now: @Sendable () -> Date
@@ -44,11 +44,11 @@ public final class LocationReportStore {
     private var queued: LocationFix?
 
     public init(
-        api: LocationApiClient, userSettings: UserSettingsStore, cache: SettingsKeyValueStore,
+        api: LocationApiClient, settings: SettingsRegistryStore, cache: SettingsKeyValueStore,
         placeName: @escaping PlaceNameResolver, now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.api = api
-        self.userSettings = userSettings
+        self.settings = settings
         self.cache = cache
         self.placeName = placeName
         self.now = now
@@ -57,7 +57,7 @@ public final class LocationReportStore {
 
     /// Whether this phone is the one that reports.
     public var usesThisDevice: Bool {
-        guard let chosen = userSettings.settings?.locationSignInId else { return false }
+        guard let chosen = settings.locationSignInId else { return false }
         return chosen == currentSignInId
     }
 
@@ -80,10 +80,10 @@ public final class LocationReportStore {
                 errorMessage = "Could not tell which sign-in this iPhone is"
                 return false
             }
-            return await userSettings.update(UserSettingsPatch(locationSignIn: .set(id)))
+            return await settings.updatePerson(["location_sign_in_id": .string(id)])
         }
         guard usesThisDevice else { return true }
-        return await userSettings.update(UserSettingsPatch(locationSignIn: .clear))
+        return await settings.updatePerson(["location_sign_in_id": .null])
     }
 
     /// Sends one fix. Nothing leaves a phone that is not the chosen one. A fix that arrives while

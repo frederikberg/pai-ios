@@ -24,7 +24,7 @@ final class PlaybackController {
     @ObservationIgnored private var transcript: TranscriptStore?
     @ObservationIgnored private var sessions: SessionListStore?
     @ObservationIgnored private var toasts: ToastCenter?
-    @ObservationIgnored private var userSettings: UserSettingsStore?
+    @ObservationIgnored private var settings: SettingsRegistryStore?
     @ObservationIgnored private var voice: VoiceRecorderController?
     @ObservationIgnored private var computerCall: ComputerCallController?
     @ObservationIgnored private let silence = SilentKeepAlive()
@@ -56,14 +56,14 @@ final class PlaybackController {
 
     func configure(
         api: PaiApiClient, transcript: TranscriptStore, sessions: SessionListStore, toasts: ToastCenter,
-        userSettings: UserSettingsStore, voice: VoiceRecorderController, computerCall: ComputerCallController
+        settings: SettingsRegistryStore, voice: VoiceRecorderController, computerCall: ComputerCallController
     ) {
         generation += 1
         let mine = generation
         self.transcript = transcript
         self.sessions = sessions
         self.toasts = toasts
-        self.userSettings = userSettings
+        self.settings = settings
         self.voice = voice
         self.computerCall = computerCall
         watcher = PlaybackReplyWatcher()
@@ -71,7 +71,7 @@ final class PlaybackController {
             toasts?.show(message, kind: warning ? .error : .info)
         }
         registerRemoteCommands()
-        track(mine, { userSettings.settings?.playbackSpeed }) { [weak self] in self?.applySpeed() }
+        track(mine, { settings.playbackSpeed }) { [weak self] in self?.applySpeed() }
         applySpeed()
         track(mine, { [store] in store.modes }) { [weak self] in self?.watchArrivals() }
         track(mine, { transcript.messages }) { [weak self] in self?.watchArrivals() }
@@ -100,7 +100,7 @@ final class PlaybackController {
         transcript = nil
         sessions = nil
         toasts = nil
-        userSettings = nil
+        settings = nil
         voice = nil
         computerCall = nil
         updateKeepAlive()
@@ -190,8 +190,8 @@ final class PlaybackController {
     /// The person's speed: shown at once, saved to their settings.
     func setSpeed(_ speed: Double) {
         engine?.setSpeed(speed)
-        guard let userSettings else { return }
-        Task { await userSettings.update(UserSettingsPatch(playbackSpeed: speed)) }
+        guard let settings else { return }
+        Task { await settings.updatePerson(["playback_speed": .double(speed)]) }
     }
 
     func playableReplies(in sessionId: String) -> [Message] {
@@ -205,7 +205,7 @@ final class PlaybackController {
     // MARK: Following the app
 
     private func applySpeed() {
-        let speed = userSettings?.settings?.playbackSpeed ?? 1
+        let speed = settings?.playbackSpeed ?? 1
         guard speed != store.speed else { return }
         engine?.setSpeed(speed)
     }
