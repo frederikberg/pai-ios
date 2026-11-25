@@ -111,19 +111,18 @@ public enum ConnectionStatus: WireStringEnum {
     }
 }
 
-/// Where a key comes from: stored through the API, the deployment's variable, or nowhere.
+/// Where a key comes from: stored through the API, or nowhere.
 public enum CredentialSource: WireStringEnum {
-    case stored, environment, none
+    case stored, none
     case unrecognized(String)
 
     public static var knownValues: [String: CredentialSource] {
-        ["stored": .stored, "environment": .environment, "none": .none]
+        ["stored": .stored, "none": .none]
     }
 
     public var wireValue: String {
         switch self {
         case .stored: "stored"
-        case .environment: "environment"
         case .none: "none"
         case let .unrecognized(raw): raw
         }

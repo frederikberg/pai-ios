@@ -97,30 +97,6 @@ extension PaiFixtures {
         }
         """#
 
-    /// `GET /api/settings/llm` — what the API session kinds and fast sessions run on by default.
-    public static let sessionDefaults: String = #"""
-        {
-          "ultrafast": {
-            "model": "claude-haiku-5-5", "reasoning_effort": "none",
-            "models": {
-              "claude-haiku-5-5": { "provider": "anthropic", "efforts": ["none", "low"] },
-              "google/gemma-4-31B-it": { "provider": "infomaniak", "efforts": [] }
-            }
-          },
-          "fast": {
-            "model": "sonnet", "thinking": "low",
-            "models": { "sonnet": ["low", "medium", "high"], "opus": ["low", "medium", "high"] }
-          },
-          "mailverdict": {
-            "model": "claude-opus-5-5", "reasoning_effort": "low",
-            "models": {
-              "claude-opus-5-5": { "provider": "anthropic", "efforts": ["none", "low", "medium"] },
-              "claude-sonnet-5-5": { "provider": "anthropic", "efforts": ["none", "low", "medium"] }
-            }
-          }
-        }
-        """#
-
     // MARK: - Identity and health
 
     /// `GET /api/me`. `identity` is a synthetic value, not a real one — nothing about

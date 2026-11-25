@@ -31,11 +31,9 @@ public struct PushRegistration: Codable, Sendable, Equatable {
     /// registration that failed to reach the backend is distinguishable from one that never
     /// happened — the two look identical if only the token is stored.
     public var registeredToken: String?
-    /// The ids of the channels this device has switched off (`GET /api/push/channels` lists what
-    /// exists). What is stored is the mute, never the wish: an opt-in list would leave a channel
-    /// added later silently off for every registered device, an opt-out list has it arrive on and
-    /// only an explicit mute turns it off. Plain strings, so an id this build has never heard of
-    /// is kept and sent back rather than dropped. The backend rejects an id it does not know.
+    /// The ids of the channels this device has switched off: only `alarm`, the one switch a phone
+    /// keeps for itself. What is stored is the mute, never the wish, so a channel added later
+    /// arrives on. The backend refuses any other id.
     public var mutedChannels: Set<String>
     /// The muted set the backend has confirmed, held apart from the local one for the same reason
     /// the two token fields are held apart. `nil` means the backend has never been told, which is
@@ -71,19 +69,6 @@ public struct PushRegistration: Codable, Sendable, Equatable {
     }
 
     public func isMuted(_ channelId: String) -> Bool { mutedChannels.contains(channelId) }
-
-    /// The one-line state of an authorized device: not yet known to the backend, off because
-    /// every channel is muted, or on.
-    public func deviceStatusText(offeredChannelIds: [String]) -> String {
-        if registeredToken == nil { return "Not yet registered" }
-        return isPushOff(offeredChannelIds: offeredChannelIds) ? "Off" : "On"
-    }
-
-    /// Push is off for this device when every channel on offer is muted. The notifications
-    /// screen is unaffected: a notification is stored whatever a device does with its pushes.
-    public func isPushOff(offeredChannelIds: [String]) -> Bool {
-        !offeredChannelIds.isEmpty && offeredChannelIds.allSatisfy(mutedChannels.contains)
-    }
 
     /// Whether the backend needs to be told about this device.
     ///

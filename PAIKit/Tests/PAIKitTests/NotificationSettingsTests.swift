@@ -3,75 +3,6 @@ import XCTest
 
 @testable import PAIKit
 
-private actor FakePushChannelsApi: PushChannelsApiClient {
-    var response: Result<PushChannelsResponse, PaiError> = .success(PushChannelsResponse(channels: []))
-    private(set) var calls = 0
-
-    func setResponse(_ response: Result<PushChannelsResponse, PaiError>) { self.response = response }
-
-    func getPushChannels() async throws -> PushChannelsResponse {
-        calls += 1
-        return try response.get()
-    }
-}
-
-@MainActor
-final class PushChannelsStoreTests: XCTestCase {
-
-    private let served = [
-        PushChannelInfo(id: "default", label: "Agent messages", description: "d1", kinds: ["agent"]),
-        PushChannelInfo(id: "alerts", label: "Alerts", description: "d2", kinds: ["alert"]),
-    ]
-
-    func testSwitchesAreTheServedChannelsInTheServersOrder() async {
-        let api = FakePushChannelsApi()
-        await api.setResponse(.success(PushChannelsResponse(channels: served)))
-        let store = PushChannelsStore(api: api)
-
-        await store.load()
-
-        XCTAssertEqual(store.rows(muted: []).map(\.label), ["Agent messages", "Alerts"])
-        XCTAssertEqual(store.offeredIds, ["default", "alerts"])
-    }
-
-    /// A mute this device holds for a channel the server no longer lists must stay reachable, or
-    /// the registration carries it for good with no switch to undo it.
-    func testAMutedIdTheServerDoesNotListStaysAsASwitch() async {
-        let api = FakePushChannelsApi()
-        await api.setResponse(.success(PushChannelsResponse(channels: served)))
-        let store = PushChannelsStore(api: api)
-        await store.load()
-
-        let rows = store.rows(muted: ["alerts", "digest"])
-
-        XCTAssertEqual(rows.map(\.id), ["default", "alerts", "digest"])
-        XCTAssertEqual(rows.last?.label, "digest")
-    }
-
-    /// Before the list has loaded nothing is known, so no switch is invented from the mutes alone.
-    func testNothingIsInventedBeforeTheListLoads() {
-        let store = PushChannelsStore(api: FakePushChannelsApi())
-        XCTAssertEqual(store.rows(muted: ["digest"]), [])
-    }
-
-    func testAFailedLoadIsRetriedAndASuccessfulOneIsNot() async {
-        let api = FakePushChannelsApi()
-        await api.setResponse(.failure(.transport("offline")))
-        let store = PushChannelsStore(api: api)
-
-        await store.load()
-        XCTAssertNil(store.channels)
-
-        await api.setResponse(.success(PushChannelsResponse(channels: served)))
-        await store.load()
-        await store.load()
-
-        XCTAssertEqual(store.channels, served)
-        let calls = await api.calls
-        XCTAssertEqual(calls, 2)
-    }
-}
-
 private actor FakeAlertRoutingApi: AlertRoutingApiClient {
     var current: AlertRoutingSettings
     private(set) var updates: [AlertRoutingUpdate] = []
@@ -248,25 +179,15 @@ final class NotificationSettingsWireTests: XCTestCase {
             statusCode: 200, headers: ["Content-Type": "application/json"], body: Data(json.utf8))
     }
 
-    func testPushChannelsDecodeWithTheirKinds() async throws {
-        stub(
-            #"{"channels":[{"id":"default","label":"Agent messages","description":"d","kinds":["agent"]}]}"#)
-        let response = try await makeClient().getPushChannels()
-
-        XCTAssertEqual(PaiStubURLProtocol.capturedRequest?.url?.path, "/api/push/channels")
-        XCTAssertEqual(response.channels.first?.id, "default")
-        XCTAssertEqual(response.channels.first?.kinds, ["agent"])
-    }
-
     /// The muted list is sent even when empty, ids unchanged: an absent field would leave a
     /// cleared last mute in place on the server.
     func testRegisteringSendsTheMutedIdsAsGiven() async throws {
-        stub(#"{"token":"abc","registered":true,"last_seen_at":null,"muted_channels":["digest"]}"#)
-        let result = try await makeClient().registerDevice(token: "abc", mutedChannels: ["digest"])
+        stub(#"{"token":"abc","registered":true,"last_seen_at":null,"muted_channels":["alarm"]}"#)
+        let result = try await makeClient().registerDevice(token: "abc", mutedChannels: ["alarm"])
 
         let body = String(data: PaiStubURLProtocol.capturedBody ?? Data(), encoding: .utf8) ?? ""
-        XCTAssertTrue(body.contains(#""muted_channels":["digest"]"#), body)
-        XCTAssertEqual(result.mutedChannels, ["digest"])
+        XCTAssertTrue(body.contains(#""muted_channels":["alarm"]"#), body)
+        XCTAssertEqual(result.mutedChannels, ["alarm"])
 
         stub(#"{"token":"abc","registered":true,"last_seen_at":null,"muted_channels":[]}"#)
         _ = try await makeClient().registerDevice(token: "abc", mutedChannels: [])

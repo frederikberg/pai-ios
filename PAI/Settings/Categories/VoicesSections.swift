@@ -61,21 +61,11 @@ struct VoicesSections: View {
                     registry: registry, voices: settings.playbackVoices, key: "computer_voice_id", title: "Voice",
                     emptyLabel: { _ in "Same as calls" })
                 RegistryRows(store: registry, keys: ["computer_speed", "computer_turn_preset"])
-                if let summary = presetSummary {
-                    Text(summary)
-                        .font(PaiTypography.caption.font)
-                        .foregroundStyle(PaiPalette.Semantic.textMuted)
-                }
                 DisclosureGroup("Advanced") {
                     RegistryRows(store: registry, keys: ["computer_turn_tunables"])
                 }
             }
         }
-    }
-
-    private var presetSummary: String? {
-        guard let choices = settings.computerChoices.choices else { return nil }
-        return choices.summary(ofPreset: registry.person["computer_turn_preset"]?.stringValue ?? "")
     }
 
     private var readAloudFact: String {

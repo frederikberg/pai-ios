@@ -1117,178 +1117,6 @@ public struct SecretStatusMap: Codable, Sendable, Equatable {
     }
 }
 
-// MARK: - Voice settings
-//
-// The person's own voice and dictation settings are registry keys (`SettingsRegistryStore`).
-// What is read of the older voice route is the choices the backend offers for the turn-taking
-// presets.
-
-/// One turn-taking tunable as the backend stores it: a number, the `turn_cue` switch, or `null`
-/// ("never") for the two silence waits.
-public enum ComputerTunableValue: Codable, Sendable, Equatable {
-    case number(Double)
-    case flag(Bool)
-    case never
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if container.decodeNil() {
-            self = .never
-        } else if let flag = try? container.decode(Bool.self) {
-            self = .flag(flag)
-        } else {
-            self = .number(try container.decode(Double.self))
-        }
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .number(let value): try container.encode(value)
-        case .flag(let value): try container.encode(value)
-        case .never: try container.encodeNil()
-        }
-    }
-}
-
-/// What the backend offers for the `computer_*` voice fields (`computer_choices`), with the
-/// default each `null` stands for. A client lists these instead of keeping its own copy. Keys the
-/// backend no longer sends (the engine list and its default) are not read.
-public struct ComputerChoices: Codable, Sendable, Equatable {
-    public struct Defaults: Codable, Sendable, Equatable {
-        public let computerClaudeModel: String
-        public let computerClaudeEffort: String
-        public let computerTurnPreset: String
-
-        enum CodingKeys: String, CodingKey {
-            case computerClaudeModel = "computer_claude_model"
-            case computerClaudeEffort = "computer_claude_effort"
-            case computerTurnPreset = "computer_turn_preset"
-        }
-
-        public init(computerClaudeModel: String, computerClaudeEffort: String, computerTurnPreset: String) {
-            self.computerClaudeModel = computerClaudeModel
-            self.computerClaudeEffort = computerClaudeEffort
-            self.computerTurnPreset = computerTurnPreset
-        }
-    }
-
-    /// Each Computer model and the efforts it accepts, cheapest first.
-    public let claudeModels: [String: [String]]
-    /// Every preset's tunables; a `null` silence wait means "never".
-    public let turnPresets: [String: [String: ComputerTunableValue]]
-    /// Each numeric tunable's inclusive `[low, high]`.
-    public let tunableBounds: [String: [Double]]
-    public let defaults: Defaults
-
-    enum CodingKeys: String, CodingKey {
-        case claudeModels = "claude_models"
-        case turnPresets = "turn_presets"
-        case tunableBounds = "tunable_bounds"
-        case defaults
-    }
-
-    public init(
-        claudeModels: [String: [String]],
-        turnPresets: [String: [String: ComputerTunableValue]], tunableBounds: [String: [Double]] = [:],
-        defaults: Defaults
-    ) {
-        self.claudeModels = claudeModels
-        self.turnPresets = turnPresets
-        self.tunableBounds = tunableBounds
-        self.defaults = defaults
-    }
-
-    /// Model ids in a stable order — a dictionary has none.
-    public var modelIds: [String] { claudeModels.keys.sorted() }
-    public var presetNames: [String] { turnPresets.keys.sorted() }
-
-    /// The efforts `model` accepts; the default model when `model` is empty.
-    public func efforts(forModel model: String) -> [String] {
-        claudeModels[model.isEmpty ? defaults.computerClaudeModel : model] ?? []
-    }
-
-    /// The sentence a preset's picker shows under it.
-    public func summary(ofPreset preset: String) -> String {
-        let name = preset.isEmpty ? defaults.computerTurnPreset : preset
-        guard case .number(let end)? = turnPresets[name]?["end_wait_s"] else {
-            return "Only \u{201C}computer start\u{201D} ends your turn."
-        }
-        guard case .number(let open)? = turnPresets[name]?["open_wait_s"] else {
-            return "Ends your turn after \(end.formatted()) s of silence."
-        }
-        return "Ends your turn after \(end.formatted()) s of silence (\(open.formatted()) s when it sounds unfinished)."
-    }
-}
-
-public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
-    public let computerClaudeModel: String?
-    public let computerClaudeEffort: String?
-    public let computerTurnPreset: String?
-    /// Overrides laid over the preset; `nil` is none.
-    public let computerTurnTunables: [String: ComputerTunableValue]?
-    /// `nil` from a backend that predates the Computer settings, which hides their group.
-    public let computerChoices: ComputerChoices?
-    public let callVoiceId: String?
-    public let callSpeed: Double
-    public let sttKeyterms: [String]
-    /// Key terms for call mode and Computer, apart from dictation's. Decoded only: the phone has
-    /// no field for it, and the update leaves the key out, which the backend reads as unchanged.
-    public let callSttKeyterms: [String]?
-    /// ISO 639 code; `nil` auto-detects.
-    public let sttLanguage: String?
-    public let sttNoVerbatim: Bool
-    /// Seconds of pause after which a batch take is transcribed in the background; `nil` is off.
-    /// A backend that predates the setting does not send the key, which reads as off.
-    public let sttBatchPauseS: Int?
-    /// Whether the backend keeps debug recordings of what each engine heard. Toggled from the
-    /// Debug Recordings sheet, not from the voice groups.
-    public let debugRecordingsEnabled: Bool
-    public let updatedAt: String
-
-    enum CodingKeys: String, CodingKey {
-        case computerClaudeModel = "computer_claude_model"
-        case computerClaudeEffort = "computer_claude_effort"
-        case computerTurnPreset = "computer_turn_preset"
-        case computerTurnTunables = "computer_turn_tunables"
-        case computerChoices = "computer_choices"
-        case callVoiceId = "call_voice_id"
-        case callSpeed = "call_speed"
-        case sttKeyterms = "stt_keyterms"
-        case callSttKeyterms = "call_stt_keyterms"
-        case sttLanguage = "stt_language"
-        case sttNoVerbatim = "stt_no_verbatim"
-        case sttBatchPauseS = "stt_batch_pause_s"
-        case debugRecordingsEnabled = "debug_recordings_enabled"
-        case updatedAt = "updated_at"
-    }
-
-    public init(
-        computerClaudeModel: String? = nil,
-        computerClaudeEffort: String? = nil, computerTurnPreset: String? = nil,
-        computerTurnTunables: [String: ComputerTunableValue]? = nil,
-        computerChoices: ComputerChoices? = nil,
-        callVoiceId: String?, callSpeed: Double, sttKeyterms: [String], callSttKeyterms: [String]? = nil,
-        sttLanguage: String?, sttNoVerbatim: Bool,
-        sttBatchPauseS: Int?, debugRecordingsEnabled: Bool, updatedAt: String
-    ) {
-        self.computerClaudeModel = computerClaudeModel
-        self.computerClaudeEffort = computerClaudeEffort
-        self.computerTurnPreset = computerTurnPreset
-        self.computerTurnTunables = computerTurnTunables
-        self.computerChoices = computerChoices
-        self.callVoiceId = callVoiceId
-        self.callSpeed = callSpeed
-        self.sttKeyterms = sttKeyterms
-        self.callSttKeyterms = callSttKeyterms
-        self.sttLanguage = sttLanguage
-        self.sttNoVerbatim = sttNoVerbatim
-        self.sttBatchPauseS = sttBatchPauseS
-        self.debugRecordingsEnabled = debugRecordingsEnabled
-        self.updatedAt = updatedAt
-    }
-}
-
 // MARK: - SMTP settings
 //
 // Everything about how PAI sends its own mail except the password, which is a separate
@@ -1327,33 +1155,27 @@ public struct SmtpSettings: Codable, Sendable, Equatable {
     public let security: SmtpSecurity
     public let username: String?
     public let fromAddress: String?
-    public let recipient: String
     /// Master switch: nothing is mailed while off. Mail an agent asks for needs only this.
     public let enabled: Bool
-    /// Alert mails, on top of ``enabled``.
-    public let alertsEnabled: Bool
     public let updatedAt: String
 
     enum CodingKeys: String, CodingKey {
         case host, port, security, username
         case fromAddress = "from_address"
-        case recipient, enabled
-        case alertsEnabled = "alerts_enabled"
+        case enabled
         case updatedAt = "updated_at"
     }
 
     public init(
         host: String?, port: Int, security: SmtpSecurity, username: String?, fromAddress: String?,
-        recipient: String, enabled: Bool, alertsEnabled: Bool, updatedAt: String
+        enabled: Bool, updatedAt: String
     ) {
         self.host = host
         self.port = port
         self.security = security
         self.username = username
         self.fromAddress = fromAddress
-        self.recipient = recipient
         self.enabled = enabled
-        self.alertsEnabled = alertsEnabled
         self.updatedAt = updatedAt
     }
 }
@@ -1374,30 +1196,24 @@ public struct SmtpSettingsUpdate: Encodable, Sendable, Equatable {
     public var security: SmtpSecurity?
     public var username: String?
     public var fromAddress: String?
-    public var recipient: String?
     public var enabled: Bool?
-    public var alertsEnabled: Bool?
 
     enum CodingKeys: String, CodingKey {
         case host, port, security, username
         case fromAddress = "from_address"
-        case recipient, enabled
-        case alertsEnabled = "alerts_enabled"
+        case enabled
     }
 
     public init(
         host: String? = nil, port: Int? = nil, security: SmtpSecurity? = nil, username: String? = nil,
-        fromAddress: String? = nil, recipient: String? = nil, enabled: Bool? = nil,
-        alertsEnabled: Bool? = nil
+        fromAddress: String? = nil, enabled: Bool? = nil
     ) {
         self.host = host
         self.port = port
         self.security = security
         self.username = username
         self.fromAddress = fromAddress
-        self.recipient = recipient
         self.enabled = enabled
-        self.alertsEnabled = alertsEnabled
     }
 }
 

@@ -45,8 +45,8 @@ public final class DebugRecordingsStore {
 
     public func setEnabled(_ enabled: Bool) async {
         do {
-            let settings = try await apiClient.setDebugRecordingsEnabled(enabled)
-            self.enabled = settings.debugRecordingsEnabled
+            let instance = try await apiClient.patchInstanceSettings(["debug_recordings_enabled": .bool(enabled)])
+            self.enabled = instance["debug_recordings_enabled"]?.boolValue
             error = nil
         } catch {
             self.error = (error as? PaiError)?.userMessage ?? "\(error)"

@@ -4,7 +4,7 @@ import XCTest
 /// `SmtpSettingsStore`'s dirty-tracking and validation are the real logic here — the network
 /// calls themselves are already covered by `PaiApiClientTests`. These exercise the
 /// load → edit → dirty → save state machine and the two boundaries the backend also validates
-/// (port range, recipient shape), since a refactor could silently stop enforcing either without
+/// (port range), since a refactor could silently stop enforcing either without
 /// any network test noticing.
 ///
 /// Neither the class nor any test method here is `@MainActor`, even though `SmtpSettingsStore`
@@ -29,15 +29,14 @@ final class SettingsSmtpSettingsStoreTests: XCTestCase {
         return SmtpSettingsStore(apiClient: client)
     }
 
-    private func stubSmtpSettings(recipient: String = "fberg@posteo.de", port: Int = 465) {
+    private func stubSmtpSettings(port: Int = 465) {
         PaiStubURLProtocol.stub = .init(
             statusCode: 200,
             headers: ["Content-Type": "application/json"],
             body: Data(
                 """
                 {"host":null,"port":\(port),"security":"ssl","username":null,
-                 "from_address":null,"recipient":"\(recipient)","enabled":false,
-                 "alerts_enabled":false,"updated_at":"2026-01-01T00:00:00Z"}
+                 "from_address":null,"enabled":false,"updated_at":"2026-01-01T00:00:00Z"}
                 """.utf8)
         )
     }
@@ -111,7 +110,7 @@ final class SettingsSmtpSettingsStoreTests: XCTestCase {
             store.draft?.enabled = true
         }
 
-        stubSmtpSettings(recipient: "fberg@posteo.de")
+        stubSmtpSettings()
         await store.save()
 
         let body = PaiStubURLProtocol.capturedBody.flatMap { try? JSONSerialization.jsonObject(with: $0) }

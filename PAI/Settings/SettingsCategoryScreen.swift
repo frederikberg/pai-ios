@@ -31,7 +31,6 @@ struct SettingsCategoryScreen: View {
         .task {
             await settings.registry.load()
             if category == .voices || category == .voiceSound { await settings.playbackVoices.load() }
-            if category == .voices { await settings.computerChoices.load() }
             if category == .providers || category == .integrations { await settings.connections.load() }
             if category == .models { await settings.modelRoutes.load() }
             if category == .notifications { await settings.pushDevices.load() }

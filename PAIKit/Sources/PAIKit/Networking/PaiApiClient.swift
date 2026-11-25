@@ -764,15 +764,6 @@ public struct PaiApiClient: Sendable {
             body: try Self.jsonBody(Body(model: model, thinking: thinking)))
     }
 
-    /// The defaults of the two session types whose model is a setting.
-    public func getSessionDefaults() async throws -> SessionDefaults {
-        try await send(path: "/api/settings/llm")
-    }
-
-    public func updateSessionDefaults(_ update: SessionDefaultsUpdate) async throws -> SessionDefaults {
-        try await send(path: "/api/settings/llm", method: "PUT", body: try Self.jsonBody(update))
-    }
-
     public func closeSession(sessionId: String) async throws -> CloseResponse {
         try await send(path: "/api/session/\(sessionId)/close", method: "POST", body: nil, contentType: nil)
     }
@@ -1576,17 +1567,6 @@ public struct PaiApiClient: Sendable {
         try await send(path: "/api/status-message", method: "DELETE", body: nil, contentType: nil)
     }
 
-    // MARK: Voice settings — how the two spoken voices sound
-
-    public func getVoiceSettings() async throws -> SpokenVoiceSettings {
-        try await send(path: "/api/settings/voice")
-    }
-
-    public func setDebugRecordingsEnabled(_ enabled: Bool) async throws -> SpokenVoiceSettings {
-        try await send(
-            path: "/api/settings/voice", method: "PUT", body: try Self.jsonBody(["debug_recordings_enabled": enabled]))
-    }
-
     // MARK: Voice takes — offline/backfill batch STT
 
     /// Re-transcribes a stretch of audio in batch through the backend, which holds the
@@ -1860,12 +1840,6 @@ public struct PaiApiClient: Sendable {
             method: "POST",
             body: try Self.jsonBody(Body(token: token, mutedChannels: mutedChannels, sleep: sleep))
         )
-    }
-
-    /// `GET /api/push/channels` — the channels this account's devices can mute, with the label and
-    /// description to show for each. A guest is offered only `default`.
-    public func getPushChannels() async throws -> PushChannelsResponse {
-        try await send(path: "/api/push/channels")
     }
 
     // MARK: Alert routing

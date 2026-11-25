@@ -130,11 +130,6 @@ final class AlarmTests: XCTestCase {
         XCTAssertEqual(sent.map { $0.mapValues(\.intValue) }, [["alarm_ring_interval_s": 10]])
     }
 
-    func testTheAlarmPushChannelIsServedAndMutable() throws {
-        let channels = try decode(PushChannelsResponse.self, PaiFixtures.pushChannels)
-        XCTAssertTrue(channels.channels.contains { $0.id == "alarm" })
-    }
-
     // MARK: Next occurrence
 
     func testAnAheadTimeFiresToday() throws {

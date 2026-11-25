@@ -110,7 +110,6 @@ struct ThisPhoneDeliverySection: View {
             } footer: {
                 Text(footer(push))
             }
-            .task { await environment.connection?.pushChannels.load() }
         }
     }
 
@@ -126,15 +125,13 @@ struct ThisPhoneDeliverySection: View {
             pauseRow(phone)
             // Through the registration, not the device row: the phone sends its mutes on every
             // registration, so a mute written only to the row would be put back at the next launch.
-            if environment.connection?.pushChannels.offeredIds.contains("alarm") == true {
-                Toggle(
-                    "Ring alarms on this iPhone",
-                    isOn: Binding(
-                        get: { !push.registration.isMuted("alarm") },
-                        set: { on in Task { await push.setMuted(!on, forChannel: "alarm") } })
-                )
-                .accessibilityIdentifier("push-channel-alarm")
-            }
+            Toggle(
+                "Ring alarms on this iPhone",
+                isOn: Binding(
+                    get: { !push.registration.isMuted("alarm") },
+                    set: { on in Task { await push.setMuted(!on, forChannel: "alarm") } })
+            )
+            .accessibilityIdentifier("push-channel-alarm")
         } else if push.registration.registeredToken == nil {
             LabeledContent("Push on this iPhone", value: "Not yet registered")
         } else {
