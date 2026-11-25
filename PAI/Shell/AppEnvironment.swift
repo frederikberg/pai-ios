@@ -424,7 +424,7 @@ final class AppEnvironment {
             voice: voice,
             computerCall: computerCall,
             wakeWordSamples: wakeWordSamples,
-            notifications: NotificationCenterStore(api: client),
+            notifications: NotificationCenterStore(api: client, storage: PaiFixtureLaunch.isEnabled() ? nil : defaults),
             transcriptJumps: TranscriptJumpRequests(),
             decisions: DecisionsStore(api: client, capabilities: { [weak me] in me?.capabilities ?? .unknown }),
             secretGrants: secretGrants,
