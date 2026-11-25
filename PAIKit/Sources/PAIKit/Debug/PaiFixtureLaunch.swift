@@ -39,6 +39,7 @@
         static let meTabFlag = "-PaiFixtureMeTab"
         static let meComposerFlag = "-PaiFixtureMeComposer"
         static let alarmSheetFlag = "-PaiFixtureAlarmSheet"
+        static let sessionFiltersFlag = "-PaiFixtureSessionFilters"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -224,6 +225,14 @@
         /// the "At time" or the "In" mode.
         public static func requestedAlarmSheet(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: alarmSheetFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureSessionFilters hideClosed|machine|both`: the session list starts with
+        /// "Hide closed sessions" and/or the second machine chosen.
+        public static func requestedSessionFilters(arguments: [String] = ProcessInfo.processInfo.arguments)
+            -> String?
+        {
+            value(for: sessionFiltersFlag, in: arguments)
         }
 
         /// `-PaiFixtureMeComposer`: the Me composer opens at once over a seeded draft.

@@ -128,11 +128,13 @@ public final class SessionListStore {
     public private(set) var filterQueryText: String = ""
     private var debouncedQuery: String = ""
     public private(set) var machineFilter: String?
+    /// Whether sessions with a grey dot are left out, whichever scope is chosen. Not persisted.
+    public private(set) var hideClosed = false
     /// Which view of the sessions the list shows — the ordinary list, everything including
     /// scheduled-task sessions, or only those. Independent of `machineFilter`; it re-filters
     /// whatever source is active rather than issuing a request, since every session already
     /// carries its own `taskId` once loaded.
-    public private(set) var scope: SessionListScope = .all
+    public private(set) var scope: SessionListScope = .manual
     public private(set) var semanticMode = false
     public private(set) var timeWindow: TimeWindow?
 
@@ -221,9 +223,13 @@ public final class SessionListStore {
             isServerFiltered
             ? serverFilteredResults : syncedSessions.map { SessionSearchResult(session: $0, score: nil, tier: nil) }
         // Exclusive views, not an extra narrowing on top of the ordinary list — a scheduled
-        // session shows under Scheduled and All+ and nowhere else, whether or not a search is
+        // session shows under Scheduled and Both and nowhere else, whether or not a search is
         // also active.
-        let scoped = source.filter { scope.includes($0.session) }
+        // "Hide closed sessions" narrows whichever scope is chosen, and applies to search and
+        // machine-filtered results alike because it sits after them.
+        let scoped = source.filter {
+            scope.includes($0.session) && !(hideClosed && SessionListDomain.hasGreyDot($0.session))
+        }
         // A subagent (opened from its parent's own subagents screen) or a supervisor (opened
         // from its worker's own menu) lands in this same synced store so a chat view can find it
         // by id — neither may ever surface as a row of its own here. A spoken Computer
@@ -251,7 +257,7 @@ public final class SessionListStore {
         guard rows.isEmpty else { return .none }
         if isLoadingFirstResults { return .loadingFirstResults }
         if semanticStatus == .searching { return .searchingByMeaning }
-        return filterQueryText.isEmpty && timeWindow == nil ? .noSessionsYet : .noMatchingSessions
+        return filterQueryText.isEmpty && timeWindow == nil && !hideClosed ? .noSessionsYet : .noMatchingSessions
     }
 
     /// Only meaningful while a server-backed fetch is the active source — the synced list has
@@ -440,10 +446,16 @@ public final class SessionListStore {
         refetchServerFiltered()
     }
 
-    /// The All / All+ / Scheduled choice. Never issues a request: it re-filters the rows already
+    /// The Manual / Scheduled / Both choice. Never issues a request: it re-filters the rows already
     /// in memory.
     public func setScope(_ newScope: SessionListScope) {
         scope = newScope
+    }
+
+    /// "Hide closed sessions": drops every session whose dot is grey. Like the scope it only
+    /// re-filters rows already in memory.
+    public func setHideClosed(_ hide: Bool) {
+        hideClosed = hide
     }
 
     /// The semantic-mode toggle. A discrete choice, so it answers immediately too — including a

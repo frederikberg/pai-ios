@@ -109,6 +109,14 @@ public enum SessionListDomain {
         }
     }
 
+    /// Whether the row's own dot is drawn grey: a closed session, one with no `display_state`, or
+    /// one whose value this build predates all land in `SessionDotState.closed`. The single rule
+    /// "Hide closed sessions" reads, so the filter can never disagree with what the list draws.
+    /// Not `isGrey`, which is about drivability and says nothing of the dot's colour.
+    public static func hasGreyDot(_ session: Session) -> Bool {
+        dotState(for: session) == .closed
+    }
+
     /// The label next to a session's dot/spinner. Swift port of `sessionState.ts`'s
     /// `sessionLabel`: a subagent or supervisor names itself regardless of drivability, since
     /// neither has a `displayState` of its own worth reading; otherwise `displayState` supplies

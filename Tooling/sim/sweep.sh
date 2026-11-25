@@ -21,7 +21,7 @@ SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscre
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
 watch-keys alarm-facts alarm-sheet weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke
-camera-import-result me-screens"
+camera-import-result me-screens session-filters new-session-usage"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
@@ -262,6 +262,37 @@ if want compact-chip; then
   # A draft that starts with `/compact` gets its own chip in the composer's chip row.
   screenshot compact-chip -PaiFixtureRoute session -PaiFixtureDraftText "/compact keep the migration plan"
   fact_assert compact-chip composerDraft "/compact keep the migration plan"
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want session-filters; then
+  # The session list with "Hide closed sessions" and the second machine set: the chips they leave
+  # behind are the photographed state (a menu opens only on a tap). The rows must shrink against
+  # the unfiltered list, and the facts name the filters the list reports.
+  screenshot session-filters-none
+  fact_assert session-filters-none sessionListFilters "manual hideClosed=false machine=-"
+  rows_all=$(curl -sS --max-time 5 "http://127.0.0.1:8765/fixture" \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('sessionListRows',''))" 2>/dev/null || echo "")
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot session-filters-hide-closed -PaiFixtureSessionFilters hideClosed
+  fact_assert session-filters-hide-closed sessionListFilters "manual hideClosed=true machine=-"
+  rows_hidden=$(curl -sS --max-time 5 "http://127.0.0.1:8765/fixture" \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('sessionListRows',''))" 2>/dev/null || echo "")
+  echo "session-filters: ${rows_all} rows unfiltered, ${rows_hidden} with closed hidden"
+  if ! [ "${rows_all:-0}" -gt "${rows_hidden:-0}" ] || ! [ "${rows_hidden:-0}" -gt 0 ]; then
+    echo "::error::session-filters: hiding closed sessions left ${rows_hidden} of ${rows_all} rows"
+    fail=1
+  fi
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot session-filters-both -PaiFixtureSessionFilters both
+  fact_assert session-filters-both sessionListFilters "manual hideClosed=true machine=laptop"
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want new-session-usage; then
+  # The new-session screen shows the plan usage an open session shows, before anything is sent.
+  screenshot new-session-usage -PaiFixtureRoute createSession
+  fact_assert new-session-usage planUsageBadge shown
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 

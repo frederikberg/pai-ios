@@ -140,6 +140,27 @@ final class UsageDisplayTests: XCTestCase {
         await store.load()
         XCTAssertEqual(store.rows.count, 4)
     }
+
+    func testRefreshKeepsTheLastFiguresWhenAReadFails() async {
+        let api = FlakyUsageApi(usage: usage)
+        let store = UsageStore(api: api)
+        await store.refresh()
+        XCTAssertNotNil(store.usage)
+        api.failing = true
+        await store.refresh()
+        XCTAssertNotNil(store.usage)
+        XCTAssertNil(store.errorMessage)
+    }
+}
+
+private final class FlakyUsageApi: UsageApiClient, @unchecked Sendable {
+    let usage: Usage
+    var failing = false
+    init(usage: Usage) { self.usage = usage }
+    func getUsage() async throws -> Usage {
+        if failing { throw PaiError.detail("down", statusCode: 502) }
+        return usage
+    }
 }
 
 private struct FakeUsageApi: UsageApiClient {

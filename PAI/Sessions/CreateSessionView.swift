@@ -22,6 +22,7 @@ struct CreateSessionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppEnvironment.self) private var environment
     @Environment(MachineStore.self) private var machines
+    @Environment(UsageStore.self) private var usage
     @Environment(SettingsStore.self) private var settings
     @Environment(DraftStore.self) private var drafts
     @Environment(StagedAttachmentStore.self) private var staging
@@ -393,9 +394,24 @@ struct CreateSessionView: View {
             Text("What would you like to work on?")
                 .font(PaiTypography.body.font)
                 .foregroundStyle(PaiPalette.Semantic.textMuted)
+            // The same figures an open session shows, from the same store, so the plan's headroom
+            // is known before the session starts. Tapping opens the Usage app, as in a session.
+            if let current = usage.usage {
+                Button {
+                    environment.router.push(.usage)
+                    dismiss()
+                } label: {
+                    PlanUsageBadge(usage: current)
+                        .font(PaiTypography.caption.font)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+                .fixtureFact("planUsageBadge", "shown")
+            }
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
+        .task { await usage.poll() }
     }
 
     // MARK: - Machine picker

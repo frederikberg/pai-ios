@@ -54,6 +54,9 @@ final class AppEnvironment {
         let apiClient: PaiApiClient
         let sessions: SessionListStore
         let machines: MachineStore
+        /// The account's plan usage, shared by the Usage app and the badges on a session and on
+        /// the new-session screen.
+        let usage: UsageStore
         /// The VM's Claude sign-in — app-wide rather than per-screen, since one credential backs
         /// every session and the banner it drives is mounted once at the root.
         let claudeAuth: ClaudeAuthStore
@@ -394,6 +397,7 @@ final class AppEnvironment {
             apiClient: client,
             sessions: sessions,
             machines: MachineStore(api: client),
+            usage: UsageStore(api: client),
             claudeAuth: ClaudeAuthStore(api: client),
             transcript: transcript,
             settings: settingsStore,

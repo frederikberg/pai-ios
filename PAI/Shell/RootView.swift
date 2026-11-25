@@ -165,6 +165,7 @@ struct RootView: View {
                 .environment(environment)
                 .environment(connection.sessions)
                 .environment(connection.machines)
+                .environment(connection.usage)
                 .environment(connection.claudeAuth)
                 .environment(connection.transcript)
                 .environment(connection.settings)
