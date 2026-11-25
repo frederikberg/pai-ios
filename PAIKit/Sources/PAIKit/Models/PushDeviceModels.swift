@@ -144,18 +144,14 @@ public struct PushDevicePatch: Encodable, Sendable, Equatable {
 
     public var pushEnabled: Bool?
     public var pause: Pause = .unchanged
-    public var mutedChannels: [String]?
-
-    public init(pushEnabled: Bool? = nil, pause: Pause = .unchanged, mutedChannels: [String]? = nil) {
+    public init(pushEnabled: Bool? = nil, pause: Pause = .unchanged) {
         self.pushEnabled = pushEnabled
         self.pause = pause
-        self.mutedChannels = mutedChannels
     }
 
     enum CodingKeys: String, CodingKey {
         case pushEnabled = "push_enabled"
         case pausedUntil = "paused_until"
-        case mutedChannels = "muted_channels"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -166,6 +162,5 @@ public struct PushDevicePatch: Encodable, Sendable, Equatable {
         case .until(let text): try c.encode(text, forKey: .pausedUntil)
         case .resume: try c.encodeNil(forKey: .pausedUntil)
         }
-        try c.encodeIfPresent(mutedChannels, forKey: .mutedChannels)
     }
 }
