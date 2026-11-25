@@ -42,16 +42,17 @@ public final class PushRegistrationStore {
         self.isRegistrationAllowed = isRegistrationAllowed
         self.registerToken = registerToken
         registration = storage.value(forKey: Keys.registration) ?? PushRegistration()
-        // The per-channel switches for agent messages and alerts are the person's registry switches
-        // now, which the server migrated from the devices' mutes. A mute this phone still holds for
-        // them would be sent back at the next registration with no switch left to undo it.
-        if !registration.mutedChannels.isDisjoint(with: Self.retiredChannels) {
-            registration.mutedChannels.subtract(Self.retiredChannels)
+        // The switches for agent messages and alerts are the person's registry switches; the
+        // server refuses any other mute on a registration. A mute this phone still holds for one
+        // would be sent back at every registration with no switch left to undo it.
+        if !registration.mutedChannels.isSubset(of: Self.mutableChannels) {
+            registration.mutedChannels.formIntersection(Self.mutableChannels)
             persist()
         }
     }
 
-    private static let retiredChannels: Set<String> = ["default", "alerts"]
+    /// The only channel a phone switches off for itself: its alarm ring.
+    static let mutableChannels: Set<String> = ["alarm"]
 
     /// Whether it is worth showing the system prompt. The prompt appears once per install and
     /// never again, so this is the difference between asking at a moment that makes sense and
@@ -125,7 +126,7 @@ public final class PushRegistrationStore {
     /// has to stay where it was put, and `needsBackendRegistration` is what carries an unsent
     /// change to the next launch.
     public func setMuted(_ muted: Bool, forChannel channelId: String) async {
-        guard registration.isMuted(channelId) != muted else { return }
+        guard Self.mutableChannels.contains(channelId), registration.isMuted(channelId) != muted else { return }
         if muted {
             registration.mutedChannels.insert(channelId)
         } else {

@@ -71,23 +71,4 @@ final class MailVerdictAssistantTests: XCTestCase {
         XCTAssertNil(calls.first?.workingDir)
         XCTAssertNil(calls.first?.model)
     }
-
-    func testTheSettingsBlockAndItsUpdateRoundTrip() async throws {
-        let json = """
-            {"ultrafast":{"model":"m","reasoning_effort":"low","models":{}},
-             "fast":{"model":"sonnet","thinking":"low","models":{}},
-             "mailverdict":{"model":"claude-opus-5-5","reasoning_effort":"low",
-                            "models":{"claude-opus-5-5":{"provider":"anthropic","efforts":["low","none"]}}}}
-            """
-        let defaults = try JSONDecoder().decode(SessionDefaults.self, from: Data(json.utf8))
-        XCTAssertEqual(defaults.mailverdict?.model, "claude-opus-5-5")
-        let older = """
-            {"ultrafast":{"model":"m","reasoning_effort":"low","models":{}},"fast":{"model":"sonnet","thinking":"low","models":{}}}
-            """
-        XCTAssertNil(try JSONDecoder().decode(SessionDefaults.self, from: Data(older.utf8)).mailverdict)
-
-        let update = try JSONEncoder().encode(SessionDefaultsUpdate(mailverdictModel: "claude-opus-5-5"))
-        let sent = try JSONSerialization.jsonObject(with: update) as? [String: String]
-        XCTAssertEqual(sent, ["mailverdict_model": "claude-opus-5-5"])
-    }
 }

@@ -67,7 +67,7 @@ final class PaiFixturesTests: XCTestCase {
             PaiFixtures.usageEmpty, PaiFixtures.secretStatuses,
             PaiFixtures.claudeAuthHealthy, PaiFixtures.claudeAuthUnknown, PaiFixtures.claudeAuthSignedOut,
             PaiFixtures.claudeAuthLoginInProgress, PaiFixtures.recordingClean, PaiFixtures.recordingDegraded,
-            PaiFixtures.debugRecordings, PaiFixtures.wakeWordRuns, PaiFixtures.spokenVoiceSettings,
+            PaiFixtures.debugRecordings, PaiFixtures.wakeWordRuns,
             PaiFixtures.browseResult, PaiFixtures.outgoingPutDraftNew, PaiFixtures.outgoingPutDraftSession,
             PaiFixtures.outgoingPostMessageNewSession, PaiFixtures.outgoingPostMessageExistingSession,
             PaiFixtures.outgoingRenameSession, PaiFixtures.outgoingSetTitleLocked,
@@ -162,8 +162,6 @@ final class PaiFixturesTests: XCTestCase {
         XCTAssertEqual(models.mailverdict?.defaultModel, "claude-opus-5-5")
         XCTAssertEqual(models.ultrafast?.models.count, 2)
         XCTAssertEqual(models.models.first { $0.id == "hermes:kimi" }?.engine, "hermes")
-        let defaults = try JSONDecoder().decode(SessionDefaults.self, from: Data(PaiFixtures.sessionDefaults.utf8))
-        XCTAssertEqual(defaults.mailverdict?.reasoningEffort, "low")
         let types = try JSONSerialization.jsonObject(with: Data(PaiFixtures.sessionTypes.utf8)) as? [[String: Any]]
         XCTAssertTrue(types?.contains { $0["id"] as? String == "mailverdict" } == true)
     }
@@ -502,11 +500,5 @@ final class PaiFixturesTests: XCTestCase {
         XCTAssertEqual(list.recordings.count, 2)
         let runs = try decoder.decode(WakeWordRunList.self, from: Data(PaiFixtures.wakeWordRuns.utf8))
         XCTAssertEqual(runs.runs.first?.takes.count, 1)
-        let voice = try decoder.decode(SpokenVoiceSettings.self, from: Data(PaiFixtures.spokenVoiceSettings.utf8))
-        XCTAssertEqual(voice.sttKeyterms, ["Computer", "PAI"])
-        XCTAssertEqual(voice.sttBatchPauseS, 15)
-        XCTAssertEqual(voice.computerChoices?.defaults.computerClaudeModel, "claude-opus-5-5")
-        XCTAssertEqual(voice.computerTurnTunables, ["end_wait_s": .number(4), "turn_cue": .flag(false)])
-        XCTAssertEqual(voice.computerChoices?.turnPresets["explicit"]?["end_wait_s"], ComputerTunableValue.never)
     }
 }

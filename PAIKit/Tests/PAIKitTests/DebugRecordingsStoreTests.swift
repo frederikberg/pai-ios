@@ -94,6 +94,24 @@ final class DebugRecordingsStoreTests: XCTestCase {
         XCTAssertEqual(recording?.mics, [])
     }
 
+    /// Keeping recordings is the instance setting `debug_recordings_enabled`: the switch writes it
+    /// there and shows what the server answers, not what was asked.
+    func testTheSwitchWritesTheInstanceSetting() async throws {
+        stub(200, #"{"instance": {"debug_recordings_enabled": false}}"#)
+        let store = await DebugRecordingsStore(apiClient: try Self.makeClient())
+
+        await store.setEnabled(false)
+
+        let request = try XCTUnwrap(PaiStubURLProtocol.capturedRequest)
+        XCTAssertEqual(request.httpMethod, "PATCH")
+        XCTAssertEqual(request.url?.path, "/api/settings/instance")
+        let body = try XCTUnwrap(
+            PaiStubURLProtocol.capturedBody.flatMap { try? JSONSerialization.jsonObject(with: $0) })
+        XCTAssertEqual((body as? [String: Bool]), ["debug_recordings_enabled": false])
+        let enabled = await store.enabled
+        XCTAssertEqual(enabled, false)
+    }
+
     /// A recording still being written is refused by the backend; it must stay listed.
     func testARefusedDeleteKeepsTheRecordingListed() async throws {
         stub(200, Self.listBody)

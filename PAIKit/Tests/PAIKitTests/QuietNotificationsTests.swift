@@ -139,16 +139,16 @@ final class QuietNotificationsTests: XCTestCase {
 
     // MARK: mail
 
-    private func smtp(enabled: Bool, alerts: Bool) throws -> SmtpSettings {
+    private func smtp(enabled: Bool) throws -> SmtpSettings {
         let json = """
             {"host":"h","port":587,"security":"starttls","username":null,"from_address":null,
-             "recipient":"a@b.c","enabled":\(enabled),"alerts_enabled":\(alerts),"updated_at":"2026-01-01T00:00:00Z"}
+             "enabled":\(enabled),"updated_at":"2026-01-01T00:00:00Z"}
             """
         return try JSONDecoder().decode(SmtpSettings.self, from: Data(json.utf8))
     }
 
     func testTheDraftCarriesTheServersSwitchAndNeverTheOwnersMailChoices() throws {
-        let draft = SmtpSettingsDraft(loaded: try smtp(enabled: true, alerts: true))
+        let draft = SmtpSettingsDraft(loaded: try smtp(enabled: true))
         XCTAssertTrue(draft.enabled)
         let object = try XCTUnwrap(
             try JSONSerialization.jsonObject(with: JSONEncoder().encode(draft.asUpdate())) as? [String: Any])

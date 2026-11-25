@@ -86,9 +86,6 @@ final class AppEnvironment {
         /// device to send it to. Lives on the connection because a device token is worthless
         /// without a backend to register it against.
         let push: PushRegistrationStore
-        /// The channels this account's devices can mute — what the notification switches are
-        /// drawn from.
-        let pushChannels: PushChannelsStore
         /// The skill names each composer context offers, for the mentions row and the keyboard
         /// bar's completions.
         let skills: SkillStore
@@ -482,7 +479,6 @@ final class AppEnvironment {
             ) { token, mutedChannels, sleep in
                 try await client.registerDevice(token: token, mutedChannels: mutedChannels, sleep: sleep)
             },
-            pushChannels: PushChannelsStore(api: client),
             skills: SkillStore(api: client),
             notes: notesStore,
             notesBrowse: notesBrowse,

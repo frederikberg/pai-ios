@@ -170,10 +170,10 @@ final class PushRegistrationStoreTests: XCTestCase {
         store.recordDeviceToken("abc")
         await store.registerWithBackendIfNeeded()
 
-        await store.setMuted(true, forChannel: "alerts")
+        await store.setMuted(true, forChannel: "alarm")
 
         XCTAssertEqual(recorder.tokens, ["abc", "abc"])
-        XCTAssertEqual(recorder.mutedChannels, [[], ["alerts"]])
+        XCTAssertEqual(recorder.mutedChannels, [[], ["alarm"]])
     }
 
     /// Flipping a channel back to where it already was is not a change, and posting for it would
@@ -184,7 +184,7 @@ final class PushRegistrationStoreTests: XCTestCase {
         store.recordDeviceToken("abc")
         await store.registerWithBackendIfNeeded()
 
-        await store.setMuted(false, forChannel: "alerts")
+        await store.setMuted(false, forChannel: "alarm")
 
         XCTAssertEqual(recorder.tokens, ["abc"])
     }
@@ -198,13 +198,13 @@ final class PushRegistrationStoreTests: XCTestCase {
         await store.registerWithBackendIfNeeded()
 
         recorder.shouldThrow = true
-        await store.setMuted(true, forChannel: "default")
-        XCTAssertTrue(store.registration.isMuted("default"), "the toggle has to stay where it was put")
+        await store.setMuted(true, forChannel: "alarm")
+        XCTAssertTrue(store.registration.isMuted("alarm"), "the toggle has to stay where it was put")
         XCTAssertTrue(store.registration.needsBackendRegistration)
 
         recorder.shouldThrow = false
         await store.registerWithBackendIfNeeded()
-        XCTAssertEqual(recorder.mutedChannels, [[], ["default"]])
+        XCTAssertEqual(recorder.mutedChannels, [[], ["alarm"]])
         XCTAssertFalse(store.registration.needsBackendRegistration)
     }
 
@@ -216,25 +216,26 @@ final class PushRegistrationStoreTests: XCTestCase {
         recorder.answersMutedChannels = { _ in nil }
         let store = makeStore(recorder: recorder)
         store.recordDeviceToken("abc")
-        await store.setMuted(true, forChannel: "alerts")
+        await store.setMuted(true, forChannel: "alarm")
         XCTAssertFalse(store.registration.needsBackendRegistration)
 
         await store.registerWithBackendIfNeeded()
         XCTAssertEqual(recorder.tokens, ["abc"], "one post, not one per call")
     }
 
-    /// A channel id this build has never heard of is a mute like any other: kept, sent back, and
-    /// confirmed, not filtered out as unknown. Dropping it would let the registration silently
-    /// disagree with what the person chose.
-    func testAMuteForAnIdThisBuildDoesNotKnowIsSentAndKept() async {
+    /// Only the alarm ring is a mute a phone keeps for itself; the server refuses any other id, so
+    /// asking for one changes nothing and posts nothing.
+    func testAMuteForAnyOtherChannelIsIgnored() async {
         let recorder = Recorder()
         let store = makeStore(recorder: recorder)
         store.recordDeviceToken("abc")
-        await store.setMuted(true, forChannel: "digest")
+        await store.registerWithBackendIfNeeded()
 
-        XCTAssertEqual(recorder.mutedChannels, [["digest"]])
-        XCTAssertEqual(store.registration.registeredMutedChannels, ["digest"])
-        XCTAssertFalse(store.registration.needsBackendRegistration)
+        await store.setMuted(true, forChannel: "digest")
+        await store.setMuted(true, forChannel: "alerts")
+
+        XCTAssertTrue(store.registration.mutedChannels.isEmpty)
+        XCTAssertEqual(recorder.tokens, ["abc"])
     }
 
     /// Channel choices have to outlive the process for the same reason the token does.
@@ -296,13 +297,15 @@ final class PushRegistrationStoreTests: XCTestCase {
     }
 
     /// A phone that muted Agent messages or Alerts before those became the person's own switches has
-    /// nothing left to undo it with, so it must not keep sending the mute; alarm's stays.
-    func testMutesOfTheRetiredChannelsAreDroppedAndTheAlarmOneKept() async {
+    /// nothing left to undo it with, and the server refuses any mute but the alarm's, so only that
+    /// one is kept.
+    func testEveryMuteButTheAlarmOneIsDroppedOnLaunch() async {
         let storage = SettingsInMemoryKeyValueStore()
         storage.setValue(
             PushRegistration(
                 status: .authorized, deviceToken: "abc", registeredToken: "abc",
-                mutedChannels: ["default", "alerts", "alarm"], registeredMutedChannels: ["default", "alerts", "alarm"]),
+                mutedChannels: ["default", "alerts", "reminders", "digest", "alarm"],
+                registeredMutedChannels: ["default", "alerts", "alarm"]),
             forKey: "pushRegistration")
         let recorder = Recorder()
         let store = makeStore(storage: storage, recorder: recorder)

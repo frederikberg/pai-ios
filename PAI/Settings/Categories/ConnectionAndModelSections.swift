@@ -84,11 +84,6 @@ private struct ConnectionCard: View {
                 keyRow(
                     title: keyTitle(credential), secret: credential.secret, set: credential.set,
                     updatedAt: credential.updatedAt)
-                if credential.source == .environment {
-                    Text("A key from the deployment answers until one is stored here.")
-                        .font(PaiTypography.caption.font)
-                        .foregroundStyle(PaiPalette.Semantic.textMuted)
-                }
             }
             ForEach(connection.extra, id: \.secret) { extra in
                 keyRow(title: extra.label, secret: extra.secret, set: extra.set, updatedAt: extra.updatedAt)

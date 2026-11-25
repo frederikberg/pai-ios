@@ -67,12 +67,10 @@ public final class SettingsStore {
     public let smtp: SmtpSettingsStore
     public let alerts: AlertsStore
     public let alertRouting: AlertRoutingStore
-    public let computerChoices: ComputerChoicesStore
     public let pushDevices: PushDevicesStore
     public let connections: ConnectionsStore
     public let modelRoutes: ModelRoutesStore
     public let statusMessage: StatusMessageStore
-    public let sessionDefaults: SessionDefaultsStore
     /// The settings the server declares once: the person's own (recording mode, mail switch,
     /// playback and call voices, dictation) and, for the owner, the instance's.
     public let registry: SettingsRegistryStore
@@ -100,12 +98,10 @@ public final class SettingsStore {
         self.smtp = SmtpSettingsStore(apiClient: apiClient)
         self.alerts = AlertsStore(api: apiClient)
         self.alertRouting = AlertRoutingStore(api: apiClient)
-        self.computerChoices = ComputerChoicesStore(api: apiClient)
         self.pushDevices = PushDevicesStore(api: apiClient)
         self.connections = ConnectionsStore(api: apiClient)
         self.modelRoutes = ModelRoutesStore(api: apiClient)
         self.statusMessage = StatusMessageStore(api: apiClient)
-        self.sessionDefaults = SessionDefaultsStore(api: apiClient)
         self.registry = SettingsRegistryStore(api: apiClient, cache: storage)
         self.playbackVoices = PlaybackVoicesStore(api: apiClient)
 

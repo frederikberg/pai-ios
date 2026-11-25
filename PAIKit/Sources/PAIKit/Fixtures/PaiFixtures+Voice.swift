@@ -112,7 +112,7 @@ extension PaiFixtures {
         {
           "host": "smtp.posteo.de", "port": 587, "security": "starttls",
           "username": "alerts@example.invalid", "from_address": "alerts@example.invalid",
-          "recipient": "user@example.invalid", "enabled": true, "alerts_enabled": true,
+          "enabled": true,
           "updated_at": "2026-07-02T09:00:00Z"
         }
         """#
@@ -133,51 +133,11 @@ extension PaiFixtures {
         }
         """#
 
-    /// `GET /api/push/channels` — the two channels a device can mute.
-    public static let pushChannels: String = #"""
-        {
-          "channels": [
-            { "id": "default", "label": "Agent messages",
-              "description": "A session telling you it finished, or that it needs you.",
-              "kinds": ["agent"] },
-            { "id": "alerts", "label": "Alerts",
-              "description": "Something in PAI Cloud broke or recovered.", "kinds": ["alert"] },
-            { "id": "alarm", "label": "Alarm",
-              "description": "A ringing alarm, sent every few seconds until you stop it.", "kinds": [] }
-          ]
-        }
-        """#
-
     /// `GET /api/settings/secrets` — `elevenlabs` set, every other name absent entirely
     /// (`SecretStatusMap` is a `Partial<Record<...>>`, so a missing key means "never configured",
     /// distinct from `{"set": false, ...}`).
     public static let secretStatuses: String = #"""
         { "elevenlabs": { "set": true, "updated_at": "2026-07-02T11:00:00Z" } }
-        """#
-
-    /// `GET /api/settings/voice` — nothing configured, which is the state a fresh install is in
-    /// and the one every fallback has to work from.
-    public static let spokenVoiceSettings: String = #"""
-        {
-          "computer_claude_model": null, "computer_claude_effort": null,
-          "computer_turn_preset": "patient", "computer_turn_tunables": {"end_wait_s": 4.0, "turn_cue": false},
-          "computer_choices": {
-            "claude_models": {"claude-opus-5-5": ["low", "medium", "high"],
-                              "claude-sonnet-5-5": ["low", "medium", "high"]},
-            "turn_presets": {
-              "eager": {"end_wait_s": 0.7, "open_wait_s": 1.5, "interrupt_min_words": 2, "turn_cue": true},
-              "normal": {"end_wait_s": 1.2, "open_wait_s": 2.5, "interrupt_min_words": 2, "turn_cue": true},
-              "patient": {"end_wait_s": 3.0, "open_wait_s": 6.0, "interrupt_min_words": 3, "turn_cue": true},
-              "explicit": {"end_wait_s": null, "open_wait_s": null, "interrupt_min_words": 2, "turn_cue": true}},
-            "tunable_bounds": {"end_wait_s": [0.3, 15.0], "interrupt_min_words": [1, 10]},
-            "defaults": {"computer_claude_model": "claude-opus-5-5",
-                         "computer_claude_effort": "low", "computer_turn_preset": "normal"}},
-          "call_voice_id": null, "call_speed": 1.2,
-          "stt_keyterms": ["Computer", "PAI"], "stt_language": null, "stt_no_verbatim": false,
-          "stt_batch_pause_s": 15,
-          "debug_recordings_enabled": true,
-          "updated_at": "2026-09-20T12:00:00.123456+00:00"
-        }
         """#
 
     // MARK: - Debug recordings and wake-word samples
