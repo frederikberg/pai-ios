@@ -151,7 +151,7 @@ final class LocationReporter: NSObject, CLLocationManagerDelegate {
             self.monitor = monitor
             await self.applyPlaces(self.store?.monitoredPlaces ?? [], versionChanged: false)
             do {
-                for try await event in monitor.events {
+                for try await event in await monitor.events {
                     self.handle(event)
                 }
             } catch {
