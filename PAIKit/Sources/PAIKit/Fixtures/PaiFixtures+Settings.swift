@@ -1032,3 +1032,16 @@ extension PaiFixtures {
         "providers": ["anthropic", "infomaniak", "ovhcloud"]}
         """#
 }
+
+extension PaiFixtures {
+    /// `GET /api/watch-keys?everyone=true`: each key naming whose it is.
+    public static let allWatchKeys: String = #"""
+        [
+          {"id": "k1", "name": "fenix 8", "hint": "pw_aB3x", "created_at": "2026-08-30T22:30:00.506812+00:00",
+           "last_used_at": "2026-08-31T19:58:00.000000+00:00",
+           "user_id": "7f0c1d52-5a53-4b53-8f55-0a5a2b3c4d5e", "display_name": "Owner"},
+          {"id": "k9", "name": "Guest watch", "hint": "pw_Zk2m", "created_at": "2026-10-02T08:00:00.000000+00:00",
+           "last_used_at": null, "user_id": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d", "display_name": "Guest"}
+        ]
+        """#
+}

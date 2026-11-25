@@ -187,6 +187,10 @@
             {
                 return Match(status: answer.status) { answer.body }
             }
+            // Everyone's watch keys, each naming whose.
+            if method == "GET", path == "/api/watch-keys", query.contains(where: { $0.name == "everyone" }) {
+                return Match(status: 200) { PaiFixtures.data(PaiFixtures.allWatchKeys) }
+            }
             // The watch keys remember what was created and revoked in this process, so a list read
             // after either shows it, the way the real list does.
             if path == "/api/watch-keys" {

@@ -155,6 +155,11 @@ final class SettingsRegistryTests: XCTestCase {
         }
     }
 
+    func testAnIdentifierChoiceKeepsItsSpelling() {
+        XCTAssertEqual(SettingField.choiceLabel("live"), "Live")
+        XCTAssertEqual(SettingField.choiceLabel("eleven_flash_v2_5"), "eleven_flash_v2_5")
+    }
+
     func testTheStoredTextRoundTripsThroughParse() throws {
         let response = try owner()
         for (key, value) in [
