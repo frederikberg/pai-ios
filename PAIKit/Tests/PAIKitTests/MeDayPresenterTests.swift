@@ -75,7 +75,9 @@ final class MeDayPresenterTests: XCTestCase {
             ])
         let ribbon = presenter.ribbon(day: MeDay(date: day), tasks: tasks, now: nil)
         // 23:30 UTC on the 23rd is 00:30 on the 24th in Berlin.
-        XCTAssertEqual(ribbon.done, [30.0, 582.0, 962.0, 985.0])
+        XCTAssertEqual(
+            ribbon.done,
+            [MeSpan(start: 30, end: 30), MeSpan(start: 582, end: 582), MeSpan(start: 962, end: 985)])
         XCTAssertTrue(ribbon.hasData)
         XCTAssertFalse(presenter.ribbon(day: MeDay(date: day), tasks: nil, now: nil).hasData)
     }
@@ -171,6 +173,22 @@ final class MeDayPresenterTests: XCTestCase {
         let card = try XCTUnwrap(presenter.planCard(plan, todayKey: day))
         XCTAssertEqual(card.agreed, "as agreed this morning · 08:14")
         XCTAssertEqual(card.progress, "2 of 3 done, 1 added later")
+        let later = MePlan(text: "Big day.", updatedAt: "2026-11-24T13:02:00+00:00")
+        XCTAssertEqual(presenter.planCard(later, todayKey: day)?.agreed, "as agreed · 14:02")
+    }
+
+    func testTheSourcesLineNamesOnlySourcesThatAnsweredWell() {
+        let now = date("2026-11-24T10:33:00+00:00")
+        let sources = MeSources(garmin: MeSource(status: .ok, asOf: "2026-11-24T09:31:00+00:00"))
+        let overview = MeOverview(today: day, sources: sources, days: [])
+        let ok = MeTasks(date: day, asOf: "2026-11-24T10:31:00+00:00")
+        XCTAssertEqual(
+            presenter.sourcesLine(overview: overview, tasks: ok, todayFinal: false, now: now),
+            "Garmin 10:31 · Todoist 2 min ago · today not final")
+        let down = MeTasks(date: day, status: .unavailable, asOf: "2026-11-24T10:31:00+00:00")
+        let failed = MeOverview(
+            today: day, sources: MeSources(garmin: MeSource(status: .unavailable)), days: [])
+        XCTAssertNil(presenter.sourcesLine(overview: failed, tasks: down, todayFinal: false, now: now))
     }
 
     func testTodoistLinksOpenTheAppAndFallBackToTheWebPage() {

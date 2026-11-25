@@ -31,7 +31,8 @@ public struct MeRibbon: Equatable, Sendable {
     public var activities: [MeSpan] = []
     public var plans: [MeSpan] = []
     public var you: [MeSpan] = []
-    public var done: [Double] = []
+    /// A ticked task is a stretch with no length; a day's grouped ticks span first to last.
+    public var done: [MeSpan] = []
     public var diary: [MeRibbonDot] = []
     /// The minute of "now", only for today.
     public var now: Double?
@@ -243,14 +244,11 @@ extension MePresenter {
         }
         ribbon.you = slotSpans(day.pai?.slots ?? [])
         for row in tasks?.done ?? [] {
-            var stamps: [String] = [row.completedAt]
-            if let from = row.fromAt { stamps.append(from) }
-            for stamp in stamps {
-                guard let moment = IsoTimestamp.date(from: stamp), dayKey(moment) == day.date else { continue }
-                ribbon.done.append(minuteOfDay(moment))
-            }
+            guard let last = IsoTimestamp.date(from: row.completedAt) else { continue }
+            let first = row.fromAt.flatMap { IsoTimestamp.date(from: $0) } ?? last
+            if let found = span(start: min(first, last), end: last, onDay: day.date) { ribbon.done.append(found) }
         }
-        ribbon.done.sort()
+        ribbon.done.sort { $0.start < $1.start }
         for entry in day.entries {
             guard let moment = entry.date, dayKey(moment) == day.date else { continue }
             ribbon.diary.append(MeRibbonDot(minute: minuteOfDay(moment), feel: entry.feel, isPrivate: entry.isPrivate))
@@ -503,9 +501,8 @@ extension MePresenter {
         guard let wire, let moment = IsoTimestamp.date(from: wire) else { return nil }
         let time = clock(moment)
         if dayKey(moment) != todayKey { return "as agreed \(shortDay(key: dayKey(moment))) · \(time)" }
-        let hour = calendar.component(.hour, from: moment)
-        let part = hour < 12 ? "this morning" : hour < 18 ? "this afternoon" : "this evening"
-        return "as agreed \(part) · \(time)"
+        let morning = calendar.component(.hour, from: moment) < 12
+        return morning ? "as agreed this morning · \(time)" : "as agreed · \(time)"
     }
 
     /// `2 of 3 done, 1 added later`.
@@ -516,17 +513,17 @@ extension MePresenter {
         return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 
-    /// `Garmin 10:31 · Todoist 2 min ago · today not final`: when each source last answered; a
-    /// source that is not connected is left out.
+    /// `Garmin 10:31 · Todoist 2 min ago · today not final`: when each source last answered well; a
+    /// source that is not connected or failed is left out.
     public func sourcesLine(overview: MeOverview, tasks: MeTasks?, todayFinal: Bool?, now: Date) -> String? {
         var parts: [String] = []
-        if overview.sources.garminConnected {
-            if let at = clock(wire: overview.sources.garmin?.asOf) { parts.append("Garmin \(at)") }
-        }
-        if let tasks, tasks.isConfigured, let wire = tasks.asOf, let read = IsoTimestamp.date(from: wire) {
+        var garminOk = false
+        if let garmin = overview.sources.garmin, case .ok = garmin.status { garminOk = true }
+        if garminOk, let at = clock(wire: overview.sources.garmin?.asOf) { parts.append("Garmin \(at)") }
+        if let tasks, case .ok = tasks.status, let wire = tasks.asOf, let read = IsoTimestamp.date(from: wire) {
             parts.append("Todoist \(ago(read, now: now))")
         }
-        if overview.sources.garminConnected, todayFinal == false { parts.append("today not final") }
+        if garminOk, todayFinal == false { parts.append("today not final") }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 

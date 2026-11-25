@@ -53,7 +53,14 @@ struct MeTodayCardView: View {
                 GroupCaption(title: "Fixed")
                 ForEach(Array(card.fixed.enumerated()), id: \.offset) { _, row in fixedRow(row) }
             }
-            if !card.open.isEmpty {
+            if card.open.isEmpty {
+                GroupCaption(title: "To come")
+                Text("Nothing on today's list.")
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(PaiPalette.Semantic.textMuted)
+                    .padding(.vertical, 7)
+                    .accessibilityIdentifier("me-tasks-empty")
+            } else {
                 GroupCaption(title: "To come")
                 let rows = showAllOpen ? card.open : Array(card.open.prefix(shownRows))
                 ForEach(rows, id: \.id) { row in openRow(row) }
