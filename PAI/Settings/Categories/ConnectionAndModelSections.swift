@@ -12,7 +12,7 @@ struct ProvidersSections: View {
             settings: settings, kinds: [.model, .speech, .search, .subscription])
         RegistryPlaceholder(store: settings.registry)
         ScopedSection(
-            title: "Billing",
+            title: "Billing", registry: settings.registry, keys: ["anthropic_cycle_day"],
             footer: "The day of the month Anthropic's billing cycle starts, which the spend lines count from."
         ) {
             RegistryRows(store: settings.registry, keys: ["anthropic_cycle_day"])
@@ -215,7 +215,8 @@ struct ModelsSections: View {
         group("Sessions and voice", "sessions")
         RegistryPlaceholder(store: settings.registry)
         ScopedSection(
-            title: "Memory, advanced",
+            title: "Memory, advanced", registry: settings.registry,
+            keys: ["turn_summary_history_count", "turn_summary_history_tokens"],
             footer: "How much earlier turns a summary is given to read."
         ) {
             RegistryRows(

@@ -540,25 +540,40 @@ extension MePresenter {
     public static let nightPointsPerHour = 4.0
     public static let nightRowHeight = 56.0
 
+    /// Which end of a night an hour is for; an hour of the day outside the axis (11:00 to 21:00)
+    /// clamps to the nearer end for it: a bedtime to the top, a waking time to the bottom.
+    public enum NightRole { case bed, wake }
+
+    private static let nightAxisStart = 21.0
+
     /// Where an hour of the clock sits on the night row: 21:00 at the top, 11:00 at the bottom.
-    public static func nightY(hour: Double) -> Double {
-        let onAxis = hour < 12 ? hour + 24 : hour
-        return min(nightRowHeight, max(0, (onAxis - 21) * nightPointsPerHour))
+    /// The same rule as the web's `nightY` (`meModel.ts`).
+    public static func nightY(hour: Double, role: NightRole) -> Double {
+        let onAxis: Double
+        if hour >= nightAxisStart {
+            onAxis = hour
+        } else if hour < 11 {
+            onAxis = hour + 24
+        } else {
+            onAxis = role == .bed ? nightAxisStart : nightAxisStart + 14
+        }
+        return min(nightRowHeight, max(0, (onAxis - nightAxisStart) * nightPointsPerHour))
     }
 
     /// Bed to wake on the 21:00 to 11:00 axis, clamped at its edges. Without a bed time the bar
     /// ends at waking and is as tall as the hours asleep.
     public func nightBar(_ body: MeBody?) -> MeNightBar? {
         guard let body, let wake = hourOfDay(wire: body.wakeAt) else { return nil }
-        let wakeAxis = wake <= 21 ? wake + 24 : wake
-        let bottom = min(Self.nightRowHeight, max(0, (wakeAxis - 21) * Self.nightPointsPerHour))
+        let bottom = Self.nightY(hour: wake, role: .wake)
+        let top: Double
         if let bed = hourOfDay(wire: body.bedAt) {
-            let top = Self.nightY(hour: bed)
-            return MeNightBar(top: top, height: max(2, bottom - top))
+            top = Self.nightY(hour: bed, role: .bed)
+        } else if let seconds = body.sleepSeconds {
+            top = max(0, bottom - Double(seconds) / 3600 * Self.nightPointsPerHour)
+        } else {
+            return nil
         }
-        guard let seconds = body.sleepSeconds else { return nil }
-        let height = min(bottom, max(2, Double(seconds) / 3600 * Self.nightPointsPerHour))
-        return MeNightBar(top: bottom - height, height: height)
+        return MeNightBar(top: top, height: max(2, bottom - top))
     }
 
     private func hourOfDay(wire: String?) -> Double? {

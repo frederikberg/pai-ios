@@ -82,7 +82,7 @@ final class SettingsRegistryTests: XCTestCase {
 
     func testOnlyAKeyTheServerFlagsMakesACardAllUsersAndAnAbsentFieldIsNo() throws {
         let response = try owner()
-        XCTAssertFalse(response.schema["debug_recordings_enabled"]?.affectsGuests ?? true)
+        XCTAssertTrue(response.schema["debug_recordings_enabled"]?.affectsGuests ?? false)
         XCTAssertTrue(response.schema["default_voice_id"]?.affectsGuests ?? false)
         // A server that predates the field sends none: read as not affecting guests.
         let bare = try JSONDecoder().decode(
@@ -98,7 +98,10 @@ final class SettingsRegistryTests: XCTestCase {
         let (store, _) = store(try owner())
         await store.load()
         XCTAssertTrue(store.affectsGuests(["debug_recordings_enabled", "default_voice_id"]))
-        XCTAssertFalse(store.affectsGuests(["debug_recordings_enabled", "no_such_key"]))
+        // A card holding only a flagged key is tagged too, whichever card it is.
+        XCTAssertTrue(store.affectsGuests(["debug_recordings_enabled"]))
+        XCTAssertFalse(store.affectsGuests(["anthropic_cycle_day"]))
+        XCTAssertFalse(store.affectsGuests(["no_such_key"]))
     }
 
     func testAKindThisBuildDoesNotKnowDecodesAndIsNotDrawn() throws {
@@ -222,6 +225,25 @@ final class SettingsRegistryTests: XCTestCase {
         XCTAssertEqual(store.recordingMode, .batch)
         let patches = await api.personPatches
         XCTAssertEqual(patches.count, 1)
+    }
+
+    /// Reminders have their own push switch for the owner, drawn like every other registry switch
+    /// and written under its own key; a guest has none.
+    @MainActor
+    func testTheRemindersSwitchIsTheOwnersKeyPushReminders() async throws {
+        let (owned, api) = store(try owner())
+        await owned.load()
+        let field = try XCTUnwrap(owned.field("push_reminders"))
+        XCTAssertEqual(field.control, .toggle)
+
+        let saved = await owned.update("push_reminders", to: .bool(false))
+
+        XCTAssertTrue(saved)
+        let patches = await api.personPatches
+        XCTAssertEqual(patches.last?["push_reminders"], .bool(false))
+        let (guested, _) = store(try guest())
+        await guested.load()
+        XCTAssertNil(guested.field("push_reminders"))
     }
 
     @MainActor

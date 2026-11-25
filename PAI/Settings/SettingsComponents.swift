@@ -10,6 +10,23 @@ struct ScopedSection<Content: View>: View {
     var footer: String?
     @ViewBuilder var content: Content
 
+    init(title: String, scope: SettingsScope? = nil, footer: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.scope = scope
+        self.footer = footer
+        self.content = content()
+    }
+
+    /// An administration card that holds registry keys: it carries "All users" when any key it
+    /// shows is one guests feel (`affects_guests`), whichever card that key sits on.
+    init(
+        title: String, registry: SettingsRegistryStore, keys: [String], footer: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.init(
+            title: title, scope: registry.affectsGuests(keys) ? .everyone : nil, footer: footer, content: content)
+    }
+
     var body: some View {
         Section {
             content

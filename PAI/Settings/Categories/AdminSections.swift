@@ -57,20 +57,17 @@ struct VoiceSoundSections: View {
     var body: some View {
         RegistryPlaceholder(store: settings.registry)
         ScopedSection(
-            title: "Reading aloud",
-            scope: settings.registry.affectsGuests(Self.readAloudKeys) ? .everyone : nil
+            title: "Reading aloud", registry: settings.registry, keys: ["default_voice_id", "playback_model"]
         ) {
             VoiceKeyRow(
                 registry: settings.registry, voices: settings.playbackVoices, key: "default_voice_id",
                 title: "Default voice", emptyLabel: { _ in "Built-in" })
             RegistryRows(store: settings.registry, keys: ["playback_model"])
         }
-        ScopedSection(title: "Diagnosing") {
+        ScopedSection(title: "Diagnosing", registry: settings.registry, keys: ["debug_recordings_enabled"]) {
             RegistryRows(store: settings.registry, keys: ["debug_recordings_enabled"])
         }
     }
-
-    private static let readAloudKeys = ["default_voice_id", "playback_model"]
 }
 
 struct AgentsSections: View {

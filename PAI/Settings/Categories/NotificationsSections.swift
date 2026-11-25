@@ -19,7 +19,10 @@ struct NotificationsSections: View {
         ) {
             RegistryRows(
                 store: settings.registry,
-                keys: ["push_alerts", "mail_alerts", "push_agent_messages", "mail_from_agents", "mail_address"])
+                keys: [
+                    "push_alerts", "mail_alerts", "push_agent_messages", "push_reminders", "mail_from_agents",
+                    "mail_address",
+                ])
         }
         ThisPhoneDeliverySection(settings: settings)
         Section {

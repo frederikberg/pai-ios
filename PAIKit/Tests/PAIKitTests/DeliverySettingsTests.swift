@@ -186,6 +186,10 @@ final class DeliverySettingsTests: XCTestCase {
             NotificationMatrix.reachesNoDevice(person: [
                 "push_agent_messages": .bool(false), "push_alerts": .bool(true),
             ]))
+        XCTAssertFalse(
+            NotificationMatrix.reachesNoDevice(person: [
+                "push_agent_messages": .bool(false), "push_alerts": .bool(false), "push_reminders": .bool(true),
+            ]), "a reminder still reaches a device")
         XCTAssertFalse(NotificationMatrix.reachesNoDevice(person: [:]), "nothing read yet is not an answer")
     }
 
