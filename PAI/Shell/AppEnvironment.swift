@@ -320,7 +320,9 @@ final class AppEnvironment {
         let outbox = OutboxStore(api: client, storage: FileOutboxStorage(rootURL: outboxRoot))
         let selfReports = SelfReportStore(api: client, storage: defaults, drafts: draftStore)
         let notesStore = Self.makeNotesStore(client: client, budgetBytes: settingsStore.notesCacheBudgetBytes)
-        let sessions = SessionListStore(api: client)
+        // A fixture run keeps no filters: the screenshot sweep launches the same simulator many
+        // times and each launch must start from the unfiltered list.
+        let sessions = SessionListStore(api: client, storage: PaiFixtureLaunch.isEnabled() ? nil : defaults)
         // What happens the moment the server has the row lives in `installHandover` rather than
         // in a closure written out here, so the join between a landed send and the screen waiting
         // on it is covered by the package's own tests instead of by this line.

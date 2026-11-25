@@ -128,7 +128,7 @@ public final class SessionListStore {
     public private(set) var filterQueryText: String = ""
     private var debouncedQuery: String = ""
     public private(set) var machineFilter: String?
-    /// Whether sessions with a grey dot are left out, whichever scope is chosen. Not persisted.
+    /// Whether sessions with a grey dot are left out, whichever scope is chosen.
     public private(set) var hideClosed = false
     /// Which view of the sessions the list shows — the ordinary list, everything including
     /// scheduled-task sessions, or only those. Independent of `machineFilter`; it re-filters
@@ -183,12 +183,26 @@ public final class SessionListStore {
     /// query runs.
     private let now: @Sendable () -> Date
 
+    /// Where scope, "Hide closed" and the machine choice are kept across launches. `nil` keeps
+    /// nothing, which is what tests and fixture runs want.
+    private let storage: UserDefaults?
+    static let scopeKey = "sessionListScope"
+    static let hideClosedKey = "sessionListHideClosed"
+    static let machineKey = "sessionListMachine"
+    private var machineRestoreDone = false
+
     public init(
         api: SessionListApiClient, debounceNanos: UInt64 = SessionListStore.defaultTextDebounceNanos,
         now: @escaping @Sendable () -> Date = { Date() },
-        orderTiming: SessionOrderSettler.Timing = .production
+        orderTiming: SessionOrderSettler.Timing = .production,
+        storage: UserDefaults? = nil
     ) {
         self.api = api
+        self.storage = storage
+        if let raw = storage?.string(forKey: Self.scopeKey), let kept = SessionListScope(rawValue: raw) {
+            scope = kept
+        }
+        hideClosed = storage?.bool(forKey: Self.hideClosedKey) ?? false
         self.debounceNanos = debounceNanos
         self.now = now
         self.orderSettler = SessionOrderSettler(timing: orderTiming)
@@ -443,19 +457,41 @@ public final class SessionListStore {
     /// A machine chip — `nil` for "All". A discrete choice, so it answers immediately.
     public func setMachineFilter(_ slug: String?) {
         machineFilter = slug
+        machineRestoreDone = true
+        if let slug {
+            storage?.set(slug, forKey: Self.machineKey)
+        } else {
+            storage?.removeObject(forKey: Self.machineKey)
+        }
         refetchServerFiltered()
+    }
+
+    /// Re-applies the machine chosen in an earlier launch, once the machine list is known. A
+    /// machine the list does not contain any more falls back to all machines. Runs once, and not
+    /// at all after the reader has chosen a machine themselves; an empty list is not an answer.
+    public func restoreMachineFilter(knownSlugs: Set<String>) {
+        guard !machineRestoreDone, !knownSlugs.isEmpty else { return }
+        machineRestoreDone = true
+        guard let slug = storage?.string(forKey: Self.machineKey) else { return }
+        if knownSlugs.contains(slug) {
+            setMachineFilter(slug)
+        } else {
+            storage?.removeObject(forKey: Self.machineKey)
+        }
     }
 
     /// The Manual / Scheduled / Both choice. Never issues a request: it re-filters the rows already
     /// in memory.
     public func setScope(_ newScope: SessionListScope) {
         scope = newScope
+        storage?.set(newScope.rawValue, forKey: Self.scopeKey)
     }
 
     /// "Hide closed sessions": drops every session whose dot is grey. Like the scope it only
     /// re-filters rows already in memory.
     public func setHideClosed(_ hide: Bool) {
         hideClosed = hide
+        storage?.set(hide, forKey: Self.hideClosedKey)
     }
 
     /// The semantic-mode toggle. A discrete choice, so it answers immediately too — including a

@@ -123,6 +123,9 @@ struct SessionListView: View {
             await sessions.loadInitialSessions()
             hasLoadedInitialSessions = true
         }
+        .task(id: machines.allMachines.map(\.slug)) {
+            sessions.restoreMachineFilter(knownSlugs: Set(machines.allMachines.map(\.slug)))
+        }
         .sheet(isPresented: $isPresentingCreateSession) {
             CreateSessionView()
         }
