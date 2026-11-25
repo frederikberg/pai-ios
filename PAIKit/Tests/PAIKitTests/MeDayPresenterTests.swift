@@ -219,6 +219,19 @@ final class MeDayPresenterTests: XCTestCase {
         XCTAssertNil(presenter.nightBar(MeBody(sleepSeconds: 3600)))
     }
 
+    /// The web puts an hour between 11:00 and 21:00 at the top for a bedtime and at the bottom for a
+    /// waking time (`nightY` in `meModel.ts`); a bedtime at 11:30 is the top, not the bottom.
+    func testAnHourInsideTheDaytimeGapClampsByItsRoleLikeTheWeb() throws {
+        XCTAssertEqual(MePresenter.nightY(hour: 11.5, role: .bed), 0)
+        XCTAssertEqual(MePresenter.nightY(hour: 11.5, role: .wake), MePresenter.nightRowHeight)
+        XCTAssertEqual(MePresenter.nightY(hour: 21, role: .wake), 0)
+        XCTAssertEqual(MePresenter.nightY(hour: 10.9, role: .bed), (10.9 + 3) * 4, accuracy: 0.001)
+        // 11:30 in Berlin in November is 10:30 UTC.
+        let bar = try XCTUnwrap(
+            presenter.nightBar(MeBody(wakeAt: "2026-11-24T06:42:00+00:00", bedAt: "2026-11-24T10:30:00+00:00")))
+        XCTAssertEqual(bar.top, 0)
+    }
+
     func testTheDiaryRowDrawsOneDotPerEntryWithAFaceOrWithoutAndStopsAtSix() {
         let entries = [
             SelfReport(id: "1", at: "x", feel: .good), SelfReport(id: "2", at: "x"),

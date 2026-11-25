@@ -150,10 +150,13 @@ struct MeDiaryView: View {
         return "\(title) \(count)"
     }
 
-    /// The counts are the grid's days, not everything below: say so beside them.
+    /// The counts are the grid's days, not everything below: say so beside them. With no entry in
+    /// those days there are no counts, and the line would explain nothing.
     @ViewBuilder
     private var countsCaption: some View {
-        if let loaded = overview.overview, let first = loaded.days.first?.date, let last = loaded.days.last?.date {
+        if let loaded = overview.overview, (counts?.all ?? 0) > 0, let first = loaded.days.first?.date,
+            let last = loaded.days.last?.date
+        {
             Text("counts for \(presenter.rangeTitle(from: first, to: last))")
                 .font(.system(size: 11))
                 .foregroundStyle(PaiPalette.Semantic.textFaint)

@@ -196,7 +196,7 @@ struct MeDaysView: View {
                     .font(.system(size: 10))
                     .foregroundStyle(PaiPalette.Semantic.textFaint)
                     .padding(.trailing, 8)
-                    .offset(y: CGFloat(MePresenter.nightY(hour: hour)) - 7)
+                    .offset(y: CGFloat(MePresenter.nightY(hour: hour, role: .bed)) - 7)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -238,7 +238,7 @@ struct MeDaysView: View {
                 Rectangle()
                     .fill(PaiPalette.Semantic.borderDefault)
                     .frame(height: 1)
-                    .offset(y: CGFloat(MePresenter.nightY(hour: hour)))
+                    .offset(y: CGFloat(MePresenter.nightY(hour: hour, role: .bed)))
             }
             if let bar {
                 RoundedRectangle(cornerRadius: 3)

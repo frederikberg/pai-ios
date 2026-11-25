@@ -431,7 +431,7 @@ extension PaiFixtures {
               "item_max_words": null,
               "nullable": false,
               "owner_only": true,
-              "affects_guests": false,
+              "affects_guests": true,
               "ui": true,
               "label": "Keep debug recordings",
               "help": "Keeps what each speech engine heard, for diagnosing.",
@@ -495,6 +495,26 @@ extension PaiFixtures {
               "ui": true,
               "label": "Alerts: push",
               "help": "Whether an alert about PAI Cloud or the VM is pushed to your devices.",
+              "warning": null
+            },
+            "push_reminders": {
+              "scope": "person",
+              "kind": "bool",
+              "default": true,
+              "min": null,
+              "max": null,
+              "step": null,
+              "choices": null,
+              "max_len": null,
+              "max_items": null,
+              "item_max_len": null,
+              "item_max_words": null,
+              "nullable": false,
+              "owner_only": true,
+              "affects_guests": false,
+              "ui": true,
+              "label": "Reminders: push",
+              "help": "Whether a reminder you set is pushed to your devices.",
               "warning": null
             },
             "mail_alerts": {
@@ -642,6 +662,7 @@ extension PaiFixtures {
             "location_sign_in_id": null,
             "push_agent_messages": true,
             "push_alerts": true,
+            "push_reminders": true,
             "mail_alerts": false,
             "mail_address": null
           },

@@ -95,7 +95,7 @@ public enum NotificationMatrix {
     /// Whether no push can reach any of the person's devices: every push switch they have is off.
     /// The inbox keeps everything regardless, which is what the page says beside it.
     public static func reachesNoDevice(person: [String: SettingValue]) -> Bool {
-        let switches = ["push_agent_messages", "push_alerts"].compactMap { person[$0]?.boolValue }
+        let switches = ["push_agent_messages", "push_alerts", "push_reminders"].compactMap { person[$0]?.boolValue }
         return !switches.isEmpty && switches.allSatisfy { !$0 }
     }
 }
