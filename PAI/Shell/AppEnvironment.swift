@@ -24,6 +24,9 @@ final class AppEnvironment {
     /// asks it on every navigation.
     let sleepMode: SleepModeStore
 
+    /// The Quick Actions arrangement. Belongs to the phone like sleep mode, and needs no sign-in.
+    let quickActions: QuickActionsStore
+
     /// Set when the backend refused the stored token, so the shell can offer a way back that is
     /// distinct from first launch.
     private(set) var lastAuthFailure: String?
@@ -178,6 +181,7 @@ final class AppEnvironment {
         self.tokens = tokens
         self.backendURL = defaults.string(forKey: Self.backendURLKey) ?? Self.defaultBackendURL
         self.sleepMode = Self.makeSleepMode(defaults)
+        self.quickActions = Self.makeQuickActions(defaults)
         self.router = Router(gate: .needsConfiguration)
         router.sleepMode = sleepMode
         sleepMode.onSleepBegan = { [weak self] in Task { @MainActor in self?.sleepBegan() } }
@@ -276,6 +280,24 @@ final class AppEnvironment {
             }
         #endif
         return SleepModeStore(storage: defaults)
+    }
+
+    /// The Quick Actions store of this process. A fixture run keeps nothing, so every launch starts
+    /// from the standard arrangement, and `-PaiFixtureQuickShortcuts` adds three example shortcuts
+    /// to push the grid past fifteen tiles. Guarded because fixture mode exists only in Debug.
+    private static func makeQuickActions(_ defaults: UserDefaults) -> QuickActionsStore {
+        #if DEBUG
+            if PaiFixtureLaunch.isEnabled() {
+                let store = QuickActionsStore(storage: nil)
+                if PaiFixtureLaunch.seedsQuickShortcuts() {
+                    store.addShortcut(name: "Inbox", urlString: "https://example.com/inbox")
+                    store.addShortcut(name: "Calendar", urlString: "calshow://")
+                    store.addShortcut(name: "Unset", urlString: "")
+                }
+                return store
+            }
+        #endif
+        return QuickActionsStore(storage: defaults)
     }
 
     /// The backend's record of this device's push registration belongs to the person who signed

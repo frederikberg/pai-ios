@@ -16,12 +16,15 @@ enum FixtureScrollAnchor: String {
     case mePlan
     case meDiary
     case meDayDetail
+    case quickGridEnd
+    case quickLibraryEnd
 
     /// Where in the viewport the anchor's top edge lands. A section scrolled to `.top` has its
     /// header under the navigation bar.
     var viewportAnchor: UnitPoint {
         switch self {
         case .playbackVoice: .center
+        case .quickGridEnd, .quickLibraryEnd: .bottom
         default: .top
         }
     }

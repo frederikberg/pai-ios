@@ -42,6 +42,8 @@
         static let alarmSheetFlag = "-PaiFixtureAlarmSheet"
         static let sessionFiltersFlag = "-PaiFixtureSessionFilters"
         static let quickMoreFlag = "-PaiFixtureQuickMore"
+        static let quickEditFlag = "-PaiFixtureQuickEdit"
+        static let quickShortcutsFlag = "-PaiFixtureQuickShortcuts"
         static let roleFlag = "-PaiFixtureRole"
         static let sleepFlag = "-PaiFixtureSleep"
         static let settingsCategoryFlag = "-PaiFixtureSettingsCategory"
@@ -273,6 +275,18 @@
         /// `-PaiFixtureQuickMore`: the Quick Actions screen opens its More list at once.
         public static func opensQuickMore(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
             arguments.contains(quickMoreFlag)
+        }
+
+        /// `-PaiFixtureQuickEdit library|addShortcut`: the Quick Actions screen opens its Actions
+        /// Library at once, and with `addShortcut` the add sheet over it.
+        public static func requestedQuickEdit(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: quickEditFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureQuickShortcuts`: three example shortcuts are added to the end of the grid, so
+        /// it holds more than fifteen tiles.
+        public static func seedsQuickShortcuts(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains(quickShortcutsFlag)
         }
 
         /// `-PaiFixtureMeComposer`: the Me composer opens at once over a seeded draft.

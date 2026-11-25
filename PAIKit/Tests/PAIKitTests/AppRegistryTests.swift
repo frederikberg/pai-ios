@@ -140,7 +140,7 @@ final class AppRegistryTests: XCTestCase {
             XCTAssertTrue(action.isNightBlocked, action.rawValue)
         }
         XCTAssertTrue(QuickAction.computer.isNightBlocked, "Computer is a call into the agents")
-        for kept in [QuickAction.selfReport, .me, .findNote, .newNote, .shortcut1, .shortcut2, .shortcut3] {
+        for kept in [QuickAction.selfReport, .me, .findNote, .newNote, .notes, .alarm, .weather] {
             XCTAssertFalse(kept.isNightBlocked, kept.rawValue)
         }
     }

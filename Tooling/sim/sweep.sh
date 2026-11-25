@@ -290,13 +290,28 @@ if want session-filters; then
 fi
 
 if want quick-actions; then
-  # The launcher grid and, opened by the fixture flag, the More list behind its top-right tile.
-  grid="selfReport,me,more|computer,home,ultrafast|mailverdict,homeCall,ultrafastCamera|-,-,ultrafastCall"
+  # The standard grid (five rows of three), the More list behind its tile, the grid pushed past
+  # fifteen tiles by three example shortcuts (top, then scrolled to its end), the Actions Library
+  # opened by the fixture flag (top, then scrolled to Hidden), and the add-shortcut sheet over it.
+  grid="selfReport,me,more,computer,home,ultrafast,mailverdict,homeCall,ultrafastCamera,findNote,newNote,ultrafastCall,notes,alarm,weather"
+  more="fastSession,fastCall,canteen,scheduler,decisions,usage,cameraImport"
   screenshot quick-actions-grid -PaiFixtureRoute quickActions
   fact_assert quick-actions-grid quickActionsGrid "$grid"
   xcrun simctl terminate "$udid" "$bundle" || true
   screenshot quick-actions-more -PaiFixtureRoute quickActions -PaiFixtureQuickMore
-  fact_assert quick-actions-more quickMoreList "fastSession,fastCall,findNote,newNote,shortcut1,shortcut2,shortcut3"
+  fact_assert quick-actions-more quickMoreList "$more"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot quick-actions-overflow -PaiFixtureRoute quickActions -PaiFixtureQuickShortcuts
+  fact_assert quick-actions-overflow quickActionsGrid "$grid,shortcut,shortcut,shortcut"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot quick-actions-overflow-scrolled -PaiFixtureRoute quickActions -PaiFixtureQuickShortcuts -PaiFixtureScrollTo quickGridEnd
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot quick-actions-library -PaiFixtureRoute quickActions -PaiFixtureQuickEdit library
+  fact_assert quick-actions-library quickActionsLibrary "grid:$grid|more:$more|hidden:"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot quick-actions-library-end -PaiFixtureRoute quickActions -PaiFixtureQuickEdit library -PaiFixtureQuickShortcuts -PaiFixtureScrollTo quickLibraryEnd
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot quick-actions-add-shortcut -PaiFixtureRoute quickActions -PaiFixtureQuickEdit addShortcut
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 
@@ -802,8 +817,8 @@ if want sleep-mode; then
   fact_assert sleep-screen-guest sleepTiles "quick-actions,alarm,weather,camera-import"
   xcrun simctl terminate "$udid" "$bundle" || true
   screenshot sleep-quick-actions -PaiFixtureSleep on -PaiFixtureRoute quickActions
-  fact_assert sleep-quick-actions quickActionsGrid "selfReport,me,more|computer,home,ultrafast|mailverdict,homeCall,ultrafastCamera|-,-,ultrafastCall"
-  fact_assert sleep-quick-actions quickActionsPutAway "computer,home,ultrafast,mailverdict,homeCall,ultrafastCamera,ultrafastCall,fastSession,fastCall"
+  fact_assert sleep-quick-actions quickActionsGrid "selfReport,me,more,computer,home,ultrafast,mailverdict,homeCall,ultrafastCamera,findNote,newNote,ultrafastCall,notes,alarm,weather"
+  fact_assert sleep-quick-actions quickActionsPutAway "computer,home,ultrafast,mailverdict,homeCall,ultrafastCamera,ultrafastCall,fastSession,fastCall,scheduler,decisions,usage"
   xcrun simctl terminate "$udid" "$bundle" || true
   screenshot sleep-apps -PaiFixtureSleep on -PaiFixtureRoute apps
   xcrun simctl terminate "$udid" "$bundle" || true
