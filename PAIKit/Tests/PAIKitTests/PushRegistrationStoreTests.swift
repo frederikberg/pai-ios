@@ -21,9 +21,14 @@ final class PushRegistrationStoreTests: XCTestCase {
         /// channels at all, which is not the same as one answering "nothing is muted".
         var answersMutedChannels: ([String]) -> [String]? = { $0 }
 
-        func register(_ token: String, _ muted: [String]) async throws -> DeviceRegistration {
+        private(set) var sleeps: [DeviceSleepChoice] = []
+
+        func register(_ token: String, _ muted: [String], _ sleep: DeviceSleepChoice = .none) async throws
+            -> DeviceRegistration
+        {
             if shouldThrow { throw URLError(.notConnectedToInternet) }
             tokens.append(token)
+            sleeps.append(sleep)
             mutedChannels.append(muted)
             return DeviceRegistration(
                 token: normalise(token), registered: true, lastSeenAt: nil,
@@ -37,7 +42,7 @@ final class PushRegistrationStoreTests: XCTestCase {
         isRegistrationAllowed: @escaping @MainActor () -> Bool = { true }
     ) -> PushRegistrationStore {
         PushRegistrationStore(storage: storage, isRegistrationAllowed: isRegistrationAllowed) {
-            try await recorder.register($0, $1)
+            try await recorder.register($0, $1, $2)
         }
     }
 
@@ -247,4 +252,47 @@ final class PushRegistrationStoreTests: XCTestCase {
         XCTAssertEqual(second.tokens, [], "already acknowledged before the relaunch")
     }
 
+
+    private let window = DeviceSleepChoice(
+        window: .init(start: "22:00", end: "05:00", tz: "Europe/Berlin"), skipUntil: nil)
+
+    /// A window set up after the token was registered has to reach the server by itself, once.
+    func testAChangedSleepWindowIsSentOnceAndNotAgain() async {
+        let recorder = Recorder()
+        let store = makeStore(recorder: recorder)
+        store.recordDeviceToken("abc")
+        await store.registerWithBackendIfNeeded()
+
+        await store.setSleep(window)
+        await store.setSleep(window)
+        XCTAssertEqual(recorder.sleeps, [.none, window], "the second call changed nothing")
+        XCTAssertFalse(store.registration.needsBackendRegistration)
+
+        await store.setSleep(.none)
+        XCTAssertEqual(recorder.sleeps.last, DeviceSleepChoice.none, "turning it off clears it on the server")
+    }
+
+    /// With no token there is nowhere to send it; the registration that follows the token carries it.
+    func testAWindowSetBeforeTheTokenRidesTheFirstRegistration() async {
+        let recorder = Recorder()
+        let store = makeStore(recorder: recorder)
+        await store.setSleep(window)
+        XCTAssertEqual(recorder.tokens, [])
+        store.recordDeviceToken("abc")
+        await store.registerWithBackendIfNeeded()
+        XCTAssertEqual(recorder.sleeps, [window])
+    }
+
+    /// A phone that registered before the window existed is told once on the next launch, and a
+    /// sign-out makes the next sign-in tell the server again.
+    func testForgettingTheRegistrationSendsTheWindowAgain() async {
+        let recorder = Recorder()
+        let store = makeStore(recorder: recorder)
+        store.recordDeviceToken("abc")
+        await store.setSleep(window)
+        await store.registerWithBackendIfNeeded()
+        store.forgetBackendRegistration()
+        await store.registerWithBackendIfNeeded()
+        XCTAssertEqual(recorder.sleeps, [window, window])
+    }
 }

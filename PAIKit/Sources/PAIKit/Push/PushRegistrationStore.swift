@@ -25,7 +25,7 @@ public final class PushRegistrationStore {
     /// went out, is what stops a normalisation this client does not perform from looking like a
     /// token that was never registered — which would re-post on every launch, forever, with
     /// nothing wrong.
-    private let registerToken: @Sendable (String, [String]) async throws -> DeviceRegistration
+    private let registerToken: @Sendable (String, [String], DeviceSleepChoice) async throws -> DeviceRegistration
 
     /// Whether the signed-in person's devices are registered at all; a guest's is not, because
     /// the registration route is the owner's.
@@ -36,7 +36,7 @@ public final class PushRegistrationStore {
     public init(
         storage: SettingsKeyValueStore,
         isRegistrationAllowed: @escaping @MainActor () -> Bool,
-        registerToken: @escaping @Sendable (String, [String]) async throws -> DeviceRegistration
+        registerToken: @escaping @Sendable (String, [String], DeviceSleepChoice) async throws -> DeviceRegistration
     ) {
         self.storage = storage
         self.isRegistrationAllowed = isRegistrationAllowed
@@ -83,9 +83,11 @@ public final class PushRegistrationStore {
             let token = registration.deviceToken
         else { return }
         let sent = registration.mutedChannels
+        let sentSleep = registration.sleep
         do {
-            let result = try await registerToken(token, sent.sorted())
+            let result = try await registerToken(token, sent.sorted(), sentSleep)
             registration.registeredToken = result.token
+            registration.registeredSleep = sentSleep
             // What the backend reports it holds, and what was sent when it reports nothing. A
             // backend that does not answer about channels has still stored what it was given, so
             // treating silence as "nothing is muted" is the one reading that is certainly wrong.
@@ -96,6 +98,16 @@ public final class PushRegistrationStore {
             registration.lastError = String(describing: error)
         }
         persist()
+    }
+
+    /// Records the sleep window this phone holds and tells the backend if it differs from what it
+    /// was last told. Does nothing for a phone with no token yet: the registration that follows the
+    /// token carries it.
+    public func setSleep(_ choice: DeviceSleepChoice) async {
+        guard registration.sleep != choice else { return }
+        registration.sleep = choice
+        persist()
+        await registerWithBackendIfNeeded()
     }
 
     /// Switch one channel on or off for this device, and tell the backend.
@@ -119,6 +131,7 @@ public final class PushRegistrationStore {
     public func forgetBackendRegistration() {
         registration.registeredToken = nil
         registration.registeredMutedChannels = nil
+        registration.registeredSleep = nil
         persist()
     }
 

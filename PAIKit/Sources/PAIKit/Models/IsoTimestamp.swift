@@ -17,6 +17,17 @@ import Foundation
 /// tests below mean anything.
 public enum IsoTimestamp {
 
+    /// `2026-11-25T22:30:00+00:00`: UTC with a numeric offset, the shape the backend reads back
+    /// without a second look, and whole seconds.
+    public static func utcString(from date: Date) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        let p = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        return String(
+            format: "%04d-%02d-%02dT%02d:%02d:%02d+00:00", p.year ?? 0, p.month ?? 0, p.day ?? 0, p.hour ?? 0,
+            p.minute ?? 0, p.second ?? 0)
+    }
+
     public static func date(from text: String) -> Date? {
         let normalised = trimmingFractionToMilliseconds(text)
         lock.lock()

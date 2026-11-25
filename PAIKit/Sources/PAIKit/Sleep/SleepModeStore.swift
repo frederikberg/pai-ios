@@ -76,6 +76,17 @@ public final class SleepModeStore {
         return settings.window.end(ofWindowContaining: now(), in: zone())
     }
 
+    /// What the server is told about this phone's sleep: the window with the zone it is read in,
+    /// and the end of a "wake early" that has not ended yet. Nothing while sleep mode is off, which
+    /// clears the window there. The server applies the same wall-clock rule, so a phone that is
+    /// switched off at 22:00 still gets no push.
+    public func deviceChoice() -> DeviceSleepChoice {
+        guard let window else { return .none }
+        let skip = settings.skipUntil.flatMap { $0 > now() ? IsoTimestamp.utcString(from: $0) : nil }
+        return DeviceSleepChoice(
+            window: .init(start: window.startText, end: window.endText, tz: zone().identifier), skipUntil: skip)
+    }
+
     /// Recomputes `isAsleep` and the next boundary from the clock. Cheap; call it whenever time
     /// may have moved.
     public func refresh() {

@@ -1834,20 +1834,35 @@ public struct PaiApiClient: Sendable {
     /// whatever this device already chose alone", which is right for a client that does not know
     /// about channels and wrong for one clearing its last mute. An id the backend does not know
     /// is a 400.
-    public func registerDevice(token: String, mutedChannels: [String]) async throws -> DeviceRegistration {
+    public func registerDevice(
+        token: String, mutedChannels: [String], sleep: DeviceSleepChoice = .none
+    ) async throws -> DeviceRegistration {
         struct Body: Encodable {
             let token: String
             let mutedChannels: [String]
+            let sleep: DeviceSleepChoice
 
             enum CodingKeys: String, CodingKey {
-                case token
+                case token, sleep
                 case mutedChannels = "muted_channels"
+                case sleepSkipUntil = "sleep_skip_until"
+            }
+
+            /// The window and the wake-early moment are always written, `null` included: the
+            /// phone is the one place that holds them, and an omitted key would leave a window
+            /// the person has since turned off in force on the server.
+            func encode(to encoder: Encoder) throws {
+                var c = encoder.container(keyedBy: CodingKeys.self)
+                try c.encode(token, forKey: .token)
+                try c.encode(mutedChannels, forKey: .mutedChannels)
+                try c.encode(sleep.window, forKey: .sleep)
+                try c.encode(sleep.skipUntil, forKey: .sleepSkipUntil)
             }
         }
         return try await send(
             path: "/api/devices/register",
             method: "POST",
-            body: try Self.jsonBody(Body(token: token, mutedChannels: mutedChannels))
+            body: try Self.jsonBody(Body(token: token, mutedChannels: mutedChannels, sleep: sleep))
         )
     }
 
