@@ -1498,19 +1498,6 @@ public struct PaiApiClient: Sendable {
         return data
     }
 
-    // MARK: Per-person settings
-
-    /// `GET /api/settings/me` — the signed-in person's own settings. A namespace's agent is not a
-    /// person and gets 403.
-    public func getMySettings() async throws -> UserSettings {
-        try await send(path: "/api/settings/me")
-    }
-
-    /// `PUT /api/settings/me` — any subset of the slots; the answer is the whole row.
-    public func updateMySettings(_ patch: UserSettingsPatch) async throws -> UserSettings {
-        try await send(path: "/api/settings/me", method: "PUT", body: try Self.jsonBody(patch))
-    }
-
     // MARK: Subagent chat
 
     /// `GET /api/session/{id}/subagent-controls` — what may be done with this subagent and the
@@ -1595,7 +1582,7 @@ public struct PaiApiClient: Sendable {
         try await send(path: "/api/settings/voice")
     }
 
-    public func updateVoiceSettings(_ update: SpokenVoiceSettingsUpdate) async throws -> SpokenVoiceSettings {
+    public func updateComputerModel(_ update: ComputerModelUpdate) async throws -> SpokenVoiceSettings {
         try await send(path: "/api/settings/voice", method: "PUT", body: try Self.jsonBody(update))
     }
 

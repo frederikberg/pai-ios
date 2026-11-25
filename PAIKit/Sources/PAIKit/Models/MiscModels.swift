@@ -1113,43 +1113,9 @@ public struct SecretStatusMap: Codable, Sendable, Equatable {
 
 // MARK: - Voice settings
 //
-// Synced to the backend, which is the only thing that speaks or transcribes — one row read by
-// every transport, three groups: Computer (the Claude model, its effort and the turn taking),
-// session replies (ElevenLabs text-to-speech: a voice id and a speed, no style text — the API has
-// none), and dictation (ElevenLabs Scribe: key terms, language, filler-word removal). A `nil`
-// means unset: whatever speaks picks its own.
-//
-// The ranges below are what the inputs offer. The backend validates the real bounds and answers
-// 400 outside them; there is no OpenAPI schema to share one constant from, the same duplication
-// `SmtpSecurity`'s own value list carries for the same reason.
-
-/// ElevenLabs' own `voice_settings.speed` range.
-public let callSpeedRange: ClosedRange<Double> = 0.7...1.2
-
-/// Seconds of silence after which a batch take is transcribed in the background.
-public let sttBatchPauseRange: ClosedRange<Int> = 5...120
-/// What switching the setting on starts from; the backend's own default.
-public let sttBatchPauseDefault = 15
-
-/// ElevenLabs realtime's limits on key terms — stricter than batch's, and both receive the list.
-public enum SttKeytermRules {
-    public static let maxCount = 50
-    public static let maxCharacters = 20
-    public static let maxWords = 5
-    public static let forbiddenCharacters = Set("<>{}[]\\")
-
-    /// `nil` when the term is acceptable, otherwise why not.
-    public static func problem(with term: String) -> String? {
-        if term.count > maxCharacters { return "“\(term)” is longer than \(maxCharacters) characters" }
-        if term.split(whereSeparator: \.isWhitespace).count > maxWords {
-            return "“\(term)” has more than \(maxWords) words"
-        }
-        if term.contains(where: { forbiddenCharacters.contains($0) }) {
-            return "“\(term)” contains one of < > { } [ ] \\"
-        }
-        return nil
-    }
-}
+// The person's own voice and dictation settings are registry keys (`SettingsRegistryStore`).
+// What is left of the older voice route is Computer's Claude model and effort and the choices
+// the backend offers for the turn-taking presets.
 
 /// One turn-taking tunable as the backend stores it: a number, the `turn_cue` switch, or `null`
 /// ("never") for the two silence waits.
@@ -1317,68 +1283,27 @@ public struct SpokenVoiceSettings: Codable, Sendable, Equatable {
     }
 }
 
-/// Every voice-group field every time, the same whole-draft PUT `SmtpSettingsUpdate` sends and
-/// for the same reason: a `nil` here has to reach the server as JSON `null` to clear a field,
-/// which a selective patch cannot express. `debug_recordings_enabled` is not in here — it is its
-/// own toggle with its own PUT.
-public struct SpokenVoiceSettingsUpdate: Encodable, Sendable, Equatable {
-    public var computerClaudeModel: String?
-    public var computerClaudeEffort: String?
-    public var computerTurnPreset: String?
-    public var computerTurnTunables: [String: ComputerTunableValue]?
-    public var callVoiceId: String?
-    public var callSpeed: Double
-    public var sttKeyterms: [String]
-    public var sttLanguage: String?
-    public var sttNoVerbatim: Bool
-    public var sttBatchPauseS: Int?
+/// Computer's Claude model and effort, the two fields of the voice route that are not registry
+/// keys. `nil` is written as JSON `null`, which means "the backend's default"; an omitted key
+/// would leave the stored choice as it is.
+public struct ComputerModelUpdate: Encodable, Sendable, Equatable {
+    public var model: String?
+    public var effort: String?
 
     enum CodingKeys: String, CodingKey {
-        case computerClaudeModel = "computer_claude_model"
-        case computerClaudeEffort = "computer_claude_effort"
-        case computerTurnPreset = "computer_turn_preset"
-        case computerTurnTunables = "computer_turn_tunables"
-        case callVoiceId = "call_voice_id"
-        case callSpeed = "call_speed"
-        case sttKeyterms = "stt_keyterms"
-        case sttLanguage = "stt_language"
-        case sttNoVerbatim = "stt_no_verbatim"
-        case sttBatchPauseS = "stt_batch_pause_s"
+        case model = "computer_claude_model"
+        case effort = "computer_claude_effort"
     }
 
-    public init(
-        computerClaudeModel: String? = nil,
-        computerClaudeEffort: String? = nil, computerTurnPreset: String? = nil,
-        computerTurnTunables: [String: ComputerTunableValue]? = nil,
-        callVoiceId: String?, callSpeed: Double, sttKeyterms: [String], sttLanguage: String?, sttNoVerbatim: Bool,
-        sttBatchPauseS: Int?
-    ) {
-        self.computerClaudeModel = computerClaudeModel
-        self.computerClaudeEffort = computerClaudeEffort
-        self.computerTurnPreset = computerTurnPreset
-        self.computerTurnTunables = computerTurnTunables
-        self.callVoiceId = callVoiceId
-        self.callSpeed = callSpeed
-        self.sttKeyterms = sttKeyterms
-        self.sttLanguage = sttLanguage
-        self.sttNoVerbatim = sttNoVerbatim
-        self.sttBatchPauseS = sttBatchPauseS
+    public init(model: String?, effort: String?) {
+        self.model = model
+        self.effort = effort
     }
 
-    /// Nullable fields are always written, `null` included — the synthesised encoder would
-    /// leave a `nil` out, and an omitted key is "leave as-is" to the backend, not "clear".
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(computerClaudeModel, forKey: .computerClaudeModel)
-        try container.encode(computerClaudeEffort, forKey: .computerClaudeEffort)
-        try container.encode(computerTurnPreset, forKey: .computerTurnPreset)
-        try container.encode(computerTurnTunables, forKey: .computerTurnTunables)
-        try container.encode(callVoiceId, forKey: .callVoiceId)
-        try container.encode(callSpeed, forKey: .callSpeed)
-        try container.encode(sttKeyterms, forKey: .sttKeyterms)
-        try container.encode(sttLanguage, forKey: .sttLanguage)
-        try container.encode(sttNoVerbatim, forKey: .sttNoVerbatim)
-        try container.encode(sttBatchPauseS, forKey: .sttBatchPauseS)
+        try container.encode(model, forKey: .model)
+        try container.encode(effort, forKey: .effort)
     }
 }
 

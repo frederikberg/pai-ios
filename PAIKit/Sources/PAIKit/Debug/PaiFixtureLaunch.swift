@@ -42,6 +42,9 @@
         static let alarmSheetFlag = "-PaiFixtureAlarmSheet"
         static let sessionFiltersFlag = "-PaiFixtureSessionFilters"
         static let quickMoreFlag = "-PaiFixtureQuickMore"
+        static let roleFlag = "-PaiFixtureRole"
+        static let sleepFlag = "-PaiFixtureSleep"
+        static let settingsCategoryFlag = "-PaiFixtureSettingsCategory"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -240,6 +243,25 @@
         /// `-PaiFixtureMeDay <n>`: the 14-day grid opens with the day `n` days before today picked.
         public static func requestedMeDayOffset(arguments: [String] = ProcessInfo.processInfo.arguments) -> Int? {
             value(for: meDayFlag, in: arguments).flatMap { Int($0) }
+        }
+
+        /// `-PaiFixtureRole guest`: the corpus answers as a guest signed in, with the guest's settings
+        /// schema. Absent is the owner.
+        public static func requestedRole(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: roleFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureSleep on|configured`: sleep mode is set up with a window and a PIN (1234), and
+        /// the clock stands inside the window (`on`) or outside it (`configured`).
+        public static func requestedSleep(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: sleepFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureSettingsCategory <id>`: Settings opens on that category rather than its list.
+        public static func requestedSettingsCategory(arguments: [String] = ProcessInfo.processInfo.arguments)
+            -> String?
+        {
+            value(for: settingsCategoryFlag, in: arguments)
         }
 
         /// `-PaiFixtureQuickMore`: the Quick Actions screen opens its More list at once.

@@ -56,8 +56,8 @@ public final class SettingsStore {
 
     /// Which recording mode a press on the microphone starts; a long press and the composer's
     /// plus menu start the other one (``alternateRecordingMode``). The person's own setting, the
-    /// same on every device (``userSettings``); live until it has been read.
-    public var defaultRecordingMode: VoiceSttMode { userSettings.settings?.recordingMode ?? .live }
+    /// same on every device (``registry``); live until it has been read.
+    public var defaultRecordingMode: VoiceSttMode { registry.recordingMode }
 
     public let elevenLabsKey: WriteOnlySecretField
     /// The two third-party credentials Computer presents itself. Set here rather than deployed
@@ -67,11 +67,12 @@ public final class SettingsStore {
     public let smtp: SmtpSettingsStore
     public let alerts: AlertsStore
     public let alertRouting: AlertRoutingStore
-    public let voices: SpokenVoiceSettingsStore
+    public let computerModel: ComputerModelStore
     public let statusMessage: StatusMessageStore
     public let sessionDefaults: SessionDefaultsStore
-    /// The person's own settings (recording mode, e-mail switch, playback speed and voice).
-    public let userSettings: UserSettingsStore
+    /// The settings the server declares once: the person's own (recording mode, mail switch,
+    /// playback and call voices, dictation) and, for the owner, the instance's.
+    public let registry: SettingsRegistryStore
     /// The voices the person can pick for read-aloud playback, and their Try samples.
     public let playbackVoices: PlaybackVoicesStore
 
@@ -96,10 +97,10 @@ public final class SettingsStore {
         self.smtp = SmtpSettingsStore(apiClient: apiClient)
         self.alerts = AlertsStore(api: apiClient)
         self.alertRouting = AlertRoutingStore(api: apiClient)
-        self.voices = SpokenVoiceSettingsStore(apiClient: apiClient)
+        self.computerModel = ComputerModelStore(api: apiClient)
         self.statusMessage = StatusMessageStore(api: apiClient)
         self.sessionDefaults = SessionDefaultsStore(api: apiClient)
-        self.userSettings = UserSettingsStore(api: apiClient, cache: storage)
+        self.registry = SettingsRegistryStore(api: apiClient, cache: storage)
         self.playbackVoices = PlaybackVoicesStore(api: apiClient)
 
         silenceGate = storage.value(forKey: Keys.silenceGate) ?? .standard
@@ -144,7 +145,7 @@ public final class SettingsStore {
     /// Saved to the person's settings; a refused write puts the old mode back.
     public func setDefaultRecordingMode(_ mode: VoiceSttMode) async {
         guard mode == .live || mode == .batch else { return }
-        await userSettings.update(UserSettingsPatch(recordingMode: mode))
+        await registry.updatePerson(["recording_mode": .string(mode.wireValue)])
     }
 
     public func setShowsNoteLineNumbers(_ enabled: Bool) {

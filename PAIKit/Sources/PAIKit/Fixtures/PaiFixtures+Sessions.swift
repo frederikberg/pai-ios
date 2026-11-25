@@ -130,12 +130,6 @@ extension PaiFixtures {
           "display_name": "Owner", "allowed_session_ids": ["305df4d3-1554-4fc3-be04-39a354a9e619"] }
         """#
 
-    /// `GET`/`PUT /api/settings/me` — the person's own settings.
-    public static let mySettings: String = #"""
-        { "recording_mode": "live", "playback_voice_id": null, "playback_speed": 1.0, "email_notifications": true,
-          "alarm_ring_interval_s": 5, "alarm_ring_duration_s": 60 }
-        """#
-
     /// `GET /api/health` — everything connected.
     public static let healthOk: String = #"""
         { "status": "ok", "database": "connected", "agent": "connected", "credential": "ok", "timestamp": "2026-08-29T09:42:10Z" }

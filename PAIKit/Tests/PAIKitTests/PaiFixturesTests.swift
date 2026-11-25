@@ -120,8 +120,11 @@ final class PaiFixturesTests: XCTestCase {
         let me = try JSONDecoder().decode(MeResponse.self, from: Data(PaiFixtures.me.utf8))
         XCTAssertNotNil(me.userId)
         XCTAssertEqual(me.displayName, "Owner")
-        let settings = try JSONDecoder().decode(UserSettings.self, from: Data(PaiFixtures.mySettings.utf8))
-        XCTAssertTrue(settings.emailNotifications)
+        let settings = try JSONDecoder().decode(
+            SettingsResponse.self, from: Data(PaiFixtures.settingsRegistryOwner.utf8))
+        XCTAssertEqual(settings.person["mail_from_agents"], .bool(true))
+        let guest = try JSONDecoder().decode(MeResponse.self, from: Data(PaiFixtures.meGuest.utf8))
+        XCTAssertEqual(guest.role, .guest)
     }
 
     func testThePlaybackFixturesAreWhatTheEngineDecodesAndTheReplyIsPlayable() throws {

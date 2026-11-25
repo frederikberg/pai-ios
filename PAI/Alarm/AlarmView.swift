@@ -52,7 +52,7 @@ struct AlarmView: View {
             if let store { NewAlarmSheet(store: store, initialMode: initialEntryMode) }
         }
         .sheet(isPresented: $isConfiguring) {
-            AlarmRingSettingsSheet(store: settings.userSettings)
+            AlarmRingSettingsSheet(store: settings.registry)
         }
         .task {
             let current: AlarmStore
@@ -70,7 +70,7 @@ struct AlarmView: View {
             } else {
                 return
             }
-            await settings.userSettings.load()
+            await settings.registry.load()
             await current.poll()
         }
         .onChange(of: store?.errorMessage) { _, message in
@@ -347,7 +347,7 @@ private struct NewAlarmSheet: View {
 /// How a ring behaves, stored with the person's other settings so every device and the watch
 /// share it. Each choice includes the value currently stored, so one set elsewhere stays visible.
 private struct AlarmRingSettingsSheet: View {
-    let store: UserSettingsStore
+    let store: SettingsRegistryStore
     @Environment(\.dismiss) private var dismiss
     @Environment(ToastCenter.self) private var toasts
 
@@ -357,26 +357,16 @@ private struct AlarmRingSettingsSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let settings = store.settings {
+                if let interval = store.alarmRingIntervalS, let duration = store.alarmRingDurationS {
                     Section {
-                        Picker(
-                            "Push every",
-                            selection: binding(settings.alarmRingIntervalS) {
-                                UserSettingsPatch(alarmRingIntervalS: $0)
-                            }
-                        ) {
-                            ForEach(choices(Self.intervals, including: settings.alarmRingIntervalS), id: \.self) {
+                        Picker("Push every", selection: binding(interval, key: "alarm_ring_interval_s")) {
+                            ForEach(choices(Self.intervals, including: interval), id: \.self) {
                                 Text("\($0) s").tag($0)
                             }
                         }
                         .accessibilityIdentifier("alarm-interval")
-                        Picker(
-                            "Ring for",
-                            selection: binding(settings.alarmRingDurationS) {
-                                UserSettingsPatch(alarmRingDurationS: $0)
-                            }
-                        ) {
-                            ForEach(choices(Self.durations, including: settings.alarmRingDurationS), id: \.self) {
+                        Picker("Ring for", selection: binding(duration, key: "alarm_ring_duration_s")) {
+                            ForEach(choices(Self.durations, including: duration), id: \.self) {
                                 Text(durationText($0)).tag($0)
                             }
                         }
@@ -407,12 +397,12 @@ private struct AlarmRingSettingsSheet: View {
         seconds >= 60 && seconds % 60 == 0 ? "\(seconds / 60) min" : "\(seconds) s"
     }
 
-    private func binding(_ current: Int, patch: @escaping (Int) -> UserSettingsPatch) -> Binding<Int> {
+    private func binding(_ current: Int, key: String) -> Binding<Int> {
         Binding(
             get: { current },
             set: { value in
                 Task {
-                    if !(await store.update(patch(value))), let message = store.errorMessage {
+                    if !(await store.updatePerson([key: .whole(value)])), let message = store.errorMessage {
                         toasts.show(message, kind: .error)
                     }
                 }

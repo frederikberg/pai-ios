@@ -84,6 +84,20 @@ public enum QuickAction: String, CaseIterable, Sendable {
         }
     }
 
+    /// Whether the action leads into the agents: a session, a call, Computer. Sleep mode greys
+    /// these and sends a tap to the sleep screen; the rest keep working.
+    ///
+    /// An exhaustive switch with no default, so an action cannot be added without deciding.
+    public var isNightBlocked: Bool {
+        switch self {
+        case .computer, .home, .ultrafast, .homeCall, .ultrafastCamera, .ultrafastCall, .fastSession, .fastCall,
+            .mailverdict:
+            true
+        case .selfReport, .me, .findNote, .newNote, .shortcut1, .shortcut2, .shortcut3:
+            false
+        }
+    }
+
     /// The session type a session action starts, in the backend's naming. `nil` for the
     /// MailVerdict assistant, which has its own entry, and for everything that starts no session.
     public var sessionType: String? {

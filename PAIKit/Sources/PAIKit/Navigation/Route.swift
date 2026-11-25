@@ -255,6 +255,25 @@ public enum Route: Hashable, Sendable {
 }
 
 extension Route {
+    /// Whether this screen is about the agents: their sessions, what they say and do, and the
+    /// places that report on them. Sleep mode puts exactly these away.
+    ///
+    /// An exhaustive switch with no default, so a route cannot be added without deciding which
+    /// side of the line it is on.
+    public var isSessionSurface: Bool {
+        switch self {
+        case .session, .terminal, .createSession, .subagents, .notifications, .recordings, .arcSpec, .arcSpecList,
+            .arcReport, .arcOverview, .schedulerList, .schedulerTask, .computerCall, .usage, .decisions,
+            .browserList, .browser:
+            true
+        case .settings, .notes, .note, .noteContainers, .notePreview, .apps, .quickActions, .canteen, .alarm,
+            .weather, .cameraImport, .me:
+            false
+        }
+    }
+}
+
+extension Route {
     /// Every screen name the fixture screenshot workflow can launch straight into.
     ///
     /// The root session list is not listed here — it needs no route, since it is what
@@ -391,6 +410,15 @@ public final class Router {
     public private(set) var path: [Route] = []
     public var gate: AppGate
 
+    /// Where sleep time is decided. While it says asleep, a route that is a session surface is
+    /// never added to the path: asking for one leaves the app on the root screen, which sleep mode
+    /// shows as the sleep screen. Every way in (a tap, a link, a notification, an intent) ends in
+    /// `push`, `replace`, `surface` or one of the openers below, so this is the one gate.
+    @ObservationIgnored public var sleepMode: SleepModeStore?
+
+    /// Whether sleep mode is putting the session surfaces away right now.
+    public var isAsleep: Bool { sleepMode?.isAsleep ?? false }
+
     public init(gate: AppGate = .needsConfiguration) {
         self.gate = gate
         #if DEBUG
@@ -417,7 +445,23 @@ public final class Router {
     #endif
 
     public func push(_ route: Route) {
+        guard admits([route]) else { return }
         path.append(route)
+    }
+
+    /// Whether `routes` may be added to the path right now. While asleep a session surface is
+    /// refused, and the path is emptied so the app lands on the sleep screen rather than staying
+    /// wherever it was.
+    private func admits(_ routes: [Route]) -> Bool {
+        guard isAsleep, routes.contains(where: \.isSessionSurface) else { return true }
+        path.removeAll()
+        return false
+    }
+
+    /// Puts every session surface off the path when sleep time begins. Anything left of the path
+    /// would be a screen about the agents still on show; the app lands on the sleep screen instead.
+    public func sleepBegan() {
+        if path.contains(where: \.isSessionSurface) { path.removeAll() }
     }
 
     public func pop() {
@@ -472,6 +516,7 @@ public final class Router {
     /// stack a second copy of it under the first, so backing out of one would land on the other
     /// — which reads as a back gesture that did nothing.
     public func surface(_ route: Route) {
+        guard admits([route]) else { return }
         guard let index = path.firstIndex(of: route) else {
             push(route)
             return
@@ -481,6 +526,7 @@ public final class Router {
 
     /// Replace the whole path, for a deep link or a restored session.
     public func replace(with routes: [Route]) {
+        guard admits(routes) else { return }
         path = routes
     }
 
@@ -542,6 +588,7 @@ public final class Router {
     /// transcript is built fresh with `messageID`, and nothing needs sending.
     @discardableResult
     public func openSession(id: String, messageID: Int?) -> Bool {
+        guard admits([.session(id: id)]) else { return false }
         if let index = path.lastIndex(of: .session(id: id)) {
             path.removeSubrange(path.index(after: index)...)
             return true
@@ -556,6 +603,7 @@ public final class Router {
     /// top of the screens that belong to its sub-agents, and Back from it goes where the list
     /// the reader started from is. A parent already on the path is brought back to the top.
     public func openParent(id parentID: String, leaving subagentID: String) {
+        guard admits([.session(id: parentID)]) else { return }
         if let index = path.lastIndex(of: .session(id: parentID)) {
             path.removeSubrange(path.index(after: index)...)
             return
