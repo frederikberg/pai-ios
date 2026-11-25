@@ -1,8 +1,8 @@
 import Foundation
 import Observation
 
-/// What Today and the 14-day grid show: the overview, the day picked in the grid and that day's
-/// detail. A failed read keeps the answer on screen and says so.
+/// What Today and the 14-day grid show: the overview, the day picked in the grid, that day's
+/// detail and its Todoist rows. A failed read keeps the answer on screen and says so.
 @MainActor
 @Observable
 public final class MeOverviewStore {
@@ -16,6 +16,10 @@ public final class MeOverviewStore {
     public var selectedDate: String?
     public private(set) var detail: MeDay?
     public private(set) var detailDate: String?
+    /// The Todoist rows read so far, by Berlin day. Today's are read again on open, on coming back
+    /// to the screen and on the refresh icon, never on a timer.
+    public private(set) var tasksByDate: [String: MeTasks] = [:]
+    public private(set) var isRefreshingTasks = false
 
     private let api: SelfReportApiClient
     private var presenterCache: MePresenter?
@@ -30,7 +34,19 @@ public final class MeOverviewStore {
         return MePresenter(timeZoneName: overview?.timezone ?? "Europe/Berlin")
     }
 
-    public func load() async {
+    /// Reads the overview and today's Todoist rows side by side, then the picked day's detail.
+    /// `freshTasks` is a pull-to-refresh: it asks the server to read Todoist again even when its last read is recent.
+    public func load(readingTasks: Bool = true, freshTasks: Bool = false) async {
+        async let todayTasks: Void = readTodayTasks(readingTasks, fresh: freshTasks)
+        await loadOverview()
+        await todayTasks
+    }
+
+    private func readTodayTasks(_ reading: Bool, fresh: Bool) async {
+        if reading { await loadTasks(date: nil, fresh: fresh) }
+    }
+
+    private func loadOverview() async {
         defer { isLoading = false }
         do {
             let answer = try await api.getMeOverview(days: Self.windowDays, end: windowEnd)
@@ -51,7 +67,7 @@ public final class MeOverviewStore {
         guard let first = overview?.days.first?.date, let end = presenter.shift(key: first, byDays: -1) else { return }
         windowEnd = end
         selectedDate = nil
-        await load()
+        await load(readingTasks: false)
     }
 
     /// The window of the 14 days after the one shown; the window that reaches today follows it again.
@@ -61,7 +77,7 @@ public final class MeOverviewStore {
         else { return }
         windowEnd = end >= today ? nil : end
         selectedDate = nil
-        await load()
+        await load(readingTasks: false)
     }
 
     public var canGoLater: Bool { windowEnd != nil }
@@ -75,6 +91,12 @@ public final class MeOverviewStore {
     /// overview alone has neither. Read when a day is picked, since it may regenerate summaries.
     private func loadDetail(date: String, force: Bool) async {
         if !force, detailDate == date, detail != nil { return }
+        async let dayTasks: Void = loadTasksUnlessToday(date: date)
+        await readDetail(date: date)
+        await dayTasks
+    }
+
+    private func readDetail(date: String) async {
         do {
             let day = try await api.getMeDay(date: date)
             // A newer pick may have come in while this answered.
@@ -88,6 +110,39 @@ public final class MeOverviewStore {
             }
         }
     }
+
+    // MARK: Todoist
+
+    /// Today's rows come with ``load()``; another day's are stored ones the server never asks
+    /// Todoist for, read once when the day is picked.
+    private func loadTasksUnlessToday(date: String) async {
+        if date == overview?.today || tasksByDate[date] != nil { return }
+        await loadTasks(date: date, fresh: false)
+    }
+
+    /// Reads one day's rows (`date` nil is today). A failed read keeps what is held, so an error
+    /// never replaces rows already on screen.
+    public func loadTasks(date: String?, fresh: Bool) async {
+        do {
+            let answer = try await api.getMeTasks(date: date, fresh: fresh)
+            tasksByDate[answer.date] = answer
+        } catch {
+            // Nothing to show for it: the card keeps its last rows, or is not drawn.
+        }
+    }
+
+    /// The refresh icon: asks the server to read Todoist again when its last read is a few
+    /// seconds old, which the server allows at most every 20 seconds.
+    public func refreshTasks() async {
+        guard !isRefreshingTasks else { return }
+        isRefreshingTasks = true
+        defer { isRefreshingTasks = false }
+        await loadTasks(date: nil, fresh: true)
+    }
+
+    public var todayTasks: MeTasks? { overview.flatMap { tasksByDate[$0.today] } }
+
+    public var selectedTasks: MeTasks? { selectedDate.flatMap { tasksByDate[$0] } }
 
     public var selectedDay: MeDay? { overview?.days.first { $0.date == selectedDate } }
 

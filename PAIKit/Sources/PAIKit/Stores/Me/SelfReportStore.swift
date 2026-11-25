@@ -4,6 +4,7 @@ import Observation
 public protocol SelfReportApiClient: Sendable {
     func getMeOverview(days: Int, end: String?) async throws -> MeOverview
     func getMeDay(date: String) async throws -> MeDay
+    func getMeTasks(date: String?, fresh: Bool) async throws -> MeTasks
     func getSelfReports(before: String?, limit: Int, feel: String?, privateOnly: Bool) async throws -> SelfReportPage
     func createSelfReport(_ body: SelfReportCreateBody) async throws -> SelfReport
     func patchSelfReport(id: String, _ body: SelfReportPatchBody) async throws -> SelfReport

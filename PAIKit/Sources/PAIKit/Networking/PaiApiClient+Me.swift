@@ -89,6 +89,15 @@ extension PaiApiClient {
         try await send(path: "/api/me/day/\(date)", query: [Self.includePrivate])
     }
 
+    /// `GET /api/me/tasks`: one Berlin day of the Todoist list (`date` nil = today). `fresh` asks
+    /// the server to read Todoist again when its last read is older than a few seconds.
+    public func getMeTasks(date: String?, fresh: Bool) async throws -> MeTasks {
+        var query: [URLQueryItem] = []
+        if let date { query.append(URLQueryItem(name: "date", value: date)) }
+        if fresh { query.append(URLQueryItem(name: "fresh", value: "1")) }
+        return try await send(path: "/api/me/tasks", query: query)
+    }
+
     /// `GET /api/me/self-reports`: one page, newest first; `before` is the previous page's `next_before`.
     public func getSelfReports(before: String?, limit: Int, feel: String?, privateOnly: Bool) async throws
         -> SelfReportPage

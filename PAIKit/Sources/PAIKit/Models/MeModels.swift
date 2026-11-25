@@ -230,17 +230,21 @@ public struct MeBody: Decodable, Sendable, Equatable {
     public let sleepSeconds: Int?
     public let sleepScore: Int?
     public let wakeAt: String?
+    /// When sleep began: the evening before the day, or after its midnight. Nil from an older
+    /// server and for a night without a recorded start.
+    public let bedAt: String?
     public let bodyBatteryWake: Int?
     public let readiness: Int?
     public let hrvStatus: String?
 
     public init(
-        sleepSeconds: Int? = nil, sleepScore: Int? = nil, wakeAt: String? = nil, bodyBatteryWake: Int? = nil,
-        readiness: Int? = nil, hrvStatus: String? = nil
+        sleepSeconds: Int? = nil, sleepScore: Int? = nil, wakeAt: String? = nil, bedAt: String? = nil,
+        bodyBatteryWake: Int? = nil, readiness: Int? = nil, hrvStatus: String? = nil
     ) {
         self.sleepSeconds = sleepSeconds
         self.sleepScore = sleepScore
         self.wakeAt = wakeAt
+        self.bedAt = bedAt
         self.bodyBatteryWake = bodyBatteryWake
         self.readiness = readiness
         self.hrvStatus = hrvStatus
@@ -250,6 +254,7 @@ public struct MeBody: Decodable, Sendable, Equatable {
         case sleepSeconds = "sleep_seconds"
         case sleepScore = "sleep_score"
         case wakeAt = "wake_at"
+        case bedAt = "bed_at"
         case bodyBatteryWake = "body_battery_wake"
         case readiness
         case hrvStatus = "hrv_status"
@@ -260,6 +265,7 @@ public struct MeBody: Decodable, Sendable, Equatable {
         sleepSeconds = container.decodeLenientInt(forKey: .sleepSeconds)
         sleepScore = container.decodeLenientInt(forKey: .sleepScore)
         wakeAt = try? container.decodeIfPresent(String.self, forKey: .wakeAt)
+        bedAt = try? container.decodeIfPresent(String.self, forKey: .bedAt)
         bodyBatteryWake = container.decodeLenientInt(forKey: .bodyBatteryWake)
         readiness = container.decodeLenientInt(forKey: .readiness)
         hrvStatus = try? container.decodeIfPresent(String.self, forKey: .hrvStatus)
@@ -310,11 +316,15 @@ public struct MePai: Decodable, Sendable, Equatable {
     public let firstMessageAt: String?
     public let lastMessageAt: String?
     public let overnightAgentMinutes: Int?
+    /// The five-minute slots of the Berlin day (0 to 287, wall clock from 00:00) holding at least
+    /// one message of the person's own, ascending. Empty from an older server.
+    public let slots: [Int]
 
     public init(
         messages: Int, sessions: Int? = nil, firstMessageAt: String? = nil, lastMessageAt: String? = nil,
-        overnightAgentMinutes: Int? = nil
+        overnightAgentMinutes: Int? = nil, slots: [Int] = []
     ) {
+        self.slots = slots
         self.messages = messages
         self.sessions = sessions
         self.firstMessageAt = firstMessageAt
@@ -327,10 +337,14 @@ public struct MePai: Decodable, Sendable, Equatable {
         case firstMessageAt = "first_message_at"
         case lastMessageAt = "last_message_at"
         case overnightAgentMinutes = "overnight_agent_minutes"
+        case slots
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Read as Double so a fractional number cannot fail the day on Apple's decoder.
+        let wireSlots = (try? container.decodeIfPresent([Double].self, forKey: .slots)) ?? []
+        slots = wireSlots.compactMap { $0.isFinite ? Int($0.rounded()) : nil }
         messages = container.decodeLenientInt(forKey: .messages) ?? 0
         sessions = container.decodeLenientInt(forKey: .sessions)
         firstMessageAt = try? container.decodeIfPresent(String.self, forKey: .firstMessageAt)
@@ -344,18 +358,32 @@ public struct MePlan: Decodable, Sendable, Equatable {
     public let planned: Int?
     public let done: Int?
     public let added: Int?
+    /// The plan as agreed, verbatim; nil when only counts were stored and from an older server.
+    public let text: String?
+    /// When the plan was last written.
+    public let updatedAt: String?
 
-    public init(appetite: String? = nil, planned: Int? = nil, done: Int? = nil, added: Int? = nil) {
+    public init(
+        appetite: String? = nil, planned: Int? = nil, done: Int? = nil, added: Int? = nil, text: String? = nil,
+        updatedAt: String? = nil
+    ) {
+        self.text = text
+        self.updatedAt = updatedAt
         self.appetite = appetite
         self.planned = planned
         self.done = done
         self.added = added
     }
 
-    enum CodingKeys: String, CodingKey { case appetite, planned, done, added }
+    enum CodingKeys: String, CodingKey {
+        case appetite, planned, done, added, text
+        case updatedAt = "updated_at"
+    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        text = try? container.decodeIfPresent(String.self, forKey: .text)
+        updatedAt = try? container.decodeIfPresent(String.self, forKey: .updatedAt)
         appetite = try? container.decodeIfPresent(String.self, forKey: .appetite)
         planned = container.decodeLenientInt(forKey: .planned)
         done = container.decodeLenientInt(forKey: .done)
@@ -446,10 +474,23 @@ public struct MeEvent: Decodable, Sendable, Equatable {
     public let endAt: String?
     public let allDay: Bool
     public let calendar: String?
+    public let kind: Kind
+
+    /// `plan` is a real appointment and is drawn as part of the day; `ambient` comes from a
+    /// background calendar (birthdays, school holidays) and is only listed. An older server sends
+    /// no kind, and everything it sends is a plan.
+    public enum Kind: LenientWireEnum {
+        case plan, ambient
+        case unrecognized(String)
+
+        public static let knownValues: [String: Kind] = ["plan": .plan, "ambient": .ambient]
+    }
 
     public init(
-        title: String, startAt: String? = nil, endAt: String? = nil, allDay: Bool = false, calendar: String? = nil
+        title: String, startAt: String? = nil, endAt: String? = nil, allDay: Bool = false, calendar: String? = nil,
+        kind: Kind = .plan
     ) {
+        self.kind = kind
         self.title = title
         self.startAt = startAt
         self.endAt = endAt
@@ -458,7 +499,7 @@ public struct MeEvent: Decodable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case title, calendar
+        case title, calendar, kind
         case startAt = "start_at"
         case endAt = "end_at"
         case allDay = "all_day"
@@ -471,7 +512,11 @@ public struct MeEvent: Decodable, Sendable, Equatable {
         endAt = try? container.decodeIfPresent(String.self, forKey: .endAt)
         allDay = (try? container.decodeIfPresent(Bool.self, forKey: .allDay)) ?? false
         calendar = try? container.decodeIfPresent(String.self, forKey: .calendar)
+        kind = (try? container.decodeIfPresent(Kind.self, forKey: .kind)) ?? .plan
     }
+
+    /// Whether the event is part of the day's own plan rather than background.
+    public var isPlan: Bool { kind == .plan }
 }
 
 /// One day of the overview, and the day route's answer too. In the overview `entries` are the
@@ -568,6 +613,158 @@ public struct MeReview: Decodable, Sendable, Equatable {
         case title, week
         case noteId = "note_id"
         case compassSessionId = "compass_session_id"
+    }
+}
+
+// MARK: Todoist
+
+/// One open task of the person's Todoist Today list.
+public struct MeTaskOpen: Decodable, Sendable, Equatable {
+    public let id: String
+    /// Markdown links already reduced to their text.
+    public let title: String
+    /// The person's own Today order, from 0.
+    public let position: Int
+    public let labels: [String]
+    /// `HH:MM` Berlin wall clock of a set time.
+    public let dueTime: String?
+    /// `yyyy-MM-dd`.
+    public let deadline: String?
+    /// Whole days past its date; 0 when not overdue.
+    public let overdueDays: Int
+
+    public init(
+        id: String, title: String, position: Int = 0, labels: [String] = [], dueTime: String? = nil,
+        deadline: String? = nil, overdueDays: Int = 0
+    ) {
+        self.id = id
+        self.title = title
+        self.position = position
+        self.labels = labels
+        self.dueTime = dueTime
+        self.deadline = deadline
+        self.overdueDays = overdueDays
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, position, labels, deadline
+        case dueTime = "due_time"
+        case overdueDays = "overdue_days"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = (try? container.decodeIfPresent(String.self, forKey: .title)) ?? ""
+        position = container.decodeLenientInt(forKey: .position) ?? 0
+        labels = (try? container.decodeIfPresent([String].self, forKey: .labels)) ?? []
+        dueTime = try? container.decodeIfPresent(String.self, forKey: .dueTime)
+        deadline = try? container.decodeIfPresent(String.self, forKey: .deadline)
+        overdueDays = container.decodeLenientInt(forKey: .overdueDays) ?? 0
+    }
+}
+
+/// A completed task, or all of a day's completions that carry the grouped label when there are
+/// two or more (then `kind` is `group`, `title` and `id` the label).
+public struct MeTaskDone: Decodable, Sendable, Equatable {
+    public enum Kind: LenientWireEnum {
+        case task, group
+        case unrecognized(String)
+
+        public static let knownValues: [String: Kind] = ["task": .task, "group": .group]
+    }
+
+    public let kind: Kind
+    public let id: String
+    public let title: String
+    /// When it was ticked; for a group, the last tick.
+    public let completedAt: String
+    /// A group's first tick.
+    public let fromAt: String?
+    /// A group's size.
+    public let count: Int?
+
+    public init(
+        kind: Kind = .task, id: String, title: String, completedAt: String, fromAt: String? = nil, count: Int? = nil
+    ) {
+        self.kind = kind
+        self.id = id
+        self.title = title
+        self.completedAt = completedAt
+        self.fromAt = fromAt
+        self.count = count
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case kind, id, title, count
+        case completedAt = "completed_at"
+        case fromAt = "from_at"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        kind = (try? container.decodeIfPresent(Kind.self, forKey: .kind)) ?? .task
+        id = try container.decode(String.self, forKey: .id)
+        title = (try? container.decodeIfPresent(String.self, forKey: .title)) ?? ""
+        completedAt = try container.decode(String.self, forKey: .completedAt)
+        fromAt = try? container.decodeIfPresent(String.self, forKey: .fromAt)
+        count = container.decodeLenientInt(forKey: .count)
+    }
+
+    /// A recurring task can be ticked twice in a day under one id, so a row is told apart by its time too.
+    public var rowKey: String { "\(id)|\(completedAt)" }
+
+    /// How many tasks the row stands for.
+    public var size: Int {
+        if case .group = kind { return max(1, count ?? 1) }
+        return 1
+    }
+}
+
+/// `GET /api/me/tasks`: one Berlin day of the person's Todoist list, read-only. `unavailable`
+/// still carries the stored rows, as of `asOf`.
+public struct MeTasks: Decodable, Sendable, Equatable {
+    public let date: String
+    public let status: MeSourceStatus
+    /// When the rows were read from Todoist; nil when never.
+    public let asOf: String?
+    public let open: [MeTaskOpen]
+    /// Newest first.
+    public let done: [MeTaskDone]
+    /// Tasks that were on the list and left the day undone.
+    public let moved: Int
+
+    public init(
+        date: String, status: MeSourceStatus = .ok, asOf: String? = nil, open: [MeTaskOpen] = [],
+        done: [MeTaskDone] = [], moved: Int = 0
+    ) {
+        self.date = date
+        self.status = status
+        self.asOf = asOf
+        self.open = open
+        self.done = done
+        self.moved = moved
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case date, status, open, done, moved
+        case asOf = "as_of"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        date = try container.decode(String.self, forKey: .date)
+        status = (try? container.decodeIfPresent(MeSourceStatus.self, forKey: .status)) ?? .unavailable
+        asOf = try? container.decodeIfPresent(String.self, forKey: .asOf)
+        open = (try? container.decodeIfPresent([MeTaskOpen].self, forKey: .open)) ?? []
+        done = (try? container.decodeIfPresent([MeTaskDone].self, forKey: .done)) ?? []
+        moved = container.decodeLenientInt(forKey: .moved) ?? 0
+    }
+
+    /// Whether the answer is worth a card: a source that is not configured has nothing to show.
+    public var isConfigured: Bool {
+        if case .notConfigured = status { return false }
+        return true
     }
 }
 

@@ -38,7 +38,7 @@ public struct MePresenter: Sendable {
         return dayKey(moved)
     }
 
-    private func format(_ date: Date, _ pattern: String) -> String {
+    func format(_ date: Date, _ pattern: String) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = calendar
@@ -209,66 +209,10 @@ public struct MePresenter: Sendable {
         return km < 10 ? String(format: "%.1f km", km) : String(format: "%.0f km", km)
     }
 
-    /// Height of a sleep bar: 5 pt an hour, nothing for a day with no figure.
-    public func sleepBarHeight(seconds: Int?, pointsPerHour: Double = 5) -> Double? {
-        guard let seconds else { return nil }
-        return Double(seconds) / 3600 * pointsPerHour
-    }
-
-    /// "hours" of the selected sleep bar: "6.1".
-    public func sleepHoursLabel(seconds: Int?) -> String? {
-        guard let seconds else { return nil }
-        return String(format: "%.1f", Double(seconds) / 3600)
-    }
-
-    /// The plan line of Today: "Plan · light day — 2 of 3 done, 1 added later"; nil without a plan.
-    public func planLine(_ plan: MePlan?) -> String? {
-        guard let plan else { return nil }
-        var parts: [String] = []
-        if let planned = plan.planned, let done = plan.done { parts.append("\(done) of \(planned) done") }
-        if let added = plan.added, added > 0 { parts.append("\(added) added later") }
-        let appetite = plan.appetite.map { "Plan · \($0)" } ?? "Plan"
-        return parts.isEmpty ? appetite : "\(appetite) — \(parts.joined(separator: ", "))"
-    }
-
     /// "Morning · first PAI message 77 min after waking", only when both times exist.
     public func morningLine(_ day: MeDay) -> String? {
         guard let minutes = day.wakeToFirstMessageMin else { return nil }
         return "Morning · first PAI message \(minutes) min after waking"
-    }
-
-    /// One bar's height share for the PAI row: 1.3 pt a message, capped.
-    public func paiBarHeight(messages: Int, cap: Double = 52) -> Double {
-        min(cap, max(4, Double(messages) * 1.3))
-    }
-
-    /// A calendar event as the screens write it: its title, a timed one with its start time in front.
-    public func eventLine(_ event: MeEvent) -> String {
-        guard !event.allDay, let time = clock(wire: event.startAt) else { return event.title }
-        return "\(time) \(event.title)"
-    }
-
-    // MARK: This week
-
-    /// The seven days ending at `todayKey` out of the overview's days, oldest first.
-    public func week(of days: [MeDay], todayKey: String) -> [MeDay] {
-        guard let index = days.firstIndex(where: { $0.date == todayKey }) else { return Array(days.suffix(7)) }
-        let start = max(0, index - 6)
-        return Array(days[start...index])
-    }
-
-    /// Faces of a day's entries for the grid: at most two, the rest as a count; a private entry
-    /// without a face is a lock.
-    public struct EntryMarks: Equatable, Sendable {
-        public let faces: [SelfReportFeel]
-        public let more: Int
-        public let lock: Bool
-    }
-
-    public func marks(of entries: [SelfReport], maxFaces: Int = 2) -> EntryMarks {
-        let faces = entries.compactMap(\.feel)
-        let lock = entries.contains { $0.isPrivate && $0.feel == nil }
-        return EntryMarks(faces: Array(faces.prefix(maxFaces)), more: max(0, faces.count - maxFaces), lock: lock)
     }
 }
 
@@ -278,27 +222,33 @@ public enum MeLayout {
     /// The rows of the 14-day grid, top to bottom. The morning measure is not a grid row; it lives
     /// in the day's detail. Rows from Garmin exist only while it is connected.
     public enum GridRow: Equatable, Sendable {
-        case diary, sleep, bodyBattery, movement, calendar, pai
+        case diary, night, sleepScore, battery, moved, messages, agents
     }
 
-    /// Life rows follow the body rows; each exists only while its source is connected.
-    public static func gridRows(garminConnected: Bool, calendarConnected: Bool = false) -> [GridRow] {
+    public static func gridRows(garminConnected: Bool) -> [GridRow] {
         var rows: [GridRow] = [.diary]
-        if garminConnected { rows += [.sleep, .bodyBattery, .movement] }
-        if calendarConnected { rows.append(.calendar) }
-        rows.append(.pai)
+        if garminConnected { rows += [.night, .sleepScore, .battery, .moved] }
+        rows += [.messages, .agents]
         return rows
     }
 
     /// The blocks of the Today view, top to bottom.
-    public enum TodaySection: Equatable, Sendable {
-        case write, review, soFar, week, diary, lookingBack, pai, notes
+    public enum TodaySection: String, Equatable, Sendable {
+        case ribbon, body, write, review, tasks, plan, diary, lookingBack, pai, notes
     }
 
-    public static func todaySections(for overview: MeOverview) -> [TodaySection] {
-        var sections: [TodaySection] = [.write]
+    /// What Today may draw, by what exists: the ribbon, the Todoist card and the plan are left out
+    /// when there is nothing to put in them.
+    public static func todaySections(
+        for overview: MeOverview, ribbon: Bool, tasks: Bool, plan: Bool
+    ) -> [TodaySection] {
+        var sections: [TodaySection] = []
+        if ribbon { sections.append(.ribbon) }
+        sections += [.body, .write]
         if overview.review != nil { sections.append(.review) }
-        sections += [.soFar, .week, .diary]
+        if tasks { sections.append(.tasks) }
+        if plan { sections.append(.plan) }
+        sections.append(.diary)
         if overview.lookingBack != nil { sections.append(.lookingBack) }
         sections.append(.pai)
         if !overview.notes.isEmpty { sections.append(.notes) }

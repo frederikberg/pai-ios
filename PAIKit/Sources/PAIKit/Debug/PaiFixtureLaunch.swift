@@ -38,6 +38,7 @@
         static let meFlag = "-PaiFixtureMe"
         static let meTabFlag = "-PaiFixtureMeTab"
         static let meComposerFlag = "-PaiFixtureMeComposer"
+        static let meDayFlag = "-PaiFixtureMeDay"
         static let alarmSheetFlag = "-PaiFixtureAlarmSheet"
         static let sessionFiltersFlag = "-PaiFixtureSessionFilters"
 
@@ -233,6 +234,11 @@
             -> String?
         {
             value(for: sessionFiltersFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureMeDay <n>`: the 14-day grid opens with the day `n` days before today picked.
+        public static func requestedMeDayOffset(arguments: [String] = ProcessInfo.processInfo.arguments) -> Int? {
+            value(for: meDayFlag, in: arguments).flatMap { Int($0) }
         }
 
         /// `-PaiFixtureMeComposer`: the Me composer opens at once over a seeded draft.

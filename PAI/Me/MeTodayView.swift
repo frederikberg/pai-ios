@@ -1,7 +1,8 @@
 import PAIKit
 import SwiftUI
 
-/// Today: how the day is going. A write card, the numbers so far, the week, the diary's newest.
+/// Today: where the person is in the day. The ribbon, the body lines, a write card, the Todoist
+/// card, the plan and the diary's newest.
 struct MeTodayView: View {
     let store: MeOverviewStore
     let write: (SelfReportFeel?) -> Void
@@ -9,24 +10,24 @@ struct MeTodayView: View {
     let showDiary: () -> Void
     @Environment(AppEnvironment.self) private var environment
     @Environment(SelfReportStore.self) private var reports
-    @Environment(\.colorScheme) private var scheme
-
-    private var dark: Bool { scheme == .dark }
 
     var body: some View {
         if let overview = store.overview {
             let presenter = store.presenter
+            let sections = drawnSections(overview, presenter)
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 18) {
                     header(overview, presenter)
-                    ForEach(MeLayout.todaySections(for: overview), id: \.self) { section in
+                    ForEach(sections, id: \.self) { section in
                         sectionView(section, overview, presenter)
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 32)
             }
-            .refreshable { await store.load() }
+            .fixtureScrollsToAnchor()
+            .refreshable { await store.load(freshTasks: true) }
+            .fixtureFact("meTodaySections", sections.map(\.rawValue).joined(separator: ","))
         } else if store.isLoading {
             Spacer()
             Text("Loading…").font(PaiTypography.body.font).foregroundStyle(PaiPalette.Semantic.textMuted)
@@ -43,20 +44,39 @@ struct MeTodayView: View {
 
     // MARK: Sections
 
+    /// What Today draws, in order: the ribbon, the Todoist card and the plan only while they hold something.
+    private func drawnSections(_ overview: MeOverview, _ presenter: MePresenter) -> [MeLayout.TodaySection] {
+        let day = store.today
+        let ribbon = day.map { presenter.ribbon(day: $0, tasks: store.todayTasks, now: nil).hasData } ?? false
+        return MeLayout.todaySections(
+            for: overview, ribbon: ribbon, tasks: tasksCard(overview, presenter, now: Date()) != nil,
+            plan: presenter.planCard(day?.plan, todayKey: overview.today) != nil)
+    }
+
+    private func tasksCard(_ overview: MeOverview, _ presenter: MePresenter, now: Date) -> MeTodayCard? {
+        presenter.todayCard(
+            tasks: store.todayTasks, events: store.today?.events ?? [], now: now, todayKey: overview.today)
+    }
+
     @ViewBuilder
     private func sectionView(_ section: MeLayout.TodaySection, _ overview: MeOverview, _ presenter: MePresenter)
         -> some View
     {
         switch section {
+        case .ribbon: ribbonCard(overview, presenter)
+        case .body: bodyCard(overview, presenter)
         case .write: writeCard
         case .review:
             if let review = overview.review { reviewCard(review) }
-        case .soFar: soFar(overview, presenter)
-        case .week: week(overview, presenter)
+        case .tasks: tasksSection(overview, presenter)
+        case .plan:
+            if let plan = presenter.planCard(store.today?.plan, todayKey: overview.today) {
+                MePlanCardView(card: plan).id(FixtureScrollAnchor.mePlan.rawValue)
+            }
         case .diary: diary(overview, presenter)
         case .lookingBack:
             if let looking = overview.lookingBack { lookingBack(looking, presenter) }
-        case .pai: paiCard(presenter)
+        case .pai: paiLine(presenter)
         case .notes: notes(overview)
         }
     }
@@ -69,6 +89,15 @@ struct MeTodayView: View {
             Text(presenter.dayHeaderCaption(key: overview.today))
                 .font(PaiTypography.panelTitle.font)
                 .foregroundStyle(PaiPalette.Semantic.textMuted)
+            if let line = presenter.sourcesLine(
+                overview: overview, tasks: store.todayTasks, todayFinal: store.today?.final, now: Date())
+            {
+                Text(line)
+                    .font(.system(size: 11))
+                    .foregroundStyle(PaiPalette.Semantic.textFaint)
+                    .padding(.top, 2)
+                    .accessibilityIdentifier("me-sources")
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("me-today-header")
@@ -88,12 +117,50 @@ struct MeTodayView: View {
     }
 
     private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        content()
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(PaiPalette.Semantic.raisedSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(PaiPalette.Semantic.borderDefault, lineWidth: 1))
+        content().meCard()
+    }
+
+    /// The day on the clock, once a minute; a tap opens the day's detail.
+    @ViewBuilder
+    private func ribbonCard(_ overview: MeOverview, _ presenter: MePresenter) -> some View {
+        if let day = store.today {
+            TimelineView(.everyMinute) { context in
+                Button {
+                    showDays(overview.today)
+                } label: {
+                    MeRibbonView(ribbon: presenter.ribbon(day: day, tasks: store.todayTasks, now: context.date))
+                        .padding(.horizontal, 10)
+                        .padding(.top, 12)
+                        .padding(.bottom, 8)
+                        .meCard(padding: 0)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func bodyCard(_ overview: MeOverview, _ presenter: MePresenter) -> some View {
+        let lines = presenter.bodyLines(day: store.today)
+        if !overview.sources.garminConnected {
+            Text("Garmin not connected")
+                .font(PaiTypography.body.font)
+                .foregroundStyle(PaiPalette.Semantic.textMuted)
+                .accessibilityIdentifier("me-body-quiet")
+        } else if !lines.isEmpty {
+            MeBodyCardView(lines: lines)
+        }
+    }
+
+    @ViewBuilder
+    private func tasksSection(_ overview: MeOverview, _ presenter: MePresenter) -> some View {
+        if let card = tasksCard(overview, presenter, now: Date()) {
+            MeTodayCardView(card: card, isRefreshing: store.isRefreshingTasks) {
+                Task { await store.refreshTasks() }
+            }
+            .id(FixtureScrollAnchor.meTasks.rawValue)
+            .fixtureFact("meTasksOpen", "\(card.open.count)")
+        }
     }
 
     private var writeCard: some View {
@@ -188,193 +255,19 @@ struct MeTodayView: View {
         }
     }
 
-    private func soFar(_ overview: MeOverview, _ presenter: MePresenter) -> some View {
-        let day = store.today
-        let garmin = overview.sources.garminConnected
-        let cells = cellsFor(day, presenter, garmin: garmin)
-        return VStack(alignment: .leading, spacing: 8) {
-            caption("Today so far", trailing: garmin && day?.final == false ? "Garmin · not final yet" : nil)
-            card {
-                VStack(alignment: .leading, spacing: 14) {
-                    if cells.isEmpty && !garmin {
-                        Text("Garmin not connected")
-                            .font(PaiTypography.body.font)
-                            .foregroundStyle(PaiPalette.Semantic.textMuted)
-                    }
-                    if !cells.isEmpty {
-                        LazyVGrid(
-                            columns: [
-                                GridItem(.flexible(), alignment: .topLeading),
-                                GridItem(.flexible(), alignment: .topLeading),
-                            ],
-                            alignment: .leading, spacing: 14
-                        ) {
-                            ForEach(cells) { cell in factCell(cell) }
-                        }
-                    }
-                    if !garmin && !cells.isEmpty {
-                        Text("Garmin not connected")
-                            .font(PaiTypography.caption.font)
-                            .foregroundStyle(PaiPalette.Semantic.textMuted)
-                    }
-                    let events = overview.sources.calendarConnected ? (day?.events ?? []) : []
-                    if !events.isEmpty {
-                        Divider().overlay(PaiPalette.Semantic.borderDefault)
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(Array(events.enumerated()), id: \.offset) { _, event in
-                                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                    Circle().fill(PaiPalette.green500).frame(width: 8, height: 8)
-                                    Text(presenter.eventLine(event))
-                                        .font(PaiTypography.body.font)
-                                        .foregroundStyle(PaiPalette.Semantic.textPrimary)
-                                }
-                            }
-                        }
-                        .accessibilityIdentifier("me-today-events")
-                    }
-                    let lines = [presenter.planLine(day?.plan)].compactMap { $0 }
-                    if !lines.isEmpty {
-                        Divider().overlay(PaiPalette.Semantic.borderDefault)
-                        ForEach(lines, id: \.self) { line in
-                            Text(line).font(PaiTypography.body.font).foregroundStyle(PaiPalette.Semantic.textSecondary)
-                        }
-                    }
-                }
-            }
-            .accessibilityIdentifier("me-so-far")
-        }
-    }
-
-    /// The numbers about PAI sit below the body, life and diary blocks, never above them.
+    /// The numbers about PAI: one grey line, below everything about him.
     @ViewBuilder
-    private func paiCard(_ presenter: MePresenter) -> some View {
+    private func paiLine(_ presenter: MePresenter) -> some View {
         if let day = store.today, let pai = day.pai {
-            let sessions = pai.sessions.map { " in \($0) session\($0 == 1 ? "" : "s")" }
-            VStack(alignment: .leading, spacing: 8) {
-                caption("PAI")
-                card {
-                    VStack(alignment: .leading, spacing: 10) {
-                        factCell(
-                            FactCell(
-                                id: "pai", value: "\(pai.messages)", unit: sessions, label: "messages to PAI",
-                                color: MeColor.pai(dark: dark)))
-                        if let morning = presenter.morningLine(day) {
-                            Text(morning).font(PaiTypography.body.font).foregroundStyle(
-                                PaiPalette.Semantic.textSecondary)
-                        }
-                    }
-                }
-                .accessibilityIdentifier("me-pai")
+            let sessions = pai.sessions.map { " in \($0) session\($0 == 1 ? "" : "s")" } ?? ""
+            VStack(alignment: .leading, spacing: 2) {
+                Text("PAI today · \(pai.messages) message\(pai.messages == 1 ? "" : "s")\(sessions)")
+                if let morning = presenter.morningLine(day) { Text(morning) }
             }
+            .font(PaiTypography.body.font)
+            .foregroundStyle(PaiPalette.Semantic.textMuted)
+            .accessibilityIdentifier("me-pai")
         }
-    }
-
-    private struct FactCell: Identifiable {
-        let id: String
-        let value: String
-        let unit: String?
-        let label: String
-        let color: Color
-    }
-
-    private func cellsFor(_ day: MeDay?, _ presenter: MePresenter, garmin: Bool) -> [FactCell] {
-        guard let day else { return [] }
-        var cells: [FactCell] = []
-        if garmin, let body = day.body {
-            if let slept = presenter.hoursMinutes(seconds: body.sleepSeconds) {
-                let woke = presenter.clock(wire: body.wakeAt).map { " · woke \($0)" } ?? ""
-                cells.append(
-                    FactCell(id: "sleep", value: slept, unit: nil, label: "slept\(woke)", color: MeColor.sleep))
-            }
-            if let battery = body.bodyBatteryWake {
-                cells.append(
-                    FactCell(
-                        id: "battery", value: "\(battery)", unit: nil, label: "body battery on waking",
-                        color: MeColor.battery))
-            }
-        }
-        if garmin, let activity = day.activities.last, let duration = presenter.duration(seconds: activity.durationS) {
-            let started = presenter.clock(wire: activity.startAt).map { " · \($0)" } ?? ""
-            cells.append(
-                FactCell(
-                    id: "movement", value: duration, unit: nil,
-                    label: "\(activity.name ?? activity.type ?? "activity")\(started)",
-                    color: MeColor.movement(dark: dark)))
-        }
-        return cells
-    }
-
-    private func factCell(_ cell: FactCell) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(cell.value)
-                    .font(.system(size: 20, weight: .semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(PaiPalette.Semantic.textStrong)
-                if let unit = cell.unit {
-                    Text(unit).font(PaiTypography.body.font).foregroundStyle(PaiPalette.Semantic.textSecondary)
-                }
-            }
-            HStack(spacing: 6) {
-                Circle().fill(cell.color).frame(width: 8, height: 8)
-                Text(cell.label)
-                    .font(PaiTypography.body.font)
-                    .foregroundStyle(PaiPalette.Semantic.textSecondary)
-                    .lineLimit(2)
-            }
-        }
-    }
-
-    private func week(_ overview: MeOverview, _ presenter: MePresenter) -> some View {
-        let days = presenter.week(of: overview.days, todayKey: overview.today)
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                caption("This week")
-                Button("14 days ›") { showDays(overview.today) }
-                    .font(PaiTypography.body.font)
-                    .accessibilityIdentifier("me-week-open-days")
-            }
-            card {
-                HStack(alignment: .top, spacing: 0) {
-                    ForEach(days) { day in
-                        weekColumn(day, presenter, isToday: day.date == overview.today)
-                    }
-                }
-            }
-            .accessibilityIdentifier("me-week")
-        }
-    }
-
-    private func weekColumn(_ day: MeDay, _ presenter: MePresenter, isToday: Bool) -> some View {
-        let marks = presenter.marks(of: day.entries)
-        return Button {
-            showDays(day.date)
-        } label: {
-            VStack(spacing: 6) {
-                Text(presenter.weekdayLetter(key: day.date))
-                    .font(PaiTypography.captionEmphasized.font)
-                    .foregroundStyle(isToday ? PaiPalette.primary400 : PaiPalette.Semantic.textMuted)
-                Text(presenter.dayNumber(key: day.date))
-                    .font(PaiTypography.caption.font)
-                    .foregroundStyle(PaiPalette.Semantic.textMuted)
-                Text(day.activities.prefix(2).compactMap(\.emoji).joined())
-                    .font(.system(size: 14))
-                    .frame(height: 18)
-                VStack(spacing: 3) {
-                    ForEach(Array(marks.faces.enumerated()), id: \.offset) { _, feel in FeelFace(feel: feel, size: 18) }
-                    if marks.lock {
-                        Image(systemName: "lock")
-                            .font(.system(size: 11))
-                            .foregroundStyle(MeColor.lock(dark: dark))
-                    }
-                }
-                .frame(minHeight: 18, alignment: .top)
-            }
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
-            .background(isToday ? PaiPalette.Semantic.insetBackground : .clear, in: RoundedRectangle(cornerRadius: 10))
-        }
-        .buttonStyle(.plain)
     }
 
     private func diary(_ overview: MeOverview, _ presenter: MePresenter) -> some View {
@@ -393,17 +286,16 @@ struct MeTodayView: View {
                 .foregroundStyle(PaiPalette.Semantic.textMuted)
             }
             ForEach(overview.recentEntries) { entry in
-                MeEntryCard(
-                    item: MeDiaryItem(report: entry, waiting: false, refusal: nil), compact: true, presenter: presenter)
+                MeEntryRow(item: MeDiaryItem(report: entry, waiting: false, refusal: nil), presenter: presenter)
             }
         }
+        .id(FixtureScrollAnchor.meDiary.rawValue)
     }
 
     private func lookingBack(_ entry: SelfReport, _ presenter: MePresenter) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             caption("Looking back")
-            MeEntryCard(
-                item: MeDiaryItem(report: entry, waiting: false, refusal: nil), compact: true, presenter: presenter)
+            MeEntryRow(item: MeDiaryItem(report: entry, waiting: false, refusal: nil), presenter: presenter)
         }
     }
 
