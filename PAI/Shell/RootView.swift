@@ -40,7 +40,7 @@ struct RootView: View {
                 // change to react to here: the launch value and the freshly fetched true value
                 // are both zero, and a badge stuck showing a stale count survives indefinitely.
                 if let unread = environment.connection?.notifications.unread {
-                    try? await UNUserNotificationCenter.current().setBadgeCount(unread)
+                    try? await UNUserNotificationCenter.current().setBadgeCount(badgeCount(unread: unread))
                 }
                 // The delivered-notification half of the same self-heal: a banner
                 // read from elsewhere while this app was not running yet has no earlier moment
@@ -57,6 +57,21 @@ struct RootView: View {
                 _ = await (machinePoll, notificationPoll)
             }
             .onAppear { pendingCrash = CrashReporter.readUnseen() }
+            // Sleep time begins and ends on the clock, so something has to look at it: a timer to the
+            // next boundary, every return to the front, and the clock or the time zone changing.
+            .task(id: environment.sleepMode.nextBoundary) { await sleepUntilNextBoundary() }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) {
+                _ in environment.sleepMode.refresh()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name.NSSystemTimeZoneDidChange)) { _ in
+                environment.sleepMode.refresh()
+            }
+            // The springboard badge reads zero while the sessions are put away and the unread count
+            // again once the window ends.
+            .onChange(of: environment.router.isAsleep) { _, _ in
+                guard let unread = environment.connection?.notifications.unread else { return }
+                Task { try? await UNUserNotificationCenter.current().setBadgeCount(badgeCount(unread: unread)) }
+            }
             // What a screenshot run checks first: behind the sign-in gate, every screen it asks for
             // is the sign-in screen.
             .fixtureFact("gate", String(describing: environment.router.gate))
@@ -134,7 +149,8 @@ struct RootView: View {
                     // smaller frame rather than a promise of one. It still sits below the status
                     // bar the same way, since a `VStack` respects the top safe area by default.
                     VStack(spacing: 0) {
-                        ClaudeAuthBanner()
+                        // About the agents' sign-in, so it waits with them.
+                        if !environment.router.isAsleep { ClaudeAuthBanner() }
                         // Sits with the auth banner rather than inside the stack, and for the
                         // same reason its own comment gives: this has to push the screen down,
                         // not draw over it, and a pushed screen that paints its own background
@@ -147,7 +163,7 @@ struct RootView: View {
                             environment.router.surface(.computerCall)
                         }
                         NavigationStack(path: navigationPath) {
-                            SessionListView()
+                            rootScreen
                                 .navigationDestination(for: Route.self) { route in
                                     destination(for: route)
                                 }
@@ -220,7 +236,7 @@ struct RootView: View {
                 // push actually arrives, not when a swipe or a mark-all-read changes the count
                 // from inside the running app.
                 .onChange(of: connection.notifications.unread) { _, unread in
-                    Task { try? await UNUserNotificationCenter.current().setBadgeCount(unread) }
+                    Task { try? await UNUserNotificationCenter.current().setBadgeCount(badgeCount(unread: unread)) }
                 }
                 // The stream is only ever worth holding open while this screen is actually in
                 // front of the reader — see `notificationStream`'s own doc comment for why
@@ -232,6 +248,7 @@ struct RootView: View {
                 .onChange(of: scenePhase) { _, phase in
                     switch phase {
                     case .active:
+                        environment.sleepMode.refresh()
                         attention.setAppActive(true)
                         presenceReporter(connection).setActive(true)
                         UserActivityRecognizer.installOnAllWindows()
@@ -283,6 +300,34 @@ struct RootView: View {
                 // state a user can act on, and a blank screen is the alternative.
                 SignInView(environment: environment, reason: .firstLaunch)
             }
+        }
+    }
+
+    /// The sleep screen while the sessions are put away, the session list otherwise.
+    @ViewBuilder
+    private var rootScreen: some View {
+        if environment.router.isAsleep {
+            SleepScreen()
+        } else {
+            SessionListView()
+        }
+    }
+
+    /// What the springboard badge shows: nothing while asleep.
+    private func badgeCount(unread: Int) -> Int {
+        environment.router.isAsleep ? 0 : unread
+    }
+
+    /// Waits for the moment `isAsleep` can next change, then recomputes it. Re-run whenever that
+    /// moment changes, so a changed window or a woken-early night restarts the wait. A wait that
+    /// ends a hair before the boundary on the wall clock looks again rather than giving up.
+    private func sleepUntilNextBoundary() async {
+        let sleep = environment.sleepMode
+        while !Task.isCancelled, let boundary = sleep.nextBoundary {
+            let wait = boundary.timeIntervalSinceNow
+            do { try await Task.sleep(for: .seconds(max(wait, 0) + 0.05)) } catch { return }
+            sleep.refresh()
+            if sleep.nextBoundary != boundary { return }
         }
     }
 
@@ -494,7 +539,8 @@ struct RootView: View {
             callbacks: PaiNotificationStreamClient.Callbacks(
                 onNotification: { [weak store, arrivals] event in
                     store?.applyLiveUnread(event.unread)
-                    arrivals.show(event.notification)
+                    // No banner while the sessions are put away: it would be about them.
+                    if !environment.router.isAsleep { arrivals.show(event.notification) }
                     // Arriving for the session already on screen clears it under the same rule as
                     // reaching the session above: at once while the reader is engaged, otherwise
                     // at the next touch.

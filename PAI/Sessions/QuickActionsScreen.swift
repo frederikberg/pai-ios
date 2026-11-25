@@ -97,6 +97,10 @@ struct QuickActionsScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("quick-actions-screen")
         .fixtureFact("quickActionsGrid", QuickActionLayout.summary)
+        .fixtureFact(
+            "quickActionsPutAway",
+            QuickAction.allCases.filter(isPutAway).map(\.rawValue).joined(separator: ",")
+        )
         #if DEBUG
             .task {
                 if PaiFixtureLaunch.isEnabled(), PaiFixtureLaunch.opensQuickMore() { showingMore = true }
@@ -200,8 +204,19 @@ struct QuickActionsScreen: View {
         }
     }
 
+    /// Whether `action` is put away: sleep mode is on and it leads into the agents. Its tile stays
+    /// where it is, greyed with a moon, so the screen keeps the layout a thumb knows.
+    private func isPutAway(_ action: QuickAction) -> Bool {
+        environment.router.isAsleep && action.isNightBlocked
+    }
+
     /// What a tap on `action` does, wherever its tile is drawn.
     private func perform(_ action: QuickAction) {
+        // A habit-press on a put-away action lands on the sleep screen, which is the root.
+        if isPutAway(action) {
+            environment.router.popToRoot()
+            return
+        }
         switch action {
         case .selfReport:
             writingEntry = true
@@ -241,9 +256,22 @@ struct QuickActionsScreen: View {
         }
         if action == .selfReport {
             base.overlay(alignment: .topTrailing) { selfReportDot }
+        } else if isPutAway(action) {
+            base
+                .opacity(0.45)
+                .overlay(alignment: .topTrailing) { moonBadge }
         } else {
             base
         }
+    }
+
+    private var moonBadge: some View {
+        Image(systemName: "moon.zzz.fill")
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(PaiPalette.primary300)
+            .padding(12)
+            .accessibilityLabel("Resting until sleep mode ends")
+            .accessibilityIdentifier("quick-moon-badge")
     }
 
     /// A take outlives the sheet, and nothing else on this screen shows one running; a small dot
@@ -319,6 +347,8 @@ struct QuickActionsScreen: View {
             }
             .frame(minHeight: 44)
             .contentShape(Rectangle())
+            .opacity(isPutAway(action) ? 0.45 : 1)
+            .overlay(alignment: .trailing) { if isPutAway(action) { moonBadge } }
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("\(identifier(action))-row")

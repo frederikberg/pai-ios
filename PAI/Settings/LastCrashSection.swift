@@ -9,7 +9,7 @@ struct LastCrashSection: View {
     @State private var showing: CrashRecord?
 
     var body: some View {
-        Section("Last Crash") {
+        Section("Last Crash · \(SettingsScope.thisDevice.label)") {
             if let record {
                 Button("View Crash Report") { showing = record }
                     .accessibilityIdentifier("view-last-crash")

@@ -21,7 +21,7 @@ SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscre
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
 watch-keys alarm-facts alarm-sheet weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke
-camera-import-result me-screens session-filters new-session-usage quick-actions"
+camera-import-result me-screens session-filters new-session-usage quick-actions settings-owner settings-guest sleep-mode"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
@@ -316,15 +316,15 @@ if want mailverdict; then
 fi
 
 if want person-settings; then
-  # The e-mail switch, read from the person's settings.
-  screenshot person-settings -PaiFixtureRoute settings -PaiFixtureScrollTo emailNotifications
-  fact_assert person-settings emailNotifications on
+  # The page that holds the person's mail switch, read from the registry.
+  screenshot person-settings -PaiFixtureRoute settings -PaiFixtureSettingsCategory notifications
+  fact_assert person-settings settingsCategory notifications
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 
 if want watch-keys; then
   # The watch keys list in Settings, below the fold.
-  screenshot watch-keys -PaiFixtureRoute settings -PaiFixtureScrollTo watchKeys
+  screenshot watch-keys -PaiFixtureRoute settings -PaiFixtureSettingsCategory devices -PaiFixtureScrollTo watchKeys
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 
@@ -332,7 +332,7 @@ fi
 # after the settle in `screenshot` (the probe acts two seconds after the screen is up).
 if want watch-key-create; then
   # Creating a key: the one-time key sheet must still be showing after the list reload.
-  screenshot watch-key-create -PaiFixtureRoute settings -PaiFixtureScrollTo watchKeys -PaiFixtureWatchKeys create
+  screenshot watch-key-create -PaiFixtureRoute settings -PaiFixtureSettingsCategory devices -PaiFixtureScrollTo watchKeys -PaiFixtureWatchKeys create
   fact_assert watch-key-create watchKeyProbe create:done
   fact_assert watch-key-create watchKeySheet shown
   fact_assert watch-key-create watchKeyCount 3
@@ -341,7 +341,7 @@ fi
 
 if want watch-key-revoke-ask; then
   # Revoke swiped on the first key: the confirmation must be on screen (read the picture).
-  screenshot watch-key-revoke-ask -PaiFixtureRoute settings -PaiFixtureScrollTo watchKeys -PaiFixtureWatchKeys revoke-ask
+  screenshot watch-key-revoke-ask -PaiFixtureRoute settings -PaiFixtureSettingsCategory devices -PaiFixtureScrollTo watchKeys -PaiFixtureWatchKeys revoke-ask
   fact_assert watch-key-revoke-ask watchKeyProbe revoke-ask:done
   fact_assert watch-key-revoke-ask watchKeyRevokeAsked k1
   xcrun simctl terminate "$udid" "$bundle" || true
@@ -349,7 +349,7 @@ fi
 
 if want watch-key-revoke; then
   # Revoke confirmed: the list is read again without the key.
-  screenshot watch-key-revoke -PaiFixtureRoute settings -PaiFixtureScrollTo watchKeys -PaiFixtureWatchKeys revoke
+  screenshot watch-key-revoke -PaiFixtureRoute settings -PaiFixtureSettingsCategory devices -PaiFixtureScrollTo watchKeys -PaiFixtureWatchKeys revoke
   fact_assert watch-key-revoke watchKeyProbe revoke:done
   fact_assert watch-key-revoke watchKeyCount 1
   xcrun simctl terminate "$udid" "$bundle" || true
@@ -434,7 +434,7 @@ fi
 
 if want location-settings; then
   # The Location section in Settings, below the fold.
-  screenshot location-settings -PaiFixtureRoute settings -PaiFixtureScrollTo location
+  screenshot location-settings -PaiFixtureRoute settings -PaiFixtureSettingsCategory location -PaiFixtureScrollTo location
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 
@@ -458,7 +458,7 @@ fi
 if want playback-voice; then
   # Settings' playback voices: the person's own voice picked from the account's list (the default
   # reads while they have picked none), the Try button and the speed row.
-  screenshot playback-voice -PaiFixtureRoute settings -PaiFixtureScrollTo playbackVoice
+  screenshot playback-voice -PaiFixtureRoute settings -PaiFixtureSettingsCategory voices -PaiFixtureScrollTo playbackVoice
   fact_assert playback-voice playbackVoice "Default (George (en))"
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
@@ -517,8 +517,8 @@ fi
 if want settings-notes-cache; then
   # The notes cache section, below the fold of the plain `settings` screenshot, holding
   # the seeded cache.
-  screenshot settings-notes-cache -PaiFixtureRoute settings -PaiFixtureNotesCacheSeeded \
-    -PaiFixtureScrollTo notesCache
+  screenshot settings-notes-cache -PaiFixtureRoute settings -PaiFixtureSettingsCategory thisPhone \
+    -PaiFixtureNotesCacheSeeded -PaiFixtureScrollTo notesCache
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 
@@ -763,8 +763,54 @@ if want note-refused; then
   notes_assert note-refused-edit artifacts/notes-cache-note-refused-edit.json \
     "len([p for p in s['pending'] if p['kind'] == 'body' and p['state'] == 'failed']) == 1"
   xcrun simctl terminate "$udid" "$bundle" || true
-  screenshot settings-not-saved -PaiFixtureRoute settings -PaiFixtureNotesCacheSeeded \
-    -PaiFixtureNoteRefusedEdit -PaiFixtureScrollTo notSaved
+  screenshot settings-not-saved -PaiFixtureRoute settings -PaiFixtureSettingsCategory thisPhone \
+    -PaiFixtureNotesCacheSeeded -PaiFixtureNoteRefusedEdit -PaiFixtureScrollTo notSaved
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+# Settings, every page, for the owner and for a guest. The list is photographed first and its own
+# report (the pages this role has) is what is asserted, so a page missing for one role fails here.
+settings_pages() {
+  local role=$1 pages=$2 flag=() page
+  [ "$role" = guest ] && flag=(-PaiFixtureRole guest)
+  screenshot "settings-$role-list" -PaiFixtureRoute settings "${flag[@]}"
+  fact_assert "settings-$role-list" settingsCategories "$pages"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  for page in $(echo "$pages" | tr ',' ' '); do
+    screenshot "settings-$role-$page" -PaiFixtureRoute settings -PaiFixtureSettingsCategory "$page" "${flag[@]}"
+    fact_assert "settings-$role-$page" settingsCategory "$page"
+    xcrun simctl terminate "$udid" "$bundle" || true
+  done
+}
+
+if want settings-owner; then
+  settings_pages owner "microphone,notifications,voices,appearance,location,devices,history,thisPhone,system,alerts,mail,providers,models,integrations,voiceSound,agents,people,diagnostics"
+fi
+
+if want settings-guest; then
+  settings_pages guest "microphone,notifications,voices,appearance,location,devices,history,thisPhone"
+fi
+
+# Sleep mode: the screen that replaces the session list, Quick Actions inside the window with its
+# layout unchanged and the session actions put away, the setup screen, and the PIN pad.
+if want sleep-mode; then
+  screenshot sleep-screen -PaiFixtureSleep on
+  fact_assert sleep-screen sleepScreen on
+  fact_assert sleep-screen sleepTiles "quick-actions,me,notes,alarm,weather,canteen,camera-import"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot sleep-screen-guest -PaiFixtureSleep on -PaiFixtureRole guest
+  fact_assert sleep-screen-guest sleepTiles "quick-actions,alarm,weather,camera-import"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot sleep-quick-actions -PaiFixtureSleep on -PaiFixtureRoute quickActions
+  fact_assert sleep-quick-actions quickActionsGrid "selfReport,me,more|computer,home,ultrafast|mailverdict,homeCall,ultrafastCamera|-,-,ultrafastCall"
+  fact_assert sleep-quick-actions quickActionsPutAway "computer,home,ultrafast,mailverdict,homeCall,ultrafastCamera,ultrafastCall,fastSession,fastCall"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot sleep-apps -PaiFixtureSleep on -PaiFixtureRoute apps
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot sleep-settings -PaiFixtureSleep configured -PaiFixtureRoute settings -PaiFixtureSettingsCategory notifications -PaiFixtureSleepSettings
+  fact_assert sleep-settings sleepModeEnabled on
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot sleep-awake -PaiFixtureSleep configured
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 

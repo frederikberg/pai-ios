@@ -20,6 +20,12 @@ enum ComputerCallEntry {
     /// without being asked.
     static func open(_ environment: AppEnvironment, connectSession: String? = nil) {
         guard let connection = environment.connection else { return }
+        // While the sessions are put away the router refuses the screen; the call must not start
+        // behind it. The path is emptied, which is the sleep screen.
+        guard !environment.router.isAsleep else {
+            environment.router.popToRoot()
+            return
+        }
         environment.router.surface(.computerCall)
         Task {
             if connection.voice.state != .idle {

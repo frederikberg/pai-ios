@@ -5,8 +5,6 @@ import SwiftUI
 /// not a fix, and the same fault raises it again.
 struct AlertsSection: View {
     let alerts: AlertsStore
-    let routing: AlertRoutingStore
-    let smtp: SmtpSettingsStore
 
     var body: some View {
         Section {
@@ -28,21 +26,9 @@ struct AlertsSection: View {
                     .font(PaiTypography.caption.font)
                     .foregroundStyle(PaiPalette.Semantic.errorText)
             }
-            NavigationLink {
-                AlertRoutingScreen(routing: routing)
-            } label: {
-                LabeledContent("Alert routing", value: routing.summary ?? "")
-            }
-            .accessibilityIdentifier("open-alert-routing")
-            NavigationLink {
-                AlertMailScreen(smtp: smtp)
-            } label: {
-                LabeledContent("Mail", value: smtp.summary ?? "")
-            }
-            .accessibilityIdentifier("open-mail")
         } header: {
             HStack {
-                Text("Alerts")
+                Text("Open alerts · \(SettingsScope.everyone.label)")
                 Spacer()
                 if (alerts.alerts?.count ?? 0) > 1 {
                     Button("Acknowledge all") { Task { await alerts.acknowledgeAll() } }
@@ -52,11 +38,7 @@ struct AlertsSection: View {
                 }
             }
         }
-        .task {
-            await alerts.load()
-            await routing.load()
-            if smtp.loaded == nil { await smtp.load() }
-        }
+        .task { await alerts.load() }
     }
 }
 

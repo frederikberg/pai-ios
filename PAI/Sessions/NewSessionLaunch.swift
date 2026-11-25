@@ -13,6 +13,13 @@ enum NewSessionLaunch {
     static func start(
         type: String, call: Bool = false, camera: Bool = false, environment: AppEnvironment, drafts: DraftStore
     ) {
+        // While the sessions are put away nothing is armed and nothing is drafted: the router
+        // would refuse the screen, and a call armed for a screen that never opens would start at
+        // the next opening of the new-session sheet.
+        guard !environment.router.isAsleep else {
+            environment.router.popToRoot()
+            return
+        }
         // `selectWorkingDir(nil)` first: a directory chosen on a previous visit is what makes a
         // session custom, and it outranks the type, so leaving one in place would launch the
         // wrong thing while the screen showed the right pill.

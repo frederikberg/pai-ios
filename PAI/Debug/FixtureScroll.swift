@@ -9,7 +9,6 @@ enum FixtureScrollAnchor: String {
     case notesCache
     case notSaved
     case taskNotifyPush
-    case emailNotifications
     case playbackVoice
     case watchKeys
     case location
@@ -22,7 +21,7 @@ enum FixtureScrollAnchor: String {
     /// header under the navigation bar.
     var viewportAnchor: UnitPoint {
         switch self {
-        case .emailNotifications, .playbackVoice: .center
+        case .playbackVoice: .center
         default: .top
         }
     }

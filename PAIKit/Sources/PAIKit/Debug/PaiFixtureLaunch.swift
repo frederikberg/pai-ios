@@ -45,6 +45,7 @@
         static let roleFlag = "-PaiFixtureRole"
         static let sleepFlag = "-PaiFixtureSleep"
         static let settingsCategoryFlag = "-PaiFixtureSettingsCategory"
+        static let sleepSettingsFlag = "-PaiFixtureSleepSettings"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -255,6 +256,11 @@
         /// the clock stands inside the window (`on`) or outside it (`configured`).
         public static func requestedSleep(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: sleepFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureSleepSettings`: the Notifications page opens the sleep-mode screen at once.
+        public static func opensSleepSettings(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains(sleepSettingsFlag)
         }
 
         /// `-PaiFixtureSettingsCategory <id>`: Settings opens on that category rather than its list.

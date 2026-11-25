@@ -66,6 +66,13 @@ public enum AppRegistry {
         entries.filter { $0.isAvailable(capabilities) }
     }
 
+    /// What the Apps sheet shows: the whole list, or the night's while sleep mode is on.
+    public static func visible(for capabilities: Capabilities, asleep: Bool, in entries: [AppEntry] = all)
+        -> [AppEntry]
+    {
+        asleep ? listedAtNight(for: capabilities, in: entries) : listed(for: capabilities, in: entries)
+    }
+
     /// What the sleep screen shows this person: the Apps list without the apps sleep mode puts away.
     public static func listedAtNight(for capabilities: Capabilities, in entries: [AppEntry] = all) -> [AppEntry] {
         listed(for: capabilities, in: entries).filter { !$0.isNightBlocked }

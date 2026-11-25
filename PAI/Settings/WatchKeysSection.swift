@@ -41,7 +41,7 @@ struct WatchKeysSection: View {
             .disabled(presenter.store == nil)
             .accessibilityIdentifier("watch-key-new")
         } header: {
-            Text("Watch keys")
+            Text("Watch keys · \(SettingsScope.synced.label)")
                 .id(FixtureScrollAnchor.watchKeys.rawValue)
         } footer: {
             Text("A key lets a Garmin watch set and dismiss alarms as you. Paste it into the watch app's settings.")

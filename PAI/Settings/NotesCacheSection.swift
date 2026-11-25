@@ -46,7 +46,7 @@ struct NotesCacheSection: View {
                     Text("Notes and files are fetched again when you open them. Edits not yet synced are kept.")
                 }
         } header: {
-            Text("Notes offline")
+            Text("Notes offline · \(SettingsScope.thisDevice.label)")
         } footer: {
             Text(
                 "Notes you open, your favourites and files you view are kept on this phone so they open without a connection. Files are dropped oldest first to stay within this size; edits not yet synced are never dropped."
