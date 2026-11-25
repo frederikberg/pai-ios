@@ -648,4 +648,56 @@ final class NotificationCenterStoreTests: XCTestCase {
         let calls = await api.getNotificationCalls
         XCTAssertTrue(calls.isEmpty)
     }
+
+    // MARK: - Filters kept across launches
+
+    private func withDefaults(_ body: (UserDefaults) async -> Void) async {
+        let suite = "pai-test-notifications-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        await body(defaults)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    func testTheThreeFiltersComeBackInANewStoreAndShapeItsFirstRequest() async {
+        await withDefaults { defaults in
+            let first = NotificationCenterStore(api: FakeNotificationCenterApi(), storage: defaults)
+            await first.setFilter(.alert)
+            await first.setSource(.scheduled)
+            await first.setUnreadOnly(true)
+
+            let api = FakeNotificationCenterApi()
+            let second = NotificationCenterStore(api: api, storage: defaults)
+            XCTAssertEqual(second.filter, .alert)
+            XCTAssertEqual(second.source, .scheduled)
+            XCTAssertTrue(second.unreadOnly)
+
+            await second.loadInitialNotifications()
+            let calls = await api.listCalls
+            XCTAssertEqual(calls.first?.kind, NotificationFilter.alert.kind)
+            XCTAssertEqual(calls.first?.source, .scheduled)
+            XCTAssertEqual(calls.first?.unreadOnly, true)
+        }
+    }
+
+    func testAFreshStoreStartsUnfilteredAndAStoreWithoutStorageKeepsNothing() async {
+        await withDefaults { defaults in
+            let store = NotificationCenterStore(api: FakeNotificationCenterApi(), storage: defaults)
+            XCTAssertEqual(store.filter, .all)
+            XCTAssertEqual(store.source, .any)
+            XCTAssertFalse(store.unreadOnly)
+
+            let unstored = NotificationCenterStore(api: FakeNotificationCenterApi())
+            await unstored.setUnreadOnly(true)
+            XCTAssertFalse(NotificationCenterStore(api: FakeNotificationCenterApi(), storage: defaults).unreadOnly)
+        }
+    }
+
+    func testClearingAFilterIsRemembered() async {
+        await withDefaults { defaults in
+            let first = NotificationCenterStore(api: FakeNotificationCenterApi(), storage: defaults)
+            await first.setUnreadOnly(true)
+            await first.setUnreadOnly(false)
+            XCTAssertFalse(NotificationCenterStore(api: FakeNotificationCenterApi(), storage: defaults).unreadOnly)
+        }
+    }
 }

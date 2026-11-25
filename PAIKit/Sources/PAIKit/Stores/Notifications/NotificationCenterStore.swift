@@ -81,8 +81,23 @@ public final class NotificationCenterStore {
 
     private static let pageLimit = 50
 
-    public init(api: NotificationCenterApiClient) {
+    /// Where the three filter choices are kept across launches. `nil` keeps nothing, which is what
+    /// tests and fixture runs want.
+    private let storage: UserDefaults?
+    static let filterKey = "notificationsFilter"
+    static let sourceKey = "notificationsSource"
+    static let unreadOnlyKey = "notificationsUnreadOnly"
+
+    public init(api: NotificationCenterApiClient, storage: UserDefaults? = nil) {
         self.api = api
+        self.storage = storage
+        if let raw = storage?.string(forKey: Self.filterKey), let kept = NotificationFilter(rawValue: raw) {
+            filter = kept
+        }
+        if let raw = storage?.string(forKey: Self.sourceKey), let kept = NotificationSource(rawValue: raw) {
+            source = kept
+        }
+        unreadOnly = storage?.bool(forKey: Self.unreadOnlyKey) ?? false
     }
 
     /// The first page, replacing whatever was loaded. Call this on first entry and when the
@@ -105,18 +120,21 @@ public final class NotificationCenterStore {
     public func setFilter(_ filter: NotificationFilter) async {
         guard filter != self.filter else { return }
         self.filter = filter
+        storage?.set(filter.rawValue, forKey: Self.filterKey)
         await loadInitialNotifications()
     }
 
     public func setSource(_ source: NotificationSource) async {
         guard source != self.source else { return }
         self.source = source
+        storage?.set(source.rawValue, forKey: Self.sourceKey)
         await loadInitialNotifications()
     }
 
     public func setUnreadOnly(_ unreadOnly: Bool) async {
         guard unreadOnly != self.unreadOnly else { return }
         self.unreadOnly = unreadOnly
+        storage?.set(unreadOnly, forKey: Self.unreadOnlyKey)
         await loadInitialNotifications()
     }
 
