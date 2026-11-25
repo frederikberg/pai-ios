@@ -575,6 +575,42 @@ def debug_only_name_outside_debug(path: Path, lines: list[str]) -> list[tuple[in
     return findings
 
 
+#: A type declaration naming both `View` and `Equatable`/`Hashable` among its conformances.
+VIEW_EQUATABLE_DECLARATION = re.compile(
+    r"^\s*(?:(?:private|fileprivate|public|internal|final)\s+)*(?:struct|class)\s+\w+\s*:"
+    r"(?=.*\bView\b)(?=.*\b(?:Equatable|Hashable)\b)"
+)
+STATIC_EQUALITY = re.compile(r"\bstatic\s+func\s+==\s*\(")
+
+
+def view_equality_not_nonisolated(lines: list[str]) -> list[tuple[int, str, str]]:
+    """A `static func ==` on a `View` that is not `nonisolated`.
+
+    A `View` is main-actor isolated, so its `Equatable` witness is too, and Swift 6 rejects the
+    conformance: "conformance of 'X' to protocol 'Equatable' crosses into main actor-isolated
+    code and can cause data races". `parse-swift.sh` and the package build cannot see it (the
+    shape lives only in the app target). The fix is a `nonisolated` `==` over `Sendable` values
+    held in `nonisolated let` properties; comparing the view's other stored properties there is
+    an isolation error of its own.
+    """
+    findings: list[tuple[int, str, str]] = []
+    for index, line in enumerate(lines):
+        if not VIEW_EQUATABLE_DECLARATION.match(line):
+            continue
+        indent = len(line) - len(line.lstrip())
+        for cursor in range(index + 1, len(lines)):
+            body = lines[cursor]
+            if body.strip() and (len(body) - len(body.lstrip())) <= indent:
+                break
+            if STATIC_EQUALITY.search(body) and "nonisolated" not in body:
+                findings.append((
+                    cursor + 1, body.strip(),
+                    "a View's '==' is main-actor isolated, which its Equatable conformance cannot "
+                    "cross — mark it 'nonisolated' and compare 'nonisolated let' Sendable values",
+                ))
+    return findings
+
+
 def check(path: Path, sendable_names: frozenset[str] = frozenset({"Sendable"})) -> list[tuple[int, str, str]]:
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     isolated = main_actor_line_numbers(lines)
@@ -587,6 +623,7 @@ def check(path: Path, sendable_names: frozenset[str] = frozenset({"Sendable"})) 
     findings.extend(private_type_used_too_widely(lines))
     findings.extend(non_sendable_stored_property(lines, sendable_names))
     findings.extend(debug_only_name_outside_debug(path, lines))
+    findings.extend(view_equality_not_nonisolated(lines))
 
     for index, line in enumerate(lines):
         if STORED_STATIC_VAR.match(line) and index not in isolated and "nonisolated(unsafe)" not in line:

@@ -83,30 +83,23 @@ struct ComposerActionMenu: View {
     /// The offer, with its content frozen between changes of what it offers: the host re-evaluates
     /// on every session, draft and status update, and a `Menu` handed a freshly built (equal)
     /// content while it is open re-lays itself out from the top, so a long menu scrolled down
-    /// jumps back within a moment. ``ComposerActionMenuBody`` re-runs only when ``sameOffer(as:)``
+    /// jumps back within a moment. ``ComposerActionMenuBody`` re-runs only when ``offer``
     /// says something the menu shows or hides has changed.
     var body: some View {
         ComposerActionMenuBody(menu: self).equatable()
     }
 
-    /// Whether `other` lists the same entries in the same states. Closures are left out on
+    /// The values that decide which entries exist and how they read. Closures are left out on
     /// purpose: they read live stores when tapped, so a retained one stays correct. Every
-    /// property above that decides whether an entry exists, how it reads or whether it is
-    /// enabled belongs here.
-    fileprivate func sameOffer(as other: ComposerActionMenu) -> Bool {
-        hasSession == other.hasSession
-            && offersStartCallAfterSend == other.offersStartCallAfterSend
-            && canGrantSecretAccess == other.canGrantSecretAccess
-            && pregrantArmed == other.pregrantArmed
-            && canRestorePreviousText == other.canRestorePreviousText
-            && offersComputer == other.offersComputer
-            && isOnTheCall == other.isOnTheCall
-            && isCallLive == other.isCallLive
-            && offersFiles == other.offersFiles
-            && alternateRecordingMode == other.alternateRecordingMode
-            && (onCancelRecording == nil) == (other.onCancelRecording == nil)
-            && offersProcessActions == other.offersProcessActions
-            && playbackOn == other.playbackOn
+    /// property above that adds, hides, rewords or disables an entry belongs here.
+    fileprivate var offer: ComposerActionMenuOffer {
+        ComposerActionMenuOffer(
+            hasSession: hasSession, offersStartCallAfterSend: offersStartCallAfterSend,
+            canGrantSecretAccess: canGrantSecretAccess, pregrantArmed: pregrantArmed,
+            canRestorePreviousText: canRestorePreviousText, offersComputer: offersComputer,
+            isOnTheCall: isOnTheCall, isCallLive: isCallLive, offersFiles: offersFiles,
+            alternateRecordingMode: alternateRecordingMode, canCancelRecording: onCancelRecording != nil,
+            offersProcessActions: offersProcessActions, playbackOn: playbackOn)
     }
 
     fileprivate var menu: some View {
@@ -269,13 +262,37 @@ struct ComposerActionMenu: View {
     }
 }
 
+/// A plain-value copy of what ``ComposerActionMenu`` offers. `Sendable`, so comparing two of
+/// them is free of the view's main-actor isolation.
+private struct ComposerActionMenuOffer: Equatable, Sendable {
+    let hasSession: Bool
+    let offersStartCallAfterSend: Bool
+    let canGrantSecretAccess: Bool
+    let pregrantArmed: Bool?
+    let canRestorePreviousText: Bool
+    let offersComputer: Bool
+    let isOnTheCall: Bool
+    let isCallLive: Bool
+    let offersFiles: Bool
+    let alternateRecordingMode: VoiceSttMode?
+    let canCancelRecording: Bool
+    let offersProcessActions: Bool
+    let playbackOn: Bool?
+}
+
 /// Draws ``ComposerActionMenu``'s menu and is re-evaluated only when the offer changed
 /// (`Equatable` through `.equatable()` in the menu's own body).
 private struct ComposerActionMenuBody: View, Equatable {
     let menu: ComposerActionMenu
+    nonisolated let offer: ComposerActionMenuOffer
 
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.menu.sameOffer(as: rhs.menu)
+    init(menu: ComposerActionMenu) {
+        self.menu = menu
+        self.offer = menu.offer
+    }
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.offer == rhs.offer
     }
 
     var body: some View {
