@@ -876,6 +876,11 @@ settings_pages() {
   screenshot "settings-$role-list" -PaiFixtureRoute settings "${flag[@]}"
   fact_assert "settings-$role-list" settingsCategories "$pages"
   xcrun simctl terminate "$udid" "$bundle" || true
+  # A row pressed through the accessibility tree must open its page: the page's own report is what
+  # is asserted, so a row that only highlights fails here instead of photographing the list.
+  screenshot "settings-$role-tap" -PaiFixtureRoute settings -PaiFixtureTapSettingsRow appearance "${flag[@]}"
+  fact_assert "settings-$role-tap" settingsCategory appearance
+  xcrun simctl terminate "$udid" "$bundle" || true
   for page in $(echo "$pages" | tr ',' ' '); do
     screenshot "settings-$role-$page" -PaiFixtureRoute settings -PaiFixtureSettingsCategory "$page" "${flag[@]}"
     fact_assert "settings-$role-$page" settingsCategory "$page"

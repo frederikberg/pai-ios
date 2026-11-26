@@ -48,6 +48,7 @@
         static let roleFlag = "-PaiFixtureRole"
         static let sleepFlag = "-PaiFixtureSleep"
         static let settingsCategoryFlag = "-PaiFixtureSettingsCategory"
+        static let settingsRowTapFlag = "-PaiFixtureTapSettingsRow"
         static let sleepSettingsFlag = "-PaiFixtureSleepSettings"
         static let todosDeskFlag = "-PaiFixtureTodosDesk"
         static let todosAddFlag = "-PaiFixtureTodosAdd"
@@ -314,6 +315,14 @@
             -> String?
         {
             value(for: settingsCategoryFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureTapSettingsRow <id>`: the Settings list activates that page's row as a touch
+        /// would, instead of opening the page directly.
+        public static func requestedSettingsRowTap(arguments: [String] = ProcessInfo.processInfo.arguments)
+            -> String?
+        {
+            value(for: settingsRowTapFlag, in: arguments)
         }
 
         /// `-PaiFixtureQuickMore`: the Quick Actions screen opens its More list at once.
