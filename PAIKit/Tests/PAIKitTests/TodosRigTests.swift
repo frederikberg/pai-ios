@@ -55,6 +55,17 @@ final class TodosRigTests: XCTestCase {
         XCTAssertEqual(found.todos.first?.status, .open)
         XCTAssertEqual(found.todos.first?.onDesk, false)
 
+        // The share sheet's path: words through the parser, a link attached, multi-line text kept.
+        let shared = await store.captureAndWait(
+            text: "Read the \(word) recipe #errands\nfrom the bus", links: [.url("https://example.org/\(word)")],
+            source: .share, timeout: 30)
+        guard case .applied(let sharedResult?) = shared.settlement else { return XCTFail("share capture") }
+        let sharedTodo = try XCTUnwrap(sharedResult.todos.first)
+        XCTAssertEqual(shared.title, "Read the \(word) recipe")
+        XCTAssertEqual(sharedTodo.links.map(\.target), ["https://example.org/\(word)"])
+        XCTAssertEqual(sharedTodo.bodyPreview, "from the bus")
+        XCTAssertEqual(sharedTodo.created.source, "share")
+
         await store.refresh()
         let relaunched = TodosStore(storage: storage)
         XCTAssertEqual(relaunched.todos[todo.id]?.title, "Post the \(word) letter")

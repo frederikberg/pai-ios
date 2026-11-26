@@ -164,13 +164,59 @@ public final class TodosStore {
         text: String, list: String? = nil, links: [TodoLinkSpec] = [], parsed: TodosParseAnswer? = nil,
         source: TodosSource = .ios
     ) -> String {
-        let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let capture = TodosCapture(text: words, todoId: makeId(), list: list, links: links, day: currentDay())
+        let (words, body) = Self.split(text)
+        let capture = TodosCapture(
+            text: words, body: body, todoId: makeId(), list: list, links: links, day: currentDay())
         let ops = parsed.map { [Self.createOp(capture, from: $0)] } ?? []
         return enqueue(
             TodosQueuedChange(
                 changeId: makeId(), summary: nil, ops: ops, capture: capture, source: source.rawValue,
                 principal: me?.principal, queuedAt: IsoTimestamp.utcString(from: now())))
+    }
+
+    /// The longest first line kept as the words; a title may hold 500 characters, and the parser
+    /// reads the line before the server counts it.
+    static let wordsLimit = 400
+
+    /// A capture's words and what does not fit in them: the first non-empty line, with the
+    /// lines after it as the body; a first line too long for a title is cut, and the whole text
+    /// becomes the body.
+    static func split(_ text: String) -> (words: String, body: String?) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lines = trimmed.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: true)
+        let first = lines.first.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+        let rest = lines.count > 1 ? lines[1].trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        guard first.count <= wordsLimit else { return (String(first.prefix(wordsLimit)), trimmed) }
+        return (first, rest.isEmpty ? nil : rest)
+    }
+
+    /// Capture, then wait up to `timeout` seconds for the server's verdict, for a door that
+    /// reports back (Siri, the share sheet). The capture is queued either way.
+    public func captureAndWait(
+        text: String, links: [TodoLinkSpec] = [], source: TodosSource, timeout: TimeInterval
+    ) async -> TodosCaptureOutcome {
+        await loadMeIfUnknown()
+        return await outcome(of: capture(text: text, links: links, source: source), timeout: timeout)
+    }
+
+    /// Wait up to `timeout` seconds for a queued capture's verdict, and name the todo it made.
+    public func outcome(of changeId: String, timeout: TimeInterval) async -> TodosCaptureOutcome {
+        let capture = queue.first { $0.changeId == changeId }?.capture
+        let settlement = await settled(changeId, timeout: timeout)
+        var title = capture?.text ?? ""
+        if case .applied(let result?) = settlement,
+            let made = result.todos.first(where: { $0.id == capture?.todoId }) ?? result.todos.first
+        {
+            title = made.title
+        }
+        return TodosCaptureOutcome(changeId: changeId, settlement: settlement, title: title, signedOut: signedOut)
+    }
+
+    /// Read who is signed in when nothing is known yet, so a capture knows the person's day and
+    /// whose it is. Cheaper than `refresh`, which a door in the background has no time for.
+    public func loadMeIfUnknown() async {
+        guard me == nil else { return }
+        await refreshMe()
     }
 
     /// Tick an open todo, or reopen a closed one.
@@ -339,12 +385,13 @@ public final class TodosStore {
             .setting("id", .string(capture.todoId))
         if answer.title.trimmingCharacters(in: .whitespaces).isEmpty { op = op.setting("title", .string(capture.text)) }
         if op.string("list") == nil, let list = capture.list { op = op.setting("list", .string(list)) }
+        if op.string("body") == nil, let body = capture.body { op = op.setting("body", .string(body)) }
         op = op.setting("created_at", .null).withoutEmptyFields()
         return capture.links.isEmpty ? op : op.setting("links", .array(capture.links.map(\.json)))
     }
 
     static func plainCreateOp(_ capture: TodosCapture) -> TodoOp {
-        .create(id: capture.todoId, title: capture.text, list: capture.list, links: capture.links)
+        .create(id: capture.todoId, title: capture.text, body: capture.body, list: capture.list, links: capture.links)
     }
 
     private func waitForNetwork() {
@@ -617,5 +664,44 @@ public final class TodosStore {
                             hex.startIndex, offsetBy: range.upperBound)])
         }
         return parts.joined(separator: "-")
+    }
+}
+
+/// What became of a capture a door waited on, and the sentence it tells the person.
+public struct TodosCaptureOutcome: Equatable, Sendable {
+    public let changeId: String
+    public let settlement: TodosSettlement
+    /// The todo's title as the server made it, or the captured words while it waits.
+    public let title: String
+    /// The wait ended on a lost sign-in rather than a missing network.
+    public let signedOut: Bool
+
+    /// Where a capture that could not go out yet waits: the app keeps it until it can be sent;
+    /// the share sheet keeps it in its own queue, which goes out the next time it opens.
+    public enum Keeper: Sendable {
+        case app, shareSheet
+    }
+
+    public var added: Bool {
+        if case .applied = settlement { return true }
+        return false
+    }
+
+    public func message(keeper: Keeper) -> String {
+        switch settlement {
+        case .applied:
+            return "Added \u{201C}\(title)\u{201D}."
+        case .refused(let refusal):
+            return "Not added: \(refusal.message)"
+        case .waiting:
+            switch (keeper, signedOut) {
+            case (.app, false): return "Saved on this iPhone. It is added once there is a connection."
+            case (.app, true): return "Saved on this iPhone. It is added once you sign in to PAI again."
+            case (.shareSheet, false):
+                return "Saved here. It is added the next time you share to PAI with a connection."
+            case (.shareSheet, true):
+                return "Saved here. Sign in to PAI again; it is added the next time you share to PAI."
+            }
+        }
     }
 }

@@ -100,10 +100,11 @@ extension TodoOp {
     /// `todo.create` of a plain title. `id` is made by the client, so later ops can name the todo
     /// before the server has answered.
     public static func create(
-        id: String, title: String, list: String? = nil, parent: String? = nil, tags: [String] = [],
-        desk: Bool = false, links: [TodoLinkSpec] = []
+        id: String, title: String, body: String? = nil, list: String? = nil, parent: String? = nil,
+        tags: [String] = [], desk: Bool = false, links: [TodoLinkSpec] = []
     ) -> TodoOp {
         var fields: [String: PaiJSONValue] = ["op": .string("todo.create"), "id": .string(id), "title": .string(title)]
+        if let body { fields["body"] = .string(body) }
         if let list { fields["list"] = .string(list) }
         if let parent { fields["parent"] = .string(parent) }
         if !tags.isEmpty { fields["tags"] = .array(tags.map(PaiJSONValue.string)) }

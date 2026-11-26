@@ -18,6 +18,12 @@ struct ShareScreen: View {
                             store: ShareStore(
                                 items: loaded.items, refusal: loaded.refusal, backend: client,
                                 attemptMark: .extensionDefaults),
+                            todo: loaded.todoText == nil && loaded.todoLink == nil
+                                ? nil
+                                : ShareTodoStore(
+                                    sharedText: loaded.todoText, link: loaded.todoLink,
+                                    storageRoot: URL.applicationSupportDirectory),
+                            client: client,
                             close: close)
                     } else {
                         ProgressView("Reading what you shared")
@@ -63,6 +69,9 @@ extension ShareAttemptMark {
 
 private struct ShareFlowView: View {
     @State var store: ShareStore
+    /// Offered when text or a web link was shared.
+    @State var todo: ShareTodoStore?
+    let client: PaiApiClient
     let close: () -> Void
 
     @State private var query = ""
@@ -95,6 +104,10 @@ private struct ShareFlowView: View {
 
     private var chooser: some View {
         List {
+            if let todo {
+                ShareTodoSection(todo: todo, close: close)
+                    .task { todo.start(client) }
+            }
             if store.previousAttemptDied {
                 Section {
                     Label(

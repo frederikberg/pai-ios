@@ -47,6 +47,20 @@
 		<string>remote-notification</string>
 	</array>
 
+	<!-- The Home Screen quick actions, a long press on the app icon. The type is what
+	     `HomeScreenQuickActions` reads; array-valued, so it lives here like the keys above. -->
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.frederikberg.pai.new-todo</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>New todo</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>checkmark.circle</string>
+		</dict>
+	</array>
+
 	<!-- `pai://session/<id>` and `pai://note/<id>`, so a Shortcuts action or a widget can open
 	     one screen directly. Array-valued and nested two levels, so it has the same reason to
 	     live here rather than in an INFOPLIST_KEY_ build setting as the background mode above.

@@ -68,7 +68,7 @@ Signing needs one thing the app alone does not: the App Store profile `PAI Share
 
 ## The Control Center control
 
-`PAIControls/` is a third target, a WidgetKit extension offering two 1x1 controls: Quick actions opens the quick-actions screen and Alarm opens the Alarm app, from Control Center, the Lock Screen or the Action button. `SharedIntents/` holds the intents they run and is compiled into the app as well as the extension: a control opens the app only when the app holds the very same intent type.
+`PAIControls/` is a third target, a WidgetKit extension offering three 1x1 controls: Quick actions opens the quick-actions screen, Alarm opens the Alarm app and New todo opens the add sheet for a todo, from Control Center, the Lock Screen or the Action button. `SharedIntents/` holds the intents they run and is compiled into the app as well as the extension: a control opens the app only when the app holds the very same intent type.
 
 Signing needs the App Store profile `PAI Controls App Store` for `com.frederikberg.pai.controls`, in the repository secret `IOS_CONTROLS_PROVISIONING_PROFILE_BASE64`.
 
@@ -107,6 +107,18 @@ Camera Import (Apps) copies the photos and videos of a camera plugged in by USB-
 JPEG, DNG, HEIC, MP4 and MOV files are imported, each as its own asset under its own file name; video proxies (`.lrv`), thumbnails (`.thm`) and everything else are skipped. Files are handed to Photos one at a time by file URL, so the camera's bytes and metadata arrive unchanged and memory stays flat for long videos; a file Photos cannot take where it lies is copied into the app's temporary folder first. The creation date is the one Photos reads from the file.
 
 The app remembers every file it added, by name and size, in its own storage: add-only access to the library, the only permission it asks for, cannot read the library back. A second run adds only what is new, also after the imported files were deleted from the library once they were backed up; a file that failed is tried again, and "Stop" ends a run after the file in hand. The screen stays awake while a run is going; leaving the screen stops the run. The purpose string (`NSPhotoLibraryAddUsageDescription`) lives in `Config/Info.plist` and the `Mac` workflow asserts it.
+
+## Todos
+
+The todos live in PAI Cloud's Todos. The app holds the engine for them (`PAIKit/Sources/PAIKit/Stores/Todos/`): the open todos, the lists and the desk are kept on disk, so a cold start without a network still has them, and every change (add, tick, untick, the desk) is queued on disk and sent in order under its own change id, so a resend after a lost answer is a replay and never a second todo. Without a network a change waits; with an expired sign-in the whole queue waits for the next one; a change the server refuses is dropped with a toast, and the words of a refused add are kept.
+
+A todo can be added without opening the app:
+
+- **Add Todo**, an App Intent with a text parameter, from Siri ("Add a todo in PAI"), Shortcuts or the Action button through a shortcut. It answers whether the todo was added or waits on the phone.
+- **New todo**, a Control Center control, and **New todo** in the app icon's quick actions, both opening a small sheet with the keyboard up.
+- **Todo** in the share sheet, for shared text or a link (attached to the todo).
+
+The words go to the server's capture parser (dates, `#tags`, `/List`, `*` for the desk), the same reading the web's quick add gets. Words captured without a network are read when they go out, unless the day has turned in between: then they become the title as they are. The share sheet has no storage in common with the app, so a todo shared without a network waits in the share sheet's own queue and goes out the next time something is shared to PAI.
 
 ## Notes offline
 
