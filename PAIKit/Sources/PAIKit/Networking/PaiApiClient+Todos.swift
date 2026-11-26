@@ -49,6 +49,11 @@ public protocol TodosBackend: Sendable {
     func todosRunView(id: String, cursor: String?) async throws -> TodosQueryAnswer
     func todosViewCounts() async throws -> TodosViewCountsAnswer
     func todosDetail(ref: String) async throws -> TodosDetailAnswer
+    /// The todo for its sheet: closed children too, and its last changes.
+    func todosSheet(ref: String) async throws -> TodosDetailAnswer
+    func todosUpcoming(days: Int) async throws -> TodosUpcomingAnswer
+    func todosLogbook(cursor: String?) async throws -> TodosLogbookAnswer
+    func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer
 }
 
 extension PaiApiClient: TodosBackend {
@@ -101,6 +106,27 @@ extension PaiApiClient: TodosBackend {
         try await todosSend(
             "GET", "/todos/\(Self.escapedSegment(ref))",
             query: [URLQueryItem(name: "children", value: "1"), URLQueryItem(name: "body", value: "0")])
+    }
+
+    public func todosSheet(ref: String) async throws -> TodosDetailAnswer {
+        try await todosSend(
+            "GET", "/todos/\(Self.escapedSegment(ref))",
+            query: [
+                URLQueryItem(name: "children", value: "1"), URLQueryItem(name: "closed", value: "1"),
+                URLQueryItem(name: "history", value: "30"),
+            ])
+    }
+
+    public func todosUpcoming(days: Int) async throws -> TodosUpcomingAnswer {
+        try await todosSend("GET", "/upcoming", query: [URLQueryItem(name: "days", value: String(days))])
+    }
+
+    public func todosLogbook(cursor: String?) async throws -> TodosLogbookAnswer {
+        try await todosSend("GET", "/logbook", query: cursor.map { [URLQueryItem(name: "cursor", value: $0)] } ?? [])
+    }
+
+    public func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer {
+        try await todosSend("POST", "/search", body: Self.jsonBody(request))
     }
 
     private static func escapedSegment(_ value: String) -> String {

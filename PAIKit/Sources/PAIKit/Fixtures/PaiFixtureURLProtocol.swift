@@ -119,7 +119,7 @@
                 }
             }
             // Todos answers by method, path and body from its own corpus.
-            if let answer = PaiFixtures.todosRoute(method: method, path: path, body: body) {
+            if let answer = PaiFixtures.todosRoute(method: method, path: path, query: query, body: body) {
                 return Match(status: answer.status) { answer.body }
             }
             // The fixture session's draft, replaced by `-PaiFixtureDraftText`.

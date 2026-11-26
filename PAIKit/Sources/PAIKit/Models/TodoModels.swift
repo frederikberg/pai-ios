@@ -602,11 +602,203 @@ public struct TodosViewCountsAnswer: Codable, Equatable, Sendable {
     public let seq: Int
 }
 
-/// `GET /todos/{ref}`: the todo, the caller's nudges on it, and its open children when asked.
+/// `GET /todos/{ref}`: the todo, the caller's nudges on it, its children when asked, and its last
+/// changes when asked.
 public struct TodosDetailAnswer: Codable, Equatable, Sendable {
     public let todo: Todo
     public let children: [Todo]?
-    public let nudges: [PaiJSONValue]
+    public let nudges: [TodoNudge]
+    public let history: [TodoChange]?
+}
+
+public enum TodoNudgeState: TodosWireEnum {
+    case armed, firing, fired, held, missed, cancelled
+    case unrecognized(String)
+
+    public static let knownValues: [String: TodoNudgeState] = [
+        "armed": .armed, "firing": .firing, "fired": .fired, "held": .held, "missed": .missed, "cancelled": .cancelled,
+    ]
+
+    public var rawValue: String {
+        switch self {
+        case .armed: "armed"
+        case .firing: "firing"
+        case .fired: "fired"
+        case .held: "held"
+        case .missed: "missed"
+        case .cancelled: "cancelled"
+        case .unrecognized(let raw): raw
+        }
+    }
+}
+
+/// One of the caller's nudges on a todo: at a moment (`at`), or an offset before its time or
+/// deadline (`before`, minutes; negative is after).
+public struct TodoNudge: Codable, Equatable, Sendable, Identifiable {
+    public var id: String
+    public var todoId: String
+    public var kind: String
+    public var date: String?
+    public var time: String?
+    public var basis: String?
+    public var offsetMinutes: Int?
+    public var fireAt: String?
+    public var state: TodoNudgeState
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, date, time, basis, state
+        case todoId = "todo_id"
+        case offsetMinutes = "offset_minutes"
+        case fireAt = "fire_at"
+    }
+}
+
+/// `GET /upcoming`: the days from tomorrow, each with its todos, deadlines and repeat ghosts,
+/// then later and someday.
+public struct TodosUpcomingAnswer: Codable, Equatable, Sendable {
+    public struct Ghost: Codable, Equatable, Sendable {
+        public let todoId: String
+        public let date: String
+
+        enum CodingKeys: String, CodingKey {
+            case date
+            case todoId = "todo_id"
+        }
+    }
+
+    public struct Day: Codable, Equatable, Sendable {
+        public let date: String
+        public let todos: [String]
+        public let deadlines: [String]
+        public let ghosts: [Ghost]
+    }
+
+    public let days: [Day]
+    public let later: [String]
+    public let someday: [String]
+    public let todos: [String: Todo]
+    public let seq: Int
+}
+
+/// `GET /logbook`: completions by the day they count for, newest first.
+public struct TodosLogbookAnswer: Codable, Equatable, Sendable {
+    public struct Entry: Codable, Equatable, Sendable {
+        public let completionId: String
+        public let todoId: String
+        public let kind: String
+        public let at: String
+        public let byLabel: String
+
+        enum CodingKeys: String, CodingKey {
+            case kind, at
+            case completionId = "completion_id"
+            case todoId = "todo_id"
+            case byLabel = "by_label"
+        }
+    }
+
+    public struct Day: Codable, Equatable, Sendable {
+        public let date: String
+        public let entries: [Entry]
+    }
+
+    public let days: [Day]
+    public let todos: [String: Todo]
+    public let nextCursor: String?
+
+    enum CodingKeys: String, CodingKey {
+        case days, todos
+        case nextCursor = "next_cursor"
+    }
+}
+
+/// `POST /search`: what was typed into the one box, as the web's box sends it.
+public struct TodosSearchRequest: Encodable, Equatable, Sendable {
+    public let q: String
+    public let asYouType: Bool
+    /// `auto` (open first), `open`, `closed` or `any`.
+    public let status: String
+    public let cursor: String?
+
+    public init(q: String, status: String = "auto", asYouType: Bool = true, cursor: String? = nil) {
+        self.q = q
+        self.status = status
+        self.asYouType = asYouType
+        self.cursor = cursor
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case q, status, cursor
+        case asYouType = "as_you_type"
+    }
+}
+
+/// A run of text; `m` marks a match. Highlights are segments, never offsets.
+public struct TodoTextPart: Codable, Equatable, Sendable {
+    public let t: String
+    public let m: Bool
+}
+
+public struct TodosSearchAnswer: Codable, Equatable, Sendable {
+    public struct Hit: Codable, Equatable, Sendable {
+        public struct Snippet: Codable, Equatable, Sendable {
+            public let field: String
+            public let parts: [TodoTextPart]
+        }
+
+        public let todo: Todo
+        public let titleParts: [TodoTextPart]
+        public let snippet: Snippet?
+        public let breadcrumb: [String]
+
+        enum CodingKeys: String, CodingKey {
+            case todo, snippet, breadcrumb
+            case titleParts = "title_parts"
+        }
+    }
+
+    public struct Counts: Codable, Equatable, Sendable {
+        public let open: Int
+        public let closed: Int
+        public let deleted: Int
+        public let capped: Bool
+    }
+
+    public struct Correction: Codable, Equatable, Sendable {
+        public let from: String
+        public let to: String
+    }
+
+    public struct Query: Codable, Equatable, Sendable {
+        public let corrections: [Correction]
+    }
+
+    public struct TagHit: Codable, Equatable, Sendable { public let tag: TodoTag }
+    public struct ViewHit: Codable, Equatable, Sendable { public let view: TodoView }
+    public struct ListHit: Codable, Equatable, Sendable { public let list: TodoList }
+
+    public struct Offer: Codable, Equatable, Sendable {
+        public let kind: String
+        public let label: String
+        public let q: String?
+    }
+
+    public let query: Query
+    public let top: Hit?
+    public let todos: [Hit]
+    public let fewer: [Hit]
+    public let counts: Counts
+    public let tags: [TagHit]
+    public let views: [ViewHit]
+    public let lists: [ListHit]
+    public let offers: [Offer]
+    public let nextCursor: String?
+    public let examples: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case query, top, todos, fewer, counts, tags, views, lists, offers, examples
+        case nextCursor = "next_cursor"
+    }
 }
 
 public struct TodosEventsAnswer: Codable, Equatable, Sendable {

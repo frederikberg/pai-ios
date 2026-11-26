@@ -13,6 +13,8 @@ struct TodoRowView: View {
     var compact = false
     var onTick: () -> Void = {}
     var onToggleExpanded: () -> Void = {}
+    /// Tapping the row outside its circle and chevron opens the todo.
+    var onOpen: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -27,6 +29,8 @@ struct TodoRowView: View {
                 titleLine
                 if !compact, hasMeta { metaLine }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { onOpen?() }
         }
         .padding(.leading, CGFloat(depth) * 22)
         .padding(.vertical, compact ? 6 : 4)

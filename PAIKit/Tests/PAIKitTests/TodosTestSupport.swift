@@ -114,6 +114,8 @@ actor FakeTodosServer: TodosBackend {
                 row.ref = "T-\(number)"
                 row.title = op.string("title")!
                 row.tags = op.strings("tags") ?? []
+                row.parentId = op.string("parent")
+                row.childrenOpen = 0
                 row.created.source = source.rawValue
                 row.status = .open
                 row.updatedSeq = seq
@@ -128,6 +130,14 @@ actor FakeTodosServer: TodosBackend {
                     throw try refusal("error-404-not-found", status: 404)
                 }
                 row.status = op.name == "todo.complete" ? .done : .open
+                row.updatedSeq = seq
+                staged[row.id] = row
+                touched[row.id] = row
+            case "todo.update":
+                guard var row = staged[op.string("todo")!] else {
+                    throw try refusal("error-404-not-found", status: 404)
+                }
+                if let title = op.object("set")?.string("title") { row.title = title }
                 row.updatedSeq = seq
                 staged[row.id] = row
                 touched[row.id] = row
@@ -271,7 +281,36 @@ actor FakeTodosServer: TodosBackend {
         try reach()
         guard let todo = todos[ref] else { throw try refusal("error-404-not-found", status: 404) }
         let children = todos.values.filter { $0.parentId == ref && $0.status == .open }.sorted { $0.title < $1.title }
-        return TodosDetailAnswer(todo: todo, children: children, nudges: [])
+        return TodosDetailAnswer(todo: todo, children: children, nudges: [], history: nil)
+    }
+
+    /// Every child, done ones too, as the sheet asks.
+    func todosSheet(ref: String) async throws -> TodosDetailAnswer {
+        try reach()
+        guard let todo = todos[ref] else { throw try refusal("error-404-not-found", status: 404) }
+        let children = todos.values.filter { $0.parentId == ref }.sorted { $0.title < $1.title }
+        return TodosDetailAnswer(todo: todo, children: children, nudges: [], history: [])
+    }
+
+    func todosUpcoming(days: Int) async throws -> TodosUpcomingAnswer {
+        try reach()
+        return TodosUpcomingAnswer(days: [], later: [], someday: [], todos: [:], seq: seq)
+    }
+
+    func todosLogbook(cursor: String?) async throws -> TodosLogbookAnswer {
+        try reach()
+        return TodosLogbookAnswer(days: [], todos: [:], nextCursor: nil)
+    }
+
+    private(set) var searched: [TodosSearchRequest] = []
+
+    func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer {
+        try reach()
+        searched.append(request)
+        return TodosSearchAnswer(
+            query: .init(corrections: []), top: nil, todos: [], fewer: [],
+            counts: .init(open: 0, closed: 0, deleted: 0, capped: false), tags: [], views: [], lists: [], offers: [],
+            nextCursor: nil, examples: nil)
     }
 }
 

@@ -13,7 +13,13 @@ struct TodoDeskPanel<ListContent: View>: View {
     let listCount: Int?
     let rowModel: (Todo) -> TodoRowModel
     let onTick: (String) -> Void
+    let onOpen: (String) -> Void
     @ViewBuilder let list: () -> ListContent
+
+    /// The cards can be dragged into a new order, sections included.
+    @State private var arranging = false
+    /// The section being named: a new one (nil id) or one renamed.
+    @State private var naming: (id: String?, title: String)?
 
     private var cards: [TodoDeskItem] { todos.deskItems.filter { $0.kind == .todo } }
 
@@ -83,6 +89,17 @@ struct TodoDeskPanel<ListContent: View>: View {
                 Text("Desk").font(.subheadline.weight(.semibold)).foregroundStyle(PaiPalette.Semantic.textStrong)
                 Text("\(cards.count)").font(.caption).monospacedDigit().foregroundStyle(PaiPalette.Semantic.textFaint)
                 Spacer()
+                Button {
+                    naming = (nil, "")
+                } label: {
+                    Label("Section", systemImage: "plus").labelStyle(.titleAndIcon).padding(.horizontal, 4)
+                }
+                Button {
+                    withAnimation(.snappy) { arranging.toggle() }
+                } label: {
+                    Text(arranging ? "Done" : "Arrange").padding(.horizontal, 4)
+                }
+                .disabled(todos.deskItems.count < 2 && !arranging)
                 clearMenu
                 Button {
                     withAnimation(.snappy) { mode = mode == .desk ? .split : .desk }
@@ -110,6 +127,34 @@ struct TodoDeskPanel<ListContent: View>: View {
         }
         .background(PaiPalette.Semantic.insetBackground)
         .overlay(alignment: .bottom) { Divider() }
+        .alert(
+            naming?.id == nil ? "New section" : "Rename the section",
+            isPresented: Binding(get: { naming != nil }, set: { if !$0 { naming = nil } })
+        ) {
+            TextField("Title", text: Binding(get: { naming?.title ?? "" }, set: { naming?.title = $0 }))
+            Button("Save") { saveSection() }
+            Button("Cancel", role: .cancel) { naming = nil }
+        }
+        .task { arrangeForFixture() }
+    }
+
+    /// A new section goes last, as on the web; a renamed one keeps its place.
+    private func saveSection() {
+        guard let naming else { return }
+        let title = naming.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.naming = nil
+        guard !title.isEmpty else { return }
+        if let id = naming.id {
+            todos.submit([TodoFieldOps.deskSection(id: id, title: title, position: nil)])
+        } else {
+            todos.submit([TodoFieldOps.deskSection(id: TodosStore.uuidv7(), title: title)])
+        }
+    }
+
+    private func arrangeForFixture() {
+        #if DEBUG
+            if PaiFixtureLaunch.arrangesTodosDesk() { arranging = true }
+        #endif
     }
 
     private var clearMenu: some View {
@@ -131,6 +176,12 @@ struct TodoDeskPanel<ListContent: View>: View {
             ForEach(todos.deskItems) { item in
                 deskRow(item)
             }
+            .onMove { from, destination in
+                guard let first = from.first,
+                    let op = TodoDeskArrange.onMove(todos.deskItems, from: first, to: destination)
+                else { return }
+                todos.submit([op])
+            }
             if todos.deskItems.isEmpty {
                 Text("Nothing on the desk. Swipe a todo right to put it here.")
                     .font(.footnote)
@@ -141,6 +192,7 @@ struct TodoDeskPanel<ListContent: View>: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 36)
+        .environment(\.editMode, .constant(arranging ? .active : .inactive))
     }
 
     @ViewBuilder private func deskRow(_ item: TodoDeskItem) -> some View {
@@ -151,8 +203,12 @@ struct TodoDeskPanel<ListContent: View>: View {
                 .padding(.top, 8)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+                .contextMenu {
+                    Button("Rename") { naming = (item.id, item.title ?? "") }
+                    Button("Clear section", role: .destructive) { todos.submit([TodoFieldOps.clearSection(item.id)]) }
+                }
         } else if let todo = todos.todos[item.todoId ?? ""] {
-            TodoRowView(model: rowModel(todo), onTick: { onTick(todo.id) })
+            TodoRowView(model: rowModel(todo), onTick: { onTick(todo.id) }, onOpen: { onOpen(todo.id) })
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 12).fill(PaiPalette.Semantic.panelBackground)
                         .padding(.vertical, 3).padding(.horizontal, 10)

@@ -1,0 +1,1114 @@
+{
+  "deskMoves": {
+    "desk": [
+      {
+        "id": "d1",
+        "kind": "todo",
+        "todo_id": "t1",
+        "title": null,
+        "rank": "",
+        "added_at": "",
+        "added_day": ""
+      },
+      {
+        "id": "d2",
+        "kind": "todo",
+        "todo_id": "t2",
+        "title": null,
+        "rank": "",
+        "added_at": "",
+        "added_day": ""
+      },
+      {
+        "id": "s1",
+        "kind": "divider",
+        "todo_id": null,
+        "title": "S",
+        "rank": "",
+        "added_at": "",
+        "added_day": ""
+      },
+      {
+        "id": "d3",
+        "kind": "todo",
+        "todo_id": "t3",
+        "title": null,
+        "rank": "",
+        "added_at": "",
+        "added_day": ""
+      },
+      {
+        "id": "d4",
+        "kind": "todo",
+        "todo_id": "t4",
+        "title": null,
+        "rank": "",
+        "added_at": "",
+        "added_day": ""
+      }
+    ],
+    "moves": [
+      {
+        "from": 0,
+        "over": 0,
+        "op": null
+      },
+      {
+        "from": 0,
+        "over": 1,
+        "op": {
+          "op": "desk.move",
+          "item": "t1",
+          "position": {
+            "after": "t2"
+          }
+        }
+      },
+      {
+        "from": 0,
+        "over": 2,
+        "op": {
+          "op": "desk.move",
+          "item": "t1",
+          "position": {
+            "after": "s1"
+          }
+        }
+      },
+      {
+        "from": 0,
+        "over": 3,
+        "op": {
+          "op": "desk.move",
+          "item": "t1",
+          "position": {
+            "after": "t3"
+          }
+        }
+      },
+      {
+        "from": 0,
+        "over": 4,
+        "op": {
+          "op": "desk.move",
+          "item": "t1",
+          "position": {
+            "after": "t4"
+          }
+        }
+      },
+      {
+        "from": 1,
+        "over": 0,
+        "op": {
+          "op": "desk.move",
+          "item": "t2",
+          "position": {
+            "before": "t1"
+          }
+        }
+      },
+      {
+        "from": 1,
+        "over": 1,
+        "op": null
+      },
+      {
+        "from": 1,
+        "over": 2,
+        "op": {
+          "op": "desk.move",
+          "item": "t2",
+          "position": {
+            "after": "s1"
+          }
+        }
+      },
+      {
+        "from": 1,
+        "over": 3,
+        "op": {
+          "op": "desk.move",
+          "item": "t2",
+          "position": {
+            "after": "t3"
+          }
+        }
+      },
+      {
+        "from": 1,
+        "over": 4,
+        "op": {
+          "op": "desk.move",
+          "item": "t2",
+          "position": {
+            "after": "t4"
+          }
+        }
+      },
+      {
+        "from": 2,
+        "over": 0,
+        "op": {
+          "op": "desk.move",
+          "item": "s1",
+          "position": {
+            "before": "t1"
+          }
+        }
+      },
+      {
+        "from": 2,
+        "over": 1,
+        "op": {
+          "op": "desk.move",
+          "item": "s1",
+          "position": {
+            "before": "t2"
+          }
+        }
+      },
+      {
+        "from": 2,
+        "over": 2,
+        "op": null
+      },
+      {
+        "from": 2,
+        "over": 3,
+        "op": {
+          "op": "desk.move",
+          "item": "s1",
+          "position": {
+            "after": "t3"
+          }
+        }
+      },
+      {
+        "from": 2,
+        "over": 4,
+        "op": {
+          "op": "desk.move",
+          "item": "s1",
+          "position": {
+            "after": "t4"
+          }
+        }
+      },
+      {
+        "from": 3,
+        "over": 0,
+        "op": {
+          "op": "desk.move",
+          "item": "t3",
+          "position": {
+            "before": "t1"
+          }
+        }
+      },
+      {
+        "from": 3,
+        "over": 1,
+        "op": {
+          "op": "desk.move",
+          "item": "t3",
+          "position": {
+            "before": "t2"
+          }
+        }
+      },
+      {
+        "from": 3,
+        "over": 2,
+        "op": {
+          "op": "desk.move",
+          "item": "t3",
+          "position": {
+            "before": "s1"
+          }
+        }
+      },
+      {
+        "from": 3,
+        "over": 3,
+        "op": null
+      },
+      {
+        "from": 3,
+        "over": 4,
+        "op": {
+          "op": "desk.move",
+          "item": "t3",
+          "position": {
+            "after": "t4"
+          }
+        }
+      },
+      {
+        "from": 4,
+        "over": 0,
+        "op": {
+          "op": "desk.move",
+          "item": "t4",
+          "position": {
+            "before": "t1"
+          }
+        }
+      },
+      {
+        "from": 4,
+        "over": 1,
+        "op": {
+          "op": "desk.move",
+          "item": "t4",
+          "position": {
+            "before": "t2"
+          }
+        }
+      },
+      {
+        "from": 4,
+        "over": 2,
+        "op": {
+          "op": "desk.move",
+          "item": "t4",
+          "position": {
+            "before": "s1"
+          }
+        }
+      },
+      {
+        "from": 4,
+        "over": 3,
+        "op": {
+          "op": "desk.move",
+          "item": "t4",
+          "position": {
+            "before": "t3"
+          }
+        }
+      },
+      {
+        "from": 4,
+        "over": 4,
+        "op": null
+      }
+    ]
+  },
+  "upcoming": {
+    "input": {
+      "days": [
+        {
+          "date": "2026-11-27",
+          "todos": [
+            "a",
+            "d"
+          ],
+          "deadlines": [
+            "b",
+            "a"
+          ],
+          "ghosts": [
+            {
+              "todo_id": "g",
+              "date": "2026-11-27"
+            }
+          ]
+        },
+        {
+          "date": "2026-11-28",
+          "todos": [],
+          "deadlines": [],
+          "ghosts": []
+        },
+        {
+          "date": "2026-11-29",
+          "todos": [
+            "c"
+          ],
+          "deadlines": [],
+          "ghosts": [
+            {
+              "todo_id": "zz",
+              "date": "2026-11-29"
+            }
+          ]
+        }
+      ],
+      "later": [
+        "e",
+        "zz"
+      ],
+      "someday": []
+    },
+    "todos": {
+      "a": {
+        "id": "a",
+        "status": "open"
+      },
+      "b": {
+        "id": "b",
+        "status": "open"
+      },
+      "c": {
+        "id": "c",
+        "status": "open"
+      },
+      "d": {
+        "id": "d",
+        "status": "deleted"
+      },
+      "e": {
+        "id": "e",
+        "status": "open"
+      },
+      "g": {
+        "id": "g",
+        "status": "open"
+      }
+    },
+    "today": "2026-11-26",
+    "pending": [
+      {
+        "change_id": "x",
+        "ops": [
+          {
+            "op": "todo.update",
+            "todo": "c",
+            "set": {
+              "when": {
+                "date": "2026-11-28"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "rows": [
+      {
+        "kind": "header",
+        "key": "day:2026-11-27",
+        "groupKey": "2026-11-27",
+        "label": "27 Nov",
+        "sub": "Tomorrow · Friday",
+        "date": "2026-11-27",
+        "count": 2,
+        "collapsed": false
+      },
+      {
+        "kind": "todo",
+        "key": "day:2026-11-27/a",
+        "id": "a",
+        "depth": 0,
+        "parentId": null,
+        "expandable": false,
+        "expanded": false
+      },
+      {
+        "kind": "todo",
+        "key": "day:2026-11-27/due:b",
+        "id": "b",
+        "depth": 0,
+        "parentId": null,
+        "expandable": false,
+        "expanded": false
+      },
+      {
+        "kind": "ghost",
+        "key": "day:2026-11-27/ghost:g",
+        "todoId": "g",
+        "date": "2026-11-27"
+      },
+      {
+        "kind": "header",
+        "key": "day:2026-11-28",
+        "groupKey": "2026-11-28",
+        "label": "28 Nov",
+        "sub": "Saturday",
+        "date": "2026-11-28",
+        "count": 1,
+        "collapsed": false
+      },
+      {
+        "kind": "todo",
+        "key": "day:2026-11-28/c",
+        "id": "c",
+        "depth": 0,
+        "parentId": null,
+        "expandable": false,
+        "expanded": false
+      },
+      {
+        "kind": "header",
+        "key": "day:2026-11-29",
+        "groupKey": "2026-11-29",
+        "label": "29 Nov",
+        "sub": "Sunday",
+        "date": "2026-11-29",
+        "count": 0,
+        "collapsed": false
+      },
+      {
+        "kind": "header",
+        "key": "section:later",
+        "groupKey": "later",
+        "label": "Later",
+        "count": 1,
+        "collapsed": false
+      },
+      {
+        "kind": "todo",
+        "key": "section:later/e",
+        "id": "e",
+        "depth": 0,
+        "parentId": null,
+        "expandable": false,
+        "expanded": false
+      }
+    ]
+  },
+  "logbook": {
+    "days": [
+      {
+        "date": "2026-11-26",
+        "entries": [
+          {
+            "completion_id": "c1",
+            "todo_id": "a",
+            "kind": "done",
+            "at": "2026-11-26T10:00:00+00:00",
+            "by_label": "Sam"
+          },
+          {
+            "completion_id": "c2",
+            "todo_id": "zz",
+            "kind": "done",
+            "at": "x",
+            "by_label": "Sam"
+          }
+        ]
+      },
+      {
+        "date": "2026-11-25",
+        "entries": [
+          {
+            "completion_id": "c3",
+            "todo_id": "b",
+            "kind": "dropped",
+            "at": "2026-11-25T08:00:00+00:00",
+            "by_label": "Kim"
+          }
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "entries": [
+          {
+            "completion_id": "c4",
+            "todo_id": "zz",
+            "kind": "skipped",
+            "at": "x",
+            "by_label": "x"
+          }
+        ]
+      }
+    ],
+    "todos": {
+      "a": {
+        "id": "a",
+        "status": "open"
+      },
+      "b": {
+        "id": "b",
+        "status": "open"
+      },
+      "c": {
+        "id": "c",
+        "status": "open"
+      },
+      "d": {
+        "id": "d",
+        "status": "deleted"
+      },
+      "e": {
+        "id": "e",
+        "status": "open"
+      },
+      "g": {
+        "id": "g",
+        "status": "open"
+      }
+    },
+    "today": "2026-11-26",
+    "rows": [
+      {
+        "kind": "header",
+        "key": "log:2026-11-26",
+        "groupKey": "2026-11-26",
+        "label": "26 Nov",
+        "sub": "Today · Thursday",
+        "count": 1,
+        "collapsed": false
+      },
+      {
+        "kind": "entry",
+        "key": "log:c1",
+        "todoId": "a",
+        "completionId": "c1",
+        "at": "2026-11-26T10:00:00+00:00",
+        "entryKind": "done",
+        "byLabel": "Sam"
+      },
+      {
+        "kind": "header",
+        "key": "log:2026-11-25",
+        "groupKey": "2026-11-25",
+        "label": "25 Nov",
+        "sub": "Yesterday · Wednesday",
+        "count": 1,
+        "collapsed": false
+      },
+      {
+        "kind": "entry",
+        "key": "log:c3",
+        "todoId": "b",
+        "completionId": "c3",
+        "at": "2026-11-25T08:00:00+00:00",
+        "entryKind": "dropped",
+        "byLabel": "Kim"
+      }
+    ]
+  },
+  "headings": [
+    {
+      "date": "2026-11-25",
+      "today": "2026-11-26",
+      "heading": {
+        "label": "25 Nov",
+        "sub": "Yesterday · Wednesday"
+      }
+    },
+    {
+      "date": "2026-11-26",
+      "today": "2026-11-26",
+      "heading": {
+        "label": "26 Nov",
+        "sub": "Today · Thursday"
+      }
+    },
+    {
+      "date": "2026-11-27",
+      "today": "2026-11-26",
+      "heading": {
+        "label": "27 Nov",
+        "sub": "Tomorrow · Friday"
+      }
+    },
+    {
+      "date": "2026-12-05",
+      "today": "2026-11-26",
+      "heading": {
+        "label": "5 Dec",
+        "sub": "Saturday"
+      }
+    },
+    {
+      "date": "2027-01-02",
+      "today": "2026-11-26",
+      "heading": {
+        "label": "2 Jan 2027",
+        "sub": "Saturday"
+      }
+    }
+  ],
+  "quickDays": [
+    {
+      "today": "2026-11-23",
+      "days": [
+        {
+          "label": "Today",
+          "date": "2026-11-23",
+          "kind": "today"
+        },
+        {
+          "label": "Tomorrow",
+          "date": "2026-11-24",
+          "kind": "tomorrow"
+        },
+        {
+          "label": "This weekend",
+          "date": "2026-11-28",
+          "kind": "weekend"
+        },
+        {
+          "label": "Next week",
+          "date": "2026-11-30",
+          "kind": "next-week"
+        }
+      ]
+    },
+    {
+      "today": "2026-11-26",
+      "days": [
+        {
+          "label": "Today",
+          "date": "2026-11-26",
+          "kind": "today"
+        },
+        {
+          "label": "Tomorrow",
+          "date": "2026-11-27",
+          "kind": "tomorrow"
+        },
+        {
+          "label": "This weekend",
+          "date": "2026-11-28",
+          "kind": "weekend"
+        },
+        {
+          "label": "Next week",
+          "date": "2026-11-30",
+          "kind": "next-week"
+        }
+      ]
+    },
+    {
+      "today": "2026-11-27",
+      "days": [
+        {
+          "label": "Today",
+          "date": "2026-11-27",
+          "kind": "today"
+        },
+        {
+          "label": "Tomorrow",
+          "date": "2026-11-28",
+          "kind": "tomorrow"
+        },
+        {
+          "label": "Next week",
+          "date": "2026-11-30",
+          "kind": "next-week"
+        }
+      ]
+    },
+    {
+      "today": "2026-11-28",
+      "days": [
+        {
+          "label": "Today",
+          "date": "2026-11-28",
+          "kind": "today"
+        },
+        {
+          "label": "Tomorrow",
+          "date": "2026-11-29",
+          "kind": "tomorrow"
+        },
+        {
+          "label": "Next weekend",
+          "date": "2026-12-05",
+          "kind": "weekend"
+        },
+        {
+          "label": "Next week",
+          "date": "2026-11-30",
+          "kind": "next-week"
+        }
+      ]
+    },
+    {
+      "today": "2026-11-29",
+      "days": [
+        {
+          "label": "Today",
+          "date": "2026-11-29",
+          "kind": "today"
+        },
+        {
+          "label": "Tomorrow",
+          "date": "2026-11-30",
+          "kind": "tomorrow"
+        },
+        {
+          "label": "Next weekend",
+          "date": "2026-12-05",
+          "kind": "weekend"
+        }
+      ]
+    }
+  ],
+  "repeats": [
+    {
+      "repeat": {
+        "mode": "after_done",
+        "every": 1,
+        "unit": "day",
+        "skip_missed": false
+      },
+      "text": "1 day after done"
+    },
+    {
+      "repeat": {
+        "mode": "after_done",
+        "every": 3,
+        "unit": "month",
+        "skip_missed": false
+      },
+      "text": "3 months after done"
+    },
+    {
+      "repeat": {
+        "mode": "schedule",
+        "every": 1,
+        "unit": "week",
+        "on": {
+          "weekdays": [
+            4,
+            1
+          ]
+        },
+        "skip_missed": false
+      },
+      "text": "Every Mon, Thu"
+    },
+    {
+      "repeat": {
+        "mode": "schedule",
+        "every": 2,
+        "unit": "week",
+        "on": {
+          "weekdays": [
+            5
+          ]
+        },
+        "skip_missed": false
+      },
+      "text": "Every 2 weeks on Fri"
+    },
+    {
+      "repeat": {
+        "mode": "schedule",
+        "every": 1,
+        "unit": "month",
+        "on": {
+          "month_day": "last"
+        },
+        "skip_missed": false
+      },
+      "text": "Every month on last day"
+    },
+    {
+      "repeat": {
+        "mode": "schedule",
+        "every": 2,
+        "unit": "month",
+        "on": {
+          "month_day": 1
+        },
+        "skip_missed": false
+      },
+      "text": "Every 2 months on the 1st"
+    },
+    {
+      "repeat": {
+        "mode": "schedule",
+        "every": 1,
+        "unit": "year",
+        "skip_missed": false,
+        "until": "2027-06-01"
+      },
+      "text": "Every year until 2027-06-01"
+    },
+    {
+      "repeat": {
+        "mode": "schedule",
+        "every": 2,
+        "unit": "day",
+        "skip_missed": false
+      },
+      "text": "Every 2 days"
+    }
+  ],
+  "nudges": [
+    {
+      "nudge": {
+        "kind": "at",
+        "date": "2026-12-04",
+        "time": "09:00:00",
+        "basis": null,
+        "offset_minutes": null
+      },
+      "text": "At 2026-12-04 09:00"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": 0
+      },
+      "text": "At the time"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "deadline",
+        "offset_minutes": 0
+      },
+      "text": "At the deadline"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": 30
+      },
+      "text": "30 minutes before the time"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": 120
+      },
+      "text": "2 hours before the time"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "deadline",
+        "offset_minutes": 1440
+      },
+      "text": "1 day before the deadline"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": -60
+      },
+      "text": "1 hour after the time"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": 2880
+      },
+      "text": "2 days before the time"
+    }
+  ],
+  "states": [
+    {
+      "state": "armed",
+      "fire_at": null,
+      "described": {
+        "label": "Waiting for a date",
+        "tone": "quiet"
+      }
+    },
+    {
+      "state": "firing",
+      "fire_at": "x",
+      "described": {
+        "label": "Sending",
+        "tone": "live"
+      }
+    },
+    {
+      "state": "fired",
+      "fire_at": "x",
+      "described": {
+        "label": "Sent",
+        "tone": "live"
+      }
+    },
+    {
+      "state": "held",
+      "fire_at": "x",
+      "described": {
+        "label": "Held for the morning",
+        "tone": "warn"
+      }
+    },
+    {
+      "state": "missed",
+      "fire_at": "x",
+      "described": {
+        "label": "Missed",
+        "tone": "warn"
+      }
+    },
+    {
+      "state": "cancelled",
+      "fire_at": "x",
+      "described": {
+        "label": "Cancelled",
+        "tone": "quiet"
+      }
+    },
+    {
+      "state": "armed",
+      "fire_at": "2026-11-27T08:00:00+00:00",
+      "described": {
+        "label": "Waiting",
+        "tone": "quiet"
+      }
+    }
+  ],
+  "overlay": {
+    "existing": [
+      {
+        "id": "n1",
+        "todo_id": "t",
+        "kind": "at",
+        "date": "2026-12-01",
+        "time": "09:00",
+        "basis": null,
+        "offset_minutes": null,
+        "fire_at": null,
+        "state": "armed"
+      }
+    ],
+    "ops": [
+      {
+        "op": "nudge.set",
+        "id": "n2",
+        "todo": "t",
+        "before": {
+          "basis": "when",
+          "minutes": 15
+        }
+      },
+      {
+        "op": "nudge.remove",
+        "id": "n1"
+      },
+      {
+        "op": "nudge.set",
+        "id": "n3",
+        "todo": "other",
+        "at": {
+          "date": "2026-12-02",
+          "time": "10:00"
+        }
+      }
+    ],
+    "out": [
+      {
+        "id": "n2",
+        "todo_id": "t",
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": 15,
+        "fire_at": null,
+        "state": "armed"
+      }
+    ]
+  },
+  "fieldOps": {
+    "when": [
+      {
+        "op": "todo.update",
+        "todo": "t",
+        "set": {
+          "when": {
+            "date": "2026-11-28",
+            "time": null
+          }
+        }
+      }
+    ],
+    "whenTime": [
+      {
+        "op": "todo.update",
+        "todo": "t",
+        "set": {
+          "when": {
+            "date": "2026-11-28",
+            "time": "17:00"
+          }
+        }
+      }
+    ],
+    "whenClear": [
+      {
+        "op": "todo.update",
+        "todo": "t",
+        "set": {
+          "when": null
+        }
+      }
+    ],
+    "deadline": [
+      {
+        "op": "todo.update",
+        "todo": "t",
+        "set": {
+          "deadline": {
+            "date": "2026-12-03",
+            "lead_days": null
+          }
+        }
+      }
+    ],
+    "deadlineClear": [
+      {
+        "op": "todo.update",
+        "todo": "t",
+        "set": {
+          "deadline": null
+        }
+      }
+    ],
+    "weekdayOn": {
+      "mode": "schedule",
+      "every": 1,
+      "unit": "week",
+      "on": {
+        "weekdays": [
+          2,
+          5
+        ]
+      },
+      "skip_missed": false
+    },
+    "weekdayLast": {
+      "mode": "schedule",
+      "every": 1,
+      "unit": "week",
+      "on": null,
+      "skip_missed": false
+    },
+    "unit": {
+      "mode": "schedule",
+      "every": 1,
+      "unit": "month",
+      "on": null,
+      "anchor_day": null,
+      "skip_missed": false
+    },
+    "defaultRepeat": {
+      "mode": "after_done",
+      "every": 1,
+      "unit": "day",
+      "skip_missed": false
+    }
+  }
+}

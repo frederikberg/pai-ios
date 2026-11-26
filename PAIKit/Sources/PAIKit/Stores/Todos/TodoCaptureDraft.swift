@@ -20,7 +20,9 @@ public final class TodoCaptureDraft {
     @ObservationIgnored private var asked = 0
     @ObservationIgnored private let parse: @Sendable (String) async throws -> TodosParseAnswer
 
-    public init(parse: @escaping @Sendable (String) async throws -> TodosParseAnswer) {
+    /// `text` is a line already typed when the sheet opens.
+    public init(text: String = "", parse: @escaping @Sendable (String) async throws -> TodosParseAnswer) {
+        self.text = text
         self.parse = parse
     }
 
