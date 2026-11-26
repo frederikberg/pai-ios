@@ -148,7 +148,7 @@ final class OutboxUndoSendTests: XCTestCase {
         let api = ScriptedApi()
         let outbox = OutboxStore(api: api, storage: OutboxInMemoryStorage())
         let draftsApi = RecordingDraftsApi()
-        let drafts = DraftStore(api: draftsApi)
+        let drafts = listedDraftStore(api: draftsApi)
         let returned = ReturnedFilesLog()
         outbox.installHandover(
             drafts: drafts, sessions: SessionListStore(api: FakeSessionListApi()), handoff: NewSessionHandoff())

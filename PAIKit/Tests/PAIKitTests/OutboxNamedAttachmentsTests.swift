@@ -100,7 +100,7 @@ final class OutboxNamedAttachmentsTests: XCTestCase {
         let sender = GatedSender()
         let served = ServedDraftsApi()
         let outbox = OutboxStore(api: sender, storage: OutboxInMemoryStorage())
-        let drafts = DraftStore(api: served)
+        let drafts = listedDraftStore(api: served)
         outbox.installHandover(
             drafts: drafts, sessions: SessionListStore(api: FakeSessionListApi()), handoff: NewSessionHandoff())
         return Harness(outbox: outbox, drafts: drafts, served: served, sender: sender)
@@ -256,7 +256,7 @@ final class OutboxNamedAttachmentsTests: XCTestCase {
             OutboxEntry(target: .session(sessionId: "s1"), text: "look", draftAttachmentIds: ["a1"])
         ])
         let outbox = OutboxStore(api: sender, storage: storage)
-        let drafts = DraftStore(api: served)
+        let drafts = listedDraftStore(api: served)
         outbox.installHandover(
             drafts: drafts, sessions: SessionListStore(api: FakeSessionListApi()), handoff: NewSessionHandoff())
         served.rows = [row("s1", attachments: [attachment("a1")])]

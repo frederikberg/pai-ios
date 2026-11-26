@@ -85,6 +85,8 @@ public struct MeTodayCard: Equatable, Sendable {
 
     public struct Open: Equatable, Sendable {
         public let id: String
+        /// Where the row opens; nil when its store has no page for it, and the row is no link.
+        public let url: URL?
         public let title: String
         /// `17:00 · latest Fri · overdue 2 d`, the parts that exist.
         public let suffix: String?
@@ -103,8 +105,12 @@ public struct MeTodayCard: Equatable, Sendable {
     public let done: [Done]
     /// `3 done · 6 to come · 1 fixed`; nil when all three are empty.
     public let countLine: String?
-    /// `Todoist unreachable · showing 14:02` when the read failed.
+    /// `Todos unreachable · showing 14:02` when the read failed.
     public let footer: String?
+    /// `Todoist` or `Todos`: what the header link and the refresh button name.
+    public let sourceName: String
+    /// Where the header link opens; nil when the server named no address, and there is no link.
+    public let todayUrl: URL?
 }
 
 /// The Plan card: the agreed text, and what is worth saying about it.
@@ -115,19 +121,6 @@ public struct MePlanCard: Equatable, Sendable {
     public let agreed: String?
     /// `2 of 3 done, 1 added later`.
     public let progress: String?
-}
-
-/// A deep link into Todoist and the web page to fall back to when the app is not installed.
-public struct MeTodoistLink: Equatable, Sendable {
-    public let app: String
-    public let web: String
-
-    public static let today = MeTodoistLink(app: "todoist://today", web: "https://app.todoist.com/app/today")
-
-    public static func task(id: String) -> MeTodoistLink {
-        let safe = id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? id
-        return MeTodoistLink(app: "todoist://task?id=\(safe)", web: "https://app.todoist.com/app/task/\(safe)")
-    }
 }
 
 /// One dot of the grid's diary row.
@@ -414,12 +407,15 @@ extension MePresenter {
 
     // MARK: Today's cards
 
-    /// The Todoist card. Nil when Todoist is not connected or nothing has been read yet; a failed
+    /// The Today card of the task list. Nil when its store is not connected or nothing has been read yet; a failed
     /// read still shows the rows it holds, with a footer saying when they are from.
     public func todayCard(tasks: MeTasks?, events: [MeEvent], now: Date, todayKey: String) -> MeTodayCard? {
         guard let tasks, tasks.isConfigured else { return nil }
         let fixed = fixedRows(events, now: now)
-        let open = tasks.open.map { MeTodayCard.Open(id: $0.id, title: $0.title, suffix: openSuffix($0, todayKey)) }
+        let open = tasks.open.map {
+            MeTodayCard.Open(
+                id: $0.id, url: $0.url.flatMap(URL.init(string:)), title: $0.title, suffix: openSuffix($0, todayKey))
+        }
         var done: [MeTodayCard.Done] = []
         var ticked = 0
         for row in tasks.done {
@@ -433,11 +429,12 @@ extension MePresenter {
         var footer: String?
         if case .unavailable = tasks.status {
             let shown = clock(wire: tasks.asOf).map { " · showing \($0)" } ?? ""
-            footer = "Todoist unreachable\(shown)"
+            footer = "\(tasks.sourceName) unreachable\(shown)"
         }
         return MeTodayCard(
             fixed: fixed, open: open, done: done,
-            countLine: counts.isEmpty ? nil : counts.joined(separator: " · "), footer: footer)
+            countLine: counts.isEmpty ? nil : counts.joined(separator: " · "), footer: footer,
+            sourceName: tasks.sourceName, todayUrl: tasks.todayUrl.flatMap(URL.init(string:)))
     }
 
     /// Plan events that have not ended, all-day ones first, then by start.
@@ -521,7 +518,7 @@ extension MePresenter {
         if let garmin = overview.sources.garmin, case .ok = garmin.status { garminOk = true }
         if garminOk, let at = clock(wire: overview.sources.garmin?.asOf) { parts.append("Garmin \(at)") }
         if let tasks, case .ok = tasks.status, let wire = tasks.asOf, let read = IsoTimestamp.date(from: wire) {
-            parts.append("Todoist \(ago(read, now: now))")
+            parts.append("\(tasks.sourceName) \(ago(read, now: now))")
         }
         if garminOk, todayFinal == false { parts.append("today not final") }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")

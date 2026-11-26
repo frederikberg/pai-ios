@@ -74,3 +74,37 @@ public struct DraftEntry: Equatable, Sendable, Codable {
 
     public static let empty = DraftEntry(text: "", sessionType: nil, workingDir: nil)
 }
+
+/// The fields of a draft a client writes, one by one: what ``DraftStore`` records as changed on this
+/// device and merges a newer server row by.
+public enum DraftField: CaseIterable, Sendable {
+    case text, sessionType, workingDir, model, thinking, noMemory
+
+    func same(_ a: DraftEntry, _ b: DraftEntry) -> Bool {
+        switch self {
+        case .text: a.text == b.text
+        case .sessionType: a.sessionType == b.sessionType
+        case .workingDir: a.workingDir == b.workingDir
+        case .model: a.model == b.model
+        case .thinking: a.thinking == b.thinking
+        case .noMemory: (a.noMemory ?? false) == (b.noMemory ?? false)
+        }
+    }
+
+    /// `target` with this field taken from `source`.
+    func copy(from source: DraftEntry, into target: inout DraftEntry) {
+        switch self {
+        case .text: target.text = source.text
+        case .sessionType: target.sessionType = source.sessionType
+        case .workingDir: target.workingDir = source.workingDir
+        case .model: target.model = source.model
+        case .thinking: target.thinking = source.thinking
+        case .noMemory: target.noMemory = source.noMemory
+        }
+    }
+
+    /// The fields that differ between two entries.
+    static func changed(from a: DraftEntry, to b: DraftEntry) -> Set<DraftField> {
+        Set(allCases.filter { !$0.same(a, b) })
+    }
+}

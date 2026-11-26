@@ -154,10 +154,31 @@ private final class FakeDraftsFetching: DraftsFetching, @unchecked Sendable {
 
     private struct SimulatedFailure: Error {}
 
+    /// What each write carried, in order — what a merge test reads to see which value of each
+    /// field actually went out.
+    struct PutBody: Equatable {
+        let key: String
+        let text: String
+        let sessionType: String?
+        let model: String?
+    }
+    private var _putBodies: [PutBody] = []
+    var putBodies: [PutBody] {
+        lock.lock()
+        defer { lock.unlock() }
+        return _putBodies
+    }
+    private func recordBody(_ body: PutBody) {
+        lock.lock()
+        _putBodies.append(body)
+        lock.unlock()
+    }
+
     func putDraft(
         key: String, text: String, deviceId: String?, sessionType: String?, workingDir: String?, model: String?,
         thinking: String?, noMemory: Bool?
     ) async throws -> DraftWriteResult {
+        recordBody(PutBody(key: key, text: text, sessionType: sessionType, model: model))
         record("putDraft:start:\(key)")
         if let putGate {
             await putGate.wait()
@@ -263,14 +284,14 @@ final class DraftStoreTests: XCTestCase {
     // MARK: - Basic reads and edits
 
     func testDraftForAnUnknownKeyIsEmpty() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         XCTAssertEqual(store.draft(for: "unknown"), .empty)
     }
 
     /// The two API session kinds name models from catalogues of their own, so a model chosen for
     /// one is dropped when the other is chosen.
     func testSwitchingBetweenApiSessionTypesDropsTheModel() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         store.selectSessionType("ultrafast")
         store.selectModel("claude-haiku-5-5")
         XCTAssertEqual(store.draft(for: DraftKey.newSession).model, "claude-haiku-5-5")
@@ -282,12 +303,12 @@ final class DraftStoreTests: XCTestCase {
     /// and another device's choice arrives with the row like the model does.
     func testTheNoMemorySwitchSurvivesAModelChoiceAndComesFromTheServer() async {
         let fake = FakeDraftsFetching()
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         store.selectNoMemory(true)
         store.selectModel("opus")
         XCTAssertEqual(store.draft(for: DraftKey.newSession).noMemory, true)
 
-        let other = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let other = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         fake.remoteDrafts = [
             Draft(
                 key: DraftKey.newSession, text: "", sessionType: "home", workingDir: nil, noMemory: true,
@@ -298,7 +319,7 @@ final class DraftStoreTests: XCTestCase {
     }
 
     func testSettingTextDoesNotClobberAnAlreadyChosenSessionType() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         store.selectSessionType("fast")
         store.setDraftText(key: DraftKey.newSession, text: "hello")
 
@@ -310,13 +331,13 @@ final class DraftStoreTests: XCTestCase {
     /// A chosen directory and `sessionType == "custom"` are one decision, not two independent
     /// fields — this is the coupling the report calls out as easy to get subtly wrong.
     func testSelectingAWorkingDirectoryForcesSessionTypeToCustom() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         store.selectWorkingDir("/home/frederik/Programming/pai-ios")
         XCTAssertEqual(store.draft(for: DraftKey.newSession).sessionType, "custom")
     }
 
     func testClearingTheWorkingDirectoryClearsTheSessionTypeWithIt() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         store.selectWorkingDir("/home/frederik/Programming/pai-ios")
         store.selectWorkingDir(nil)
 
@@ -328,7 +349,7 @@ final class DraftStoreTests: XCTestCase {
     /// Picking Home or Fast after browsing a folder must forget the folder, or the restored draft
     /// brings the custom directory back on the next visit.
     func testChoosingANonCustomTypeForgetsTheChosenDirectory() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         store.selectWorkingDir("/home/frederik/Programming/pai-ios")
         store.selectSessionType("home")
 
@@ -340,7 +361,7 @@ final class DraftStoreTests: XCTestCase {
     /// `selectModel` is independent of the session-type/working-dir coupling above — picking a
     /// model must not disturb either.
     func testSelectingAModelDoesNotClobberAnAlreadyChosenSessionType() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         store.selectSessionType("fast")
         store.selectModel("opus")
 
@@ -353,7 +374,7 @@ final class DraftStoreTests: XCTestCase {
     /// for the previous one is not necessarily valid for a new choice, so changing the model
     /// clears it rather than risk sending a combination the launch would reject.
     func testChoosingADifferentModelClearsAPreviouslyChosenThinkingLevel() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         store.selectModel("sonnet")
         store.selectThinking("high")
         XCTAssertEqual(store.draft(for: DraftKey.newSession).thinking, "high")
@@ -364,7 +385,7 @@ final class DraftStoreTests: XCTestCase {
     }
 
     func testClearDraftEmptiesTheLocalEntryImmediately() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         store.setDraftText(key: "s1", text: "typing")
         store.clearDraft(key: "s1")
 
@@ -377,7 +398,7 @@ final class DraftStoreTests: XCTestCase {
     /// entry is exactly what would make that possible.
     func testClearDraftSurvivesAStalePollThatPredatesItsOwnDelete() async {
         let fake = FakeDraftsFetching()
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         store.setDraftText(key: "s1", text: "hello")
         await waitUntil { store.draft(for: "s1").knownVersion == 1 }
 
@@ -405,7 +426,7 @@ final class DraftStoreTests: XCTestCase {
     /// answer older than what is already known must never move the restore target backwards.
     func testADiscardAnswerOlderThanWhatIsAlreadyKnownIsIgnored() async {
         let fake = FakeDraftsFetching()
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         store.drafts["s1"] = DraftEntry(
             text: "on screen", sessionType: nil, workingDir: nil, knownVersion: 9, previousText: "the newer thing")
 
@@ -426,7 +447,7 @@ final class DraftStoreTests: XCTestCase {
 
     func testAnEditFlushesToTheServerAfterTheDebounce() async {
         let fake = FakeDraftsFetching()
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
 
         store.setDraftText(key: "s1", text: "hello")
 
@@ -443,7 +464,7 @@ final class DraftStoreTests: XCTestCase {
         let fake = FakeDraftsFetching()
         let gate = Gate()
         fake.putGate = gate
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
 
         store.setDraftText(key: "s1", text: "one")
         await waitUntil { fake.callLog.contains("putDraft:start:s1") }
@@ -472,7 +493,7 @@ final class DraftStoreTests: XCTestCase {
     /// write — each edit restarts the debounce rather than queuing its own flush.
     func testRapidEditsProduceExactlyOneFlushNotOnePerEdit() async {
         let fake = FakeDraftsFetching()
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
 
         for text in ["h", "he", "hel", "hell", "hello"] {
             store.setDraftText(key: "s1", text: text)
@@ -496,7 +517,7 @@ final class DraftStoreTests: XCTestCase {
     func testAFailedFlushRetriesOnItsOwnAndEventuallySucceeds() async {
         let fake = FakeDraftsFetching()
         fake.putFailuresRemaining = 2
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
 
         store.setDraftText(key: "s1", text: "hello")
 
@@ -515,7 +536,7 @@ final class DraftStoreTests: XCTestCase {
         let fake = FakeDraftsFetching()
         fake.putFailuresRemaining = 3
         let scheduler = RecordingDraftScheduler()
-        let store = DraftStore(api: fake, scheduler: scheduler)
+        let store = listedDraftStore(api: fake, scheduler: scheduler)
 
         store.setDraftText(key: "s1", text: "hello")
 
@@ -533,7 +554,7 @@ final class DraftStoreTests: XCTestCase {
         let fake = FakeDraftsFetching()
         fake.putFailuresRemaining = 1
         let scheduler = RecordingDraftScheduler()
-        let store = DraftStore(api: fake, scheduler: scheduler)
+        let store = listedDraftStore(api: fake, scheduler: scheduler)
 
         store.setDraftText(key: "s1", text: "hello")
         await waitUntil(timeout: 5) { fake.callLog.contains("putDraft:failed:s1") }
@@ -555,7 +576,7 @@ final class DraftStoreTests: XCTestCase {
             Draft(
                 key: "s1", text: "stale server copy", sessionType: nil, workingDir: nil, updatedAt: nil, version: 4)
         ]
-        let store = DraftStore(api: fake, scheduler: FlushOnceDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: FlushOnceDraftScheduler())
 
         store.setDraftText(key: "s1", text: "local edit")
         await waitUntil(timeout: 5) { fake.callLog.contains("putDraft:failed:s1") }
@@ -575,7 +596,7 @@ final class DraftStoreTests: XCTestCase {
         let fake = FakeDraftsFetching()
         let gate = Gate()
         fake.putGate = gate
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
 
         store.setDraftText(key: "s1", text: "hello")
         await waitUntil { fake.callLog.contains("putDraft:start:s1") }
@@ -602,7 +623,7 @@ final class DraftStoreTests: XCTestCase {
         let fake = FakeDraftsFetching()
         let deleteGate = Gate()
         fake.deleteGate = deleteGate
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
 
         store.setDraftText(key: "s1", text: "first message")
         await waitUntil { fake.callLog.contains("putDraft:done:s1") }
@@ -648,6 +669,122 @@ final class DraftStoreTests: XCTestCase {
         XCTAssertEqual(store.draft(for: "s1").text, "new dictation")
     }
 
+    // MARK: - What a write may carry
+
+    private func row(
+        _ key: String, text: String, version: Int, sessionType: String? = nil, model: String? = nil
+    ) -> Draft {
+        Draft(
+            key: key, text: text, sessionType: sessionType, workingDir: nil, model: model, updatedAt: nil,
+            version: version)
+    }
+
+    /// Settles every task the store started: the debounce, a write, a write held for the listing.
+    private func settle() async {
+        for _ in 0..<50 { await Task.yield() }
+    }
+
+    /// An entry holding what the server last said has nothing to write; writing it back again (a
+    /// screen leaving, the app going to the background) only ever replaces newer text with it.
+    func testAFlushWithNothingUnwrittenSendsNothing() async {
+        let fake = FakeDraftsFetching()
+        fake.remoteDrafts = [row("s1", text: "", version: 9)]
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
+        await store.syncFromServer()
+
+        await store.flush(key: "s1")
+        await settle()
+
+        XCTAssertTrue(fake.putBodies.isEmpty)
+    }
+
+    /// A store that has not heard what the server holds writes nothing: a fresh install's empty
+    /// entry, written first, is another device's text gone. A choice made meanwhile still goes
+    /// out, once the listing has answered, carrying the listed text.
+    func testNothingIsWrittenBeforeTheFirstListingAndAChoiceGoesOutWithTheListedText() async {
+        let fake = FakeDraftsFetching()
+        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+
+        store.selectSessionType("fast")
+        await store.flush(key: DraftKey.newSession)
+        await settle()
+        XCTAssertTrue(fake.putBodies.isEmpty, "no write may leave before the first listing")
+
+        fake.remoteDrafts = [row(DraftKey.newSession, text: "typed on the laptop", version: 4, sessionType: "home")]
+        await store.syncFromServer()
+        await waitUntil { !fake.putBodies.isEmpty }
+
+        XCTAssertEqual(
+            fake.putBodies,
+            [.init(key: DraftKey.newSession, text: "typed on the laptop", sessionType: "fast", model: nil)])
+    }
+
+    /// A newer row meets an edit: the fields this device changed stay, every other one is the
+    /// row's, and the write carries exactly that.
+    func testANewerRowIsMergedFieldByFieldIntoAnUnwrittenEdit() async {
+        let fake = FakeDraftsFetching()
+        fake.remoteDrafts = [row(DraftKey.newSession, text: "old", version: 3, sessionType: "home")]
+        let store = listedDraftStore(api: fake, scheduler: NeverFlushDraftScheduler())
+        await store.syncFromServer()
+
+        store.setDraftText(key: DraftKey.newSession, text: "typed here")
+        fake.remoteDrafts = [
+            row(
+                DraftKey.newSession, text: "old, edited on the laptop", version: 5, sessionType: "fast", model: "sonnet"
+            )
+        ]
+        await store.syncFromServer()
+        await store.flush(key: DraftKey.newSession)
+
+        XCTAssertEqual(
+            fake.putBodies.last,
+            .init(key: DraftKey.newSession, text: "typed here", sessionType: "fast", model: "sonnet"))
+    }
+
+    /// An emptied box is no edit worth keeping over text this device has not seen.
+    func testAnEmptiedTextNeverReplacesNewerText() async {
+        let fake = FakeDraftsFetching()
+        fake.remoteDrafts = [row("s1", text: "old", version: 3)]
+        let store = listedDraftStore(api: fake, scheduler: NeverFlushDraftScheduler())
+        await store.syncFromServer()
+
+        store.setDraftText(key: "s1", text: "")
+        fake.remoteDrafts = [row("s1", text: "typed on the laptop meanwhile", version: 5)]
+        await store.syncFromServer()
+        await store.flush(key: "s1")
+
+        XCTAssertEqual(store.draft(for: "s1").text, "typed on the laptop meanwhile")
+        XCTAssertFalse(fake.putBodies.contains { $0.text.isEmpty })
+    }
+
+    /// The new-session screen resets the model and the no-memory switch on every opening. That is
+    /// the app's default, not the person's choice: nothing is written for it, even over a choice
+    /// the last visit left unwritten, and a newer row with another device's type stays as it is.
+    func testADefaultTheAppFillsInIsNeverWritten() async {
+        let fake = FakeDraftsFetching()
+        fake.remoteDrafts = [row(DraftKey.newSession, text: "on the server", version: 7)]
+        let store = listedDraftStore(api: fake, scheduler: NeverFlushDraftScheduler())
+        await store.syncFromServer()
+        store.selectModel("opus")
+        store.selectNoMemory(true)
+
+        store.applyDefaults {
+            $0.model = nil
+            $0.thinking = nil
+            $0.noMemory = false
+        }
+        await store.flush(key: DraftKey.newSession)
+        XCTAssertTrue(fake.putBodies.isEmpty, "the reset itself is never written")
+
+        fake.remoteDrafts = [row(DraftKey.newSession, text: "on the server", version: 8, sessionType: "ultrafast")]
+        await store.syncFromServer()
+        await store.flush(key: DraftKey.newSession)
+
+        XCTAssertTrue(fake.putBodies.isEmpty)
+        XCTAssertEqual(store.draft(for: DraftKey.newSession).sessionType, "ultrafast")
+        XCTAssertNil(store.draft(for: DraftKey.newSession).model)
+    }
+
     // MARK: - syncFromServer
 
     func testSyncAdoptsARowWithNoLocalClaimOnIt() async {
@@ -655,7 +792,7 @@ final class DraftStoreTests: XCTestCase {
         fake.remoteDrafts = [
             Draft(key: "s2", text: "from another device", sessionType: nil, workingDir: nil, updatedAt: nil, version: 1)
         ]
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
 
         await store.syncFromServer()
 
@@ -669,7 +806,7 @@ final class DraftStoreTests: XCTestCase {
     /// poll that predates a flush, but is delivered after that flush's own response, harmless.
     func testARowWhoseVersionIsNotStrictlyGreaterIsIgnoredEvenWhenItsTextDiffers() async {
         let fake = FakeDraftsFetching()
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         store.setDraftText(key: "s1", text: "one two three")
         await waitUntil { store.draft(for: "s1").knownVersion == 1 }
 
@@ -693,7 +830,7 @@ final class DraftStoreTests: XCTestCase {
             Draft(key: "s1", text: "stale server copy", sessionType: nil, workingDir: nil, updatedAt: nil, version: 1)
         ]
         // A scheduler that never resolves keeps the debounce "pending" for the whole test.
-        let store = DraftStore(api: fake, scheduler: NeverFlushDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: NeverFlushDraftScheduler())
 
         store.setDraftText(key: "s1", text: "still typing")
         await store.syncFromServer()
@@ -712,7 +849,7 @@ final class DraftStoreTests: XCTestCase {
         ]
         let gate = Gate()
         fake.putGate = gate
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
 
         store.setDraftText(key: "s1", text: "older text and newer words")
         await waitUntil { fake.callLog.contains("putDraft:start:s1") }
@@ -731,7 +868,7 @@ final class DraftStoreTests: XCTestCase {
         ]
         let getGate = Gate()
         fake.getGate = getGate
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
 
         let sync = Task { await store.syncFromServer() }
         await waitUntil { fake.callLog.contains("getDrafts") }
@@ -752,7 +889,7 @@ final class DraftStoreTests: XCTestCase {
         fake.remoteDrafts = [
             Draft(key: "s1", text: "brand new", sessionType: nil, workingDir: nil, updatedAt: nil, version: 0)
         ]
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
 
         await store.syncFromServer()
 
@@ -768,7 +905,7 @@ final class DraftStoreTests: XCTestCase {
         fake.remoteDrafts = [
             Draft(key: "s1", text: "seed", sessionType: nil, workingDir: nil, updatedAt: nil, version: 1)
         ]
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         await store.syncFromServer()
         XCTAssertEqual(store.draft(for: "s1").text, "seed")
 
@@ -786,7 +923,7 @@ final class DraftStoreTests: XCTestCase {
         let fake = FakeDraftsFetching()
         // A scheduler that never fires keeps this edit unreconciled (no knownVersion) for the
         // whole test, without also triggering the "pending edit" skip this test is not about.
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         store.drafts["s1"] = DraftEntry(text: "never yet flushed", sessionType: nil, workingDir: nil)
 
         await store.syncFromServer()
@@ -801,10 +938,10 @@ final class DraftStoreTests: XCTestCase {
     func testADraftSurvivesBeingConstructedAgainstTheSamePersistedStorage() async {
         let storage = SettingsInMemoryKeyValueStore()
         let fake = FakeDraftsFetching()
-        let firstLaunch = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+        let firstLaunch = listedDraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
         firstLaunch.setDraftText(key: "s1", text: "typed before closing the app")
 
-        let secondLaunch = DraftStore(
+        let secondLaunch = listedDraftStore(
             api: FakeDraftsFetching(), scheduler: InstantDraftScheduler(), localPersistence: storage)
 
         XCTAssertEqual(secondLaunch.draft(for: "s1").text, "typed before closing the app")
@@ -815,9 +952,9 @@ final class DraftStoreTests: XCTestCase {
     /// every cold start.
     func testTheDeviceIdSurvivesARelaunch() async {
         let storage = SettingsInMemoryKeyValueStore()
-        let firstLaunch = DraftStore(
+        let firstLaunch = listedDraftStore(
             api: FakeDraftsFetching(), scheduler: InstantDraftScheduler(), localPersistence: storage)
-        let secondLaunch = DraftStore(
+        let secondLaunch = listedDraftStore(
             api: FakeDraftsFetching(), scheduler: InstantDraftScheduler(), localPersistence: storage)
 
         XCTAssertEqual(firstLaunch.deviceId, secondLaunch.deviceId)
@@ -828,7 +965,7 @@ final class DraftStoreTests: XCTestCase {
     /// the server's copy, exactly as it would for any other key with no local claim.
     func testARestoredDraftNeverOverwritesAFresherRowAlreadyOnTheServer() async {
         let storage = SettingsInMemoryKeyValueStore()
-        let beforeClosing = DraftStore(
+        let beforeClosing = listedDraftStore(
             api: FakeDraftsFetching(), scheduler: InstantDraftScheduler(), localPersistence: storage)
         beforeClosing.drafts["s1"] = DraftEntry(
             text: "stale, from before closing", sessionType: nil, workingDir: nil, knownVersion: 1)
@@ -839,7 +976,7 @@ final class DraftStoreTests: XCTestCase {
                 key: "s1", text: "sent from another device meanwhile", sessionType: nil, workingDir: nil,
                 updatedAt: nil, version: 2)
         ]
-        let afterRelaunch = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+        let afterRelaunch = listedDraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
         XCTAssertEqual(
             afterRelaunch.draft(for: "s1").text, "stale, from before closing",
             "restoring must populate `drafts` alone — no claim that would make the store hold onto this")
@@ -853,14 +990,14 @@ final class DraftStoreTests: XCTestCase {
     /// more than an ordinary local key would be — nothing here deletes on absence either.
     func testARestoredDraftIsUntouchedByAResponseThatDoesNotListIt() async {
         let storage = SettingsInMemoryKeyValueStore()
-        let beforeClosing = DraftStore(
+        let beforeClosing = listedDraftStore(
             api: FakeDraftsFetching(), scheduler: InstantDraftScheduler(), localPersistence: storage)
         beforeClosing.drafts["s1"] = DraftEntry(
             text: "already sent before the relaunch", sessionType: nil, workingDir: nil, knownVersion: 1)
 
         let fake = FakeDraftsFetching()
         fake.remoteDrafts = []
-        let afterRelaunch = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+        let afterRelaunch = listedDraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
 
         await afterRelaunch.syncFromServer()
 
@@ -879,7 +1016,7 @@ final class DraftStoreTests: XCTestCase {
                 key: "s1", text: "server text", sessionType: nil, workingDir: nil, updatedAt: nil, version: 5,
                 previousText: "what the row held before")
         ]
-        let store = DraftStore(api: fake, scheduler: NeverFlushDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: NeverFlushDraftScheduler())
         store.setDraftText(key: "s1", text: "still typing, unflushed")
 
         await store.syncFromServer()
@@ -892,7 +1029,7 @@ final class DraftStoreTests: XCTestCase {
     /// a fresher one this device already recorded from its own successful write.
     func testAnOlderRowsPreviousTextDoesNotOverwriteANewerOne() async {
         let fake = FakeDraftsFetching()
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         store.setDraftText(key: "s1", text: "hello")
         await waitUntil { store.draft(for: "s1").knownVersion == 1 }
         XCTAssertEqual(store.draft(for: "s1").previousText, "")
@@ -908,7 +1045,7 @@ final class DraftStoreTests: XCTestCase {
     }
 
     func testRestorePreviousTextWritesItBackAsTheCurrentText() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         store.drafts["s1"] = DraftEntry(
             text: "current text", sessionType: nil, workingDir: nil, knownVersion: 3,
             previousText: "the earlier version")
@@ -920,7 +1057,7 @@ final class DraftStoreTests: XCTestCase {
 
     /// A stale menu tap (nothing to restore) must never write an empty string over real text.
     func testRestorePreviousTextDoesNothingWhenThereIsNoPreviousText() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         store.drafts["s1"] = DraftEntry(text: "current text", sessionType: nil, workingDir: nil, previousText: nil)
 
         store.restorePreviousText(key: "s1")
@@ -931,7 +1068,7 @@ final class DraftStoreTests: XCTestCase {
     // MARK: - Attachments
 
     func testAddAttachmentAppendsTheUploadedRowAndReturnsIt() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: InstantDraftScheduler())
         let file = PaiFileUpload(filename: "photo.jpg", mimeType: "image/jpeg", data: Data("bytes".utf8))
 
         let uploaded = await store.addAttachment(key: "s1", file: file, id: "a1")
@@ -945,7 +1082,7 @@ final class DraftStoreTests: XCTestCase {
     func testAddAttachmentReturnsNilOnFailureAndAddsNothing() async {
         let fake = FakeDraftsFetching()
         fake.addAttachmentFailuresRemaining = 1
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         let file = PaiFileUpload(filename: "photo.jpg", mimeType: "image/jpeg", data: Data("bytes".utf8))
 
         let uploaded = await store.addAttachment(key: "s1", file: file, id: "a1")
@@ -958,7 +1095,7 @@ final class DraftStoreTests: XCTestCase {
     /// the chip disappear.
     func testRemoveAttachmentDropsItLocallyAndTellsTheServer() async {
         let fake = FakeDraftsFetching()
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         let file = PaiFileUpload(filename: "photo.jpg", mimeType: "image/jpeg", data: Data("bytes".utf8))
         guard let uploaded = await store.addAttachment(key: "s1", file: file, id: "a1") else {
             return XCTFail("upload should have succeeded")
@@ -981,7 +1118,7 @@ final class DraftStoreTests: XCTestCase {
         fake.remoteDrafts = [
             Draft(key: "s1", text: "seed", sessionType: nil, workingDir: nil, updatedAt: nil, version: 1)
         ]
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         await store.syncFromServer()
         XCTAssertEqual(store.draft(for: "s1").attachments, [])
 
@@ -1007,7 +1144,7 @@ final class DraftStoreTests: XCTestCase {
                 key: "s1", text: "server text", sessionType: nil, workingDir: nil, updatedAt: nil, version: 5,
                 attachments: [attachment])
         ]
-        let store = DraftStore(api: fake, scheduler: NeverFlushDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: NeverFlushDraftScheduler())
         store.setDraftText(key: "s1", text: "still typing, unflushed")
 
         await store.syncFromServer()
@@ -1029,7 +1166,7 @@ final class DraftStoreTests: XCTestCase {
                 attachments: [attachment]),
             Draft(key: "s2", text: "", sessionType: nil, workingDir: nil, updatedAt: nil, version: 1),
         ]
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         var seen: [String: Set<String>] = [:]
         store.serverAttachmentsObserved = { key, ids, _ in seen[key] = ids }
 
@@ -1041,7 +1178,7 @@ final class DraftStoreTests: XCTestCase {
     // MARK: - recordVersionAfterSend
 
     func testRecordVersionAfterSendUpdatesKnownVersionOnAnUntouchedEmptyEntry() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: NeverFlushDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: NeverFlushDraftScheduler())
         // Seeded directly, bypassing `setDraftText`'s own debounced flush entirely — this test is
         // about the guard `recordVersionAfterSend` itself applies, not about racing a real write.
         store.drafts["s1"] = DraftEntry(text: "", sessionType: nil, workingDir: nil)
@@ -1054,7 +1191,7 @@ final class DraftStoreTests: XCTestCase {
     /// The one hazard this method exists to avoid: a fresh edit typed into the same key before
     /// the send's own response arrived must never be clobbered.
     func testRecordVersionAfterSendDoesNothingIfTheEntryWasEditedAgainInTheMeantime() async {
-        let store = DraftStore(api: FakeDraftsFetching(), scheduler: NeverFlushDraftScheduler())
+        let store = listedDraftStore(api: FakeDraftsFetching(), scheduler: NeverFlushDraftScheduler())
         store.drafts["s1"] = DraftEntry(text: "already typing the next message", sessionType: nil, workingDir: nil)
 
         store.recordVersionAfterSend(key: "s1", version: 9)
@@ -1069,7 +1206,7 @@ final class DraftStoreTests: XCTestCase {
         let fake = FakeDraftsFetching()
         let gate = Gate()
         fake.putGate = gate
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         store.setDraftText(key: "s1", text: "typing")
         await waitUntil { fake.callLog.contains("putDraft:start:s1") }
 
@@ -1086,7 +1223,7 @@ final class DraftStoreTests: XCTestCase {
         let fake = FakeDraftsFetching()
         let storage = SettingsInMemoryKeyValueStore()
         let key = DraftKey.local("diary")
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
 
         store.setDraftText(key: key, text: "private words")
         await store.flush(key: key)
@@ -1101,7 +1238,7 @@ final class DraftStoreTests: XCTestCase {
         let reached = fake.callLog.filter { $0.contains(key) || $0.hasPrefix("addDraftAttachment") }
         XCTAssertEqual(reached, [])
 
-        let relaunched = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+        let relaunched = listedDraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
         XCTAssertEqual(relaunched.draft(for: key).text, "after the clear")
     }
 
@@ -1109,10 +1246,10 @@ final class DraftStoreTests: XCTestCase {
         let fake = FakeDraftsFetching()
         let storage = SettingsInMemoryKeyValueStore()
         let key = DraftKey.local("diary")
-        let first = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+        let first = listedDraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
         first.setDraftText(key: key, text: "mine")
         // A fresh launch holds the text with no write pending: nothing but the key protects it.
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler(), localPersistence: storage)
         fake.remoteDrafts = [
             Draft(key: key, text: "someone else's", sessionType: nil, workingDir: nil, updatedAt: nil, version: 99)
         ]
@@ -1123,7 +1260,7 @@ final class DraftStoreTests: XCTestCase {
 
     func testAnOrdinaryKeyStillFlushesSoTheGuardIsSpecificToLocalKeys() async {
         let fake = FakeDraftsFetching()
-        let store = DraftStore(api: fake, scheduler: InstantDraftScheduler())
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
         store.setDraftText(key: "s1", text: "hello")
         await store.flush(key: "s1")
         XCTAssertTrue(fake.callLog.contains("putDraft:done:s1"))
