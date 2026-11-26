@@ -1,0 +1,839 @@
+{
+    "events": [
+        {
+            "after": {
+                "archived_at": null,
+                "color": null,
+                "created_at": "2026-11-26T13:20:51.798066+00:00",
+                "icon": null,
+                "id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+                "kind": "personal",
+                "layout": "list",
+                "locked": false,
+                "name": "Personal",
+                "namespace": null,
+                "owner_user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "547456ad-3a61-4920-92bf-ba3419085fec",
+            "entity": "list",
+            "entity_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 1,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "added_by": "system",
+                "created_at": "2026-11-26T13:20:51.798066+00:00",
+                "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+                "principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "role": "owner"
+            },
+            "before": null,
+            "change_id": "547456ad-3a61-4920-92bf-ba3419085fec",
+            "entity": "member",
+            "entity_id": "cf4f610d-23a9-4f06-9990-983e9078518e:user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 2,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "active_scope": null,
+                "day_rollover": "03:30:00",
+                "deadline_lead_days": 2,
+                "default_list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+                "scopes": [],
+                "timezone": "Europe/Berlin",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "547456ad-3a61-4920-92bf-ba3419085fec",
+            "entity": "prefs",
+            "entity_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+            "list_id": null,
+            "op": "create",
+            "seq": 3,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "builtin": "today",
+                "defaults": {},
+                "display": {},
+                "group_by": "none",
+                "icon": null,
+                "id": "7bda6040-6d78-4cf0-8e9c-003f37c3fba8",
+                "layout": "today",
+                "name": "Today",
+                "pinned": true,
+                "query": "is:today -is:desk",
+                "rank": "8",
+                "sort": "hand",
+                "tree": "fold",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "547456ad-3a61-4920-92bf-ba3419085fec",
+            "entity": "view",
+            "entity_id": "7bda6040-6d78-4cf0-8e9c-003f37c3fba8",
+            "list_id": null,
+            "op": "create",
+            "seq": 4,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "builtin": "upcoming",
+                "defaults": {},
+                "display": {},
+                "group_by": "none",
+                "icon": null,
+                "id": "4953e1cb-743c-4383-b553-bcb9b509d732",
+                "layout": "agenda",
+                "name": "Upcoming",
+                "pinned": true,
+                "query": "is:open (when:>today OR deadline:>today)",
+                "rank": "H",
+                "sort": "when",
+                "tree": "fold",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "547456ad-3a61-4920-92bf-ba3419085fec",
+            "entity": "view",
+            "entity_id": "4953e1cb-743c-4383-b553-bcb9b509d732",
+            "list_id": null,
+            "op": "create",
+            "seq": 5,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "builtin": "all",
+                "defaults": {},
+                "display": {},
+                "group_by": "horizon",
+                "icon": null,
+                "id": "e96db6c8-4b31-478a-9bf8-a12dfe968270",
+                "layout": "list",
+                "name": "All",
+                "pinned": true,
+                "query": "is:root",
+                "rank": "Q",
+                "sort": "hand",
+                "tree": "fold",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "547456ad-3a61-4920-92bf-ba3419085fec",
+            "entity": "view",
+            "entity_id": "e96db6c8-4b31-478a-9bf8-a12dfe968270",
+            "list_id": null,
+            "op": "create",
+            "seq": 6,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "builtin": "chrono",
+                "defaults": {},
+                "display": {},
+                "group_by": "none",
+                "icon": null,
+                "id": "c35cf9aa-f390-4816-b235-f7031e03be22",
+                "layout": "list",
+                "name": "Chrono",
+                "pinned": true,
+                "query": "is:open",
+                "rank": "Z",
+                "sort": "-created",
+                "tree": "flat",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "547456ad-3a61-4920-92bf-ba3419085fec",
+            "entity": "view",
+            "entity_id": "c35cf9aa-f390-4816-b235-f7031e03be22",
+            "list_id": null,
+            "op": "create",
+            "seq": 7,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "builtin": "inbox",
+                "defaults": {},
+                "display": {},
+                "group_by": "none",
+                "icon": null,
+                "id": "085f9e78-ec22-48f1-9ad7-54df2badf084",
+                "layout": "list",
+                "name": "Inbox",
+                "pinned": true,
+                "query": "is:inbox",
+                "rank": "i",
+                "sort": "-created",
+                "tree": "fold",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "547456ad-3a61-4920-92bf-ba3419085fec",
+            "entity": "view",
+            "entity_id": "085f9e78-ec22-48f1-9ad7-54df2badf084",
+            "list_id": null,
+            "op": "create",
+            "seq": 8,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "builtin": "logbook",
+                "defaults": {},
+                "display": {},
+                "group_by": "completed",
+                "icon": null,
+                "id": "869fbee8-d621-40c4-8581-6934c13f69e7",
+                "layout": "log",
+                "name": "Logbook",
+                "pinned": true,
+                "query": "is:done OR is:dropped",
+                "rank": "r",
+                "sort": "-completed",
+                "tree": "flat",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "547456ad-3a61-4920-92bf-ba3419085fec",
+            "entity": "view",
+            "entity_id": "869fbee8-d621-40c4-8581-6934c13f69e7",
+            "list_id": null,
+            "op": "create",
+            "seq": 9,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "archived_at": null,
+                "color": null,
+                "created_at": "2026-11-26T13:21:24.474328+00:00",
+                "icon": null,
+                "id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5",
+                "kind": "issues",
+                "layout": "list",
+                "locked": false,
+                "name": "Family issues",
+                "namespace": "fam",
+                "owner_user_id": null
+            },
+            "before": null,
+            "change_id": "dae35a44-975e-4a21-a739-bc66b7cd67f4",
+            "entity": "list",
+            "entity_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5",
+            "list_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5",
+            "op": "create",
+            "seq": 13,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "added_by": "system",
+                "created_at": "2026-11-26T13:21:24.474328+00:00",
+                "list_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5",
+                "principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "role": "owner"
+            },
+            "before": null,
+            "change_id": "dae35a44-975e-4a21-a739-bc66b7cd67f4",
+            "entity": "member",
+            "entity_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5:user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+            "list_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5",
+            "op": "create",
+            "seq": 14,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "added_by": "system",
+                "created_at": "2026-11-26T13:21:24.474328+00:00",
+                "list_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5",
+                "principal": "ns:fam",
+                "role": "filer"
+            },
+            "before": null,
+            "change_id": "dae35a44-975e-4a21-a739-bc66b7cd67f4",
+            "entity": "member",
+            "entity_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5:ns:fam",
+            "list_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5",
+            "op": "create",
+            "seq": 15,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "added_by": "system",
+                "created_at": "2026-11-26T13:21:24.474328+00:00",
+                "list_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5",
+                "principal": "user:7aff08a9-968a-41aa-a8dd-7fae5ddc1e3d",
+                "role": "filer"
+            },
+            "before": null,
+            "change_id": "dae35a44-975e-4a21-a739-bc66b7cd67f4",
+            "entity": "member",
+            "entity_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5:user:7aff08a9-968a-41aa-a8dd-7fae5ddc1e3d",
+            "list_id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5",
+            "op": "create",
+            "seq": 16,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "body": "",
+                "completed_at": null,
+                "completed_count": 0,
+                "created_at": "2026-11-26T13:21:24.923804+00:00",
+                "created_by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "created_kind": "human",
+                "created_label": "Owner",
+                "created_session_id": null,
+                "created_source": "ios",
+                "deadline": null,
+                "deadline_lead_days": null,
+                "horizon": 1,
+                "id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45",
+                "inbox": false,
+                "key": null,
+                "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+                "number": 1,
+                "parent_id": null,
+                "rank": "V",
+                "repeat": null,
+                "someday": false,
+                "status": "open",
+                "title": "Pick up the bike from the workshop",
+                "when_date": "2026-11-26",
+                "when_time": "17:00:00"
+            },
+            "before": null,
+            "change_id": "b2affdbe-b7aa-4129-817f-823d05780245",
+            "entity": "todo",
+            "entity_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 24,
+            "todo_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45"
+        },
+        {
+            "after": {
+                "color": null,
+                "icon": null,
+                "id": "f7d60839-903a-4f7a-b4a8-cd492f8a4286",
+                "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+                "name": "errands",
+                "name_key": "errands",
+                "quiet": false
+            },
+            "before": null,
+            "change_id": "b2affdbe-b7aa-4129-817f-823d05780245",
+            "entity": "tag",
+            "entity_id": "f7d60839-903a-4f7a-b4a8-cd492f8a4286",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 25,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "tag_id": "f7d60839-903a-4f7a-b4a8-cd492f8a4286",
+                "todo_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45"
+            },
+            "before": null,
+            "change_id": "b2affdbe-b7aa-4129-817f-823d05780245",
+            "entity": "tag_link",
+            "entity_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45:f7d60839-903a-4f7a-b4a8-cd492f8a4286",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 26,
+            "todo_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45"
+        },
+        {
+            "after": {
+                "added_at": "2026-11-26T13:21:24.923804+00:00",
+                "added_day": "2026-11-26",
+                "id": "a5982139-4ad2-46d3-a4d3-a1a08628a787",
+                "kind": "todo",
+                "rank": "V",
+                "title": null,
+                "todo_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "b2affdbe-b7aa-4129-817f-823d05780245",
+            "entity": "desk_item",
+            "entity_id": "a5982139-4ad2-46d3-a4d3-a1a08628a787",
+            "list_id": null,
+            "op": "create",
+            "seq": 27,
+            "todo_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45"
+        },
+        {
+            "after": {
+                "body": "",
+                "completed_at": null,
+                "completed_count": 0,
+                "created_at": "2026-11-26T13:21:24.923804+00:00",
+                "created_by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "created_kind": "human",
+                "created_label": "Owner",
+                "created_session_id": null,
+                "created_source": "ios",
+                "deadline": null,
+                "deadline_lead_days": null,
+                "horizon": 4,
+                "id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11",
+                "inbox": false,
+                "key": null,
+                "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+                "number": 2,
+                "parent_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45",
+                "rank": "V",
+                "repeat": null,
+                "someday": false,
+                "status": "open",
+                "title": "Bring the receipt",
+                "when_date": null,
+                "when_time": null
+            },
+            "before": null,
+            "change_id": "b2affdbe-b7aa-4129-817f-823d05780245",
+            "entity": "todo",
+            "entity_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 28,
+            "todo_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11"
+        },
+        {
+            "after": {
+                "body": "",
+                "completed_at": null,
+                "completed_count": 0,
+                "created_at": "2026-11-26T13:21:24.923804+00:00",
+                "created_by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "created_kind": "human",
+                "created_label": "Owner",
+                "created_session_id": null,
+                "created_source": "ios",
+                "deadline": null,
+                "deadline_lead_days": null,
+                "horizon": 4,
+                "id": "88e1b5e6-badf-40f0-bd57-79062820c202",
+                "inbox": true,
+                "key": null,
+                "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+                "number": 3,
+                "parent_id": null,
+                "rank": "U",
+                "repeat": {
+                    "anchor_day": null,
+                    "every": 1,
+                    "mode": "schedule",
+                    "on": {
+                        "weekdays": [
+                            1,
+                            4
+                        ]
+                    },
+                    "skip_missed": false,
+                    "unit": "week",
+                    "until": null
+                },
+                "someday": false,
+                "status": "open",
+                "title": "Water the plants",
+                "when_date": "2026-11-27",
+                "when_time": null
+            },
+            "before": null,
+            "change_id": "b2affdbe-b7aa-4129-817f-823d05780245",
+            "entity": "todo",
+            "entity_id": "88e1b5e6-badf-40f0-bd57-79062820c202",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 29,
+            "todo_id": "88e1b5e6-badf-40f0-bd57-79062820c202"
+        },
+        {
+            "after": {
+                "body": "Bring an ID.\n- [ ] photo\n- [x] form",
+                "completed_at": null,
+                "completed_count": 0,
+                "created_at": "2026-11-26T13:21:24.923804+00:00",
+                "created_by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "created_kind": "human",
+                "created_label": "Owner",
+                "created_session_id": null,
+                "created_source": "ios",
+                "deadline": "2026-12-03",
+                "deadline_lead_days": 2,
+                "horizon": 4,
+                "id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74",
+                "inbox": true,
+                "key": null,
+                "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+                "number": 4,
+                "parent_id": null,
+                "rank": "T",
+                "repeat": null,
+                "someday": false,
+                "status": "open",
+                "title": "Renew the library card",
+                "when_date": null,
+                "when_time": null
+            },
+            "before": null,
+            "change_id": "b2affdbe-b7aa-4129-817f-823d05780245",
+            "entity": "todo",
+            "entity_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 30,
+            "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74"
+        },
+        {
+            "after": {
+                "added_at": "2026-11-26T13:21:25.965206+00:00",
+                "added_day": "2026-11-26",
+                "id": "0ee54595-a4c9-4048-a4dd-5a383b0c5155",
+                "kind": "divider",
+                "rank": "W",
+                "title": "Afternoon",
+                "todo_id": null,
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "74c239e3-3126-4dde-b6c5-0db184f3b159",
+            "entity": "desk_item",
+            "entity_id": "0ee54595-a4c9-4048-a4dd-5a383b0c5155",
+            "list_id": null,
+            "op": "create",
+            "seq": 31,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "added_at": "2026-11-26T13:21:25.965206+00:00",
+                "added_day": "2026-11-26",
+                "id": "03b3dbb9-36f4-490e-8800-02144dae6d0f",
+                "kind": "todo",
+                "rank": "X",
+                "title": null,
+                "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "74c239e3-3126-4dde-b6c5-0db184f3b159",
+            "entity": "desk_item",
+            "entity_id": "03b3dbb9-36f4-490e-8800-02144dae6d0f",
+            "list_id": null,
+            "op": "create",
+            "seq": 32,
+            "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74"
+        },
+        {
+            "after": {
+                "completed_at": "2026-11-26T13:21:25.965206+00:00",
+                "status": "done"
+            },
+            "before": {
+                "completed_at": null,
+                "status": "open"
+            },
+            "change_id": "74c239e3-3126-4dde-b6c5-0db184f3b159",
+            "entity": "todo",
+            "entity_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "update",
+            "seq": 33,
+            "todo_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11"
+        },
+        {
+            "after": {
+                "at": "2026-11-26T13:21:25.965206+00:00",
+                "by_label": "Owner",
+                "by_principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "id": "ae36a4ef-3df9-45aa-8067-bc26243b57d8",
+                "kind": "done",
+                "local_day": "2026-11-26",
+                "occurrence": null,
+                "todo_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11"
+            },
+            "before": null,
+            "change_id": "74c239e3-3126-4dde-b6c5-0db184f3b159",
+            "entity": "completion",
+            "entity_id": "ae36a4ef-3df9-45aa-8067-bc26243b57d8",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 34,
+            "todo_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11"
+        },
+        {
+            "after": {
+                "completed_at": null,
+                "status": "open"
+            },
+            "before": {
+                "completed_at": "2026-11-26T13:21:25.965206+00:00",
+                "status": "done"
+            },
+            "change_id": "8a3aca52-1c6b-4b7a-9b1d-8f16467648b2",
+            "entity": "todo",
+            "entity_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "update",
+            "seq": 35,
+            "todo_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11"
+        },
+        {
+            "after": null,
+            "before": {
+                "added_at": "2026-11-26T13:21:25.965206+00:00",
+                "added_day": "2026-11-26",
+                "id": "03b3dbb9-36f4-490e-8800-02144dae6d0f",
+                "kind": "todo",
+                "rank": "X",
+                "title": null,
+                "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "change_id": "8a3aca52-1c6b-4b7a-9b1d-8f16467648b2",
+            "entity": "desk_item",
+            "entity_id": "03b3dbb9-36f4-490e-8800-02144dae6d0f",
+            "list_id": null,
+            "op": "delete",
+            "seq": 36,
+            "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74"
+        },
+        {
+            "after": {
+                "completed_count": 1,
+                "when_date": "2026-11-30"
+            },
+            "before": {
+                "completed_count": 0,
+                "when_date": "2026-11-27"
+            },
+            "change_id": "92e3dfab-ec67-46d9-a10c-1c37ace388fa",
+            "entity": "todo",
+            "entity_id": "88e1b5e6-badf-40f0-bd57-79062820c202",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "update",
+            "seq": 37,
+            "todo_id": "88e1b5e6-badf-40f0-bd57-79062820c202"
+        },
+        {
+            "after": {
+                "at": "2026-11-26T13:21:26.397777+00:00",
+                "by_label": "Owner",
+                "by_principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "id": "faea2543-329b-4561-a51a-50ecfe0f8c43",
+                "kind": "done",
+                "local_day": "2026-11-26",
+                "occurrence": "2026-11-27",
+                "todo_id": "88e1b5e6-badf-40f0-bd57-79062820c202"
+            },
+            "before": null,
+            "change_id": "92e3dfab-ec67-46d9-a10c-1c37ace388fa",
+            "entity": "completion",
+            "entity_id": "faea2543-329b-4561-a51a-50ecfe0f8c43",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 38,
+            "todo_id": "88e1b5e6-badf-40f0-bd57-79062820c202"
+        },
+        {
+            "after": {
+                "completed_at": "2026-11-26T13:21:27.338169+00:00",
+                "status": "done"
+            },
+            "before": {
+                "completed_at": null,
+                "status": "open"
+            },
+            "change_id": "15eeec40-3db7-4539-97c0-514817c01288",
+            "entity": "todo",
+            "entity_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "update",
+            "seq": 39,
+            "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74"
+        },
+        {
+            "after": {
+                "at": "2026-11-26T13:21:27.338169+00:00",
+                "by_label": "Owner",
+                "by_principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "id": "a5ce4897-741d-4e8b-900e-ab64eb428750",
+                "kind": "done",
+                "local_day": "2026-11-26",
+                "occurrence": null,
+                "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74"
+            },
+            "before": null,
+            "change_id": "15eeec40-3db7-4539-97c0-514817c01288",
+            "entity": "completion",
+            "entity_id": "a5ce4897-741d-4e8b-900e-ab64eb428750",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 40,
+            "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74"
+        },
+        {
+            "after": {
+                "archived_at": null,
+                "color": null,
+                "created_at": "2026-11-26T13:21:27.537478+00:00",
+                "icon": null,
+                "id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+                "kind": "shared",
+                "layout": "checklist",
+                "locked": false,
+                "name": "Groceries",
+                "namespace": null,
+                "owner_user_id": null
+            },
+            "before": null,
+            "change_id": "a599f8d2-8631-4367-9824-4285b8ecacbf",
+            "entity": "list",
+            "entity_id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+            "list_id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+            "op": "create",
+            "seq": 41,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "added_by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "created_at": "2026-11-26T13:21:27.537478+00:00",
+                "list_id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+                "principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "role": "owner"
+            },
+            "before": null,
+            "change_id": "a599f8d2-8631-4367-9824-4285b8ecacbf",
+            "entity": "member",
+            "entity_id": "d5779e76-b98c-4a1b-95e8-4322c950dedf:user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+            "list_id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+            "op": "create",
+            "seq": 42,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "locked": true
+            },
+            "before": {
+                "locked": false
+            },
+            "change_id": "633969e2-73da-476f-a346-5d9d70112ab4",
+            "entity": "list",
+            "entity_id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+            "list_id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+            "op": "update",
+            "seq": 43,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "locked": false
+            },
+            "before": {
+                "locked": true
+            },
+            "change_id": "17c6a9a2-6e23-47d5-b602-27450cac9d94",
+            "entity": "list",
+            "entity_id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+            "list_id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+            "op": "update",
+            "seq": 44,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "status": "deleted"
+            },
+            "before": {
+                "status": "done"
+            },
+            "change_id": "64a0bdac-6a7c-40a1-90d5-5d19c18590b0",
+            "entity": "todo",
+            "entity_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "update",
+            "seq": 45,
+            "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74"
+        },
+        {
+            "after": {
+                "archived_at": null,
+                "color": null,
+                "created_at": "2026-11-26T13:21:28.597545+00:00",
+                "icon": null,
+                "id": "b837441e-157d-4c64-97d9-3b5e4f841206",
+                "kind": "shared",
+                "layout": "list",
+                "locked": false,
+                "name": "Trip",
+                "namespace": null,
+                "owner_user_id": null
+            },
+            "before": null,
+            "change_id": "655aff77-a42f-4076-8388-2be5c67dc83a",
+            "entity": "list",
+            "entity_id": "b837441e-157d-4c64-97d9-3b5e4f841206",
+            "list_id": "b837441e-157d-4c64-97d9-3b5e4f841206",
+            "op": "create",
+            "seq": 46,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "added_by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "created_at": "2026-11-26T13:21:28.597545+00:00",
+                "list_id": "b837441e-157d-4c64-97d9-3b5e4f841206",
+                "principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "role": "owner"
+            },
+            "before": null,
+            "change_id": "655aff77-a42f-4076-8388-2be5c67dc83a",
+            "entity": "member",
+            "entity_id": "b837441e-157d-4c64-97d9-3b5e4f841206:user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+            "list_id": "b837441e-157d-4c64-97d9-3b5e4f841206",
+            "op": "create",
+            "seq": 47,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "added_by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "created_at": "2026-11-26T13:21:28.597545+00:00",
+                "list_id": "b837441e-157d-4c64-97d9-3b5e4f841206",
+                "principal": "user:7aff08a9-968a-41aa-a8dd-7fae5ddc1e3d",
+                "role": "viewer"
+            },
+            "before": null,
+            "change_id": "655aff77-a42f-4076-8388-2be5c67dc83a",
+            "entity": "member",
+            "entity_id": "b837441e-157d-4c64-97d9-3b5e4f841206:user:7aff08a9-968a-41aa-a8dd-7fae5ddc1e3d",
+            "list_id": "b837441e-157d-4c64-97d9-3b5e4f841206",
+            "op": "create",
+            "seq": 48,
+            "todo_id": null
+        }
+    ],
+    "head": 48,
+    "reset": false
+}

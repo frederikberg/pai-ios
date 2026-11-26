@@ -111,7 +111,9 @@ public enum PaiError: Error, Equatable {
 }
 
 /// `detail` is a string for almost every refusal; the decision routes answer a conflict with
-/// `{message, numbers}` instead, whose `message` is the text to show.
+/// `{message, numbers}` instead, whose `message` is the text to show. Todos answers every refusal
+/// with `{error, message}` and no `detail`; read as anything but a JSON refusal, its 403 (`role`,
+/// `locked`) would count as a refused credential and sign the app out.
 private struct ErrorBody: Decodable {
     let detail: String
 
@@ -121,12 +123,15 @@ private struct ErrorBody: Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         if let text = try? container.decode(String.self, forKey: .detail) {
             detail = text
+        } else if let structured = try? container.decode(Structured.self, forKey: .detail) {
+            detail = structured.message
         } else {
-            detail = try container.decode(Structured.self, forKey: .detail).message
+            _ = try container.decode(String.self, forKey: .error)
+            detail = try container.decode(String.self, forKey: .message)
         }
     }
 
-    private enum CodingKeys: String, CodingKey { case detail }
+    private enum CodingKeys: String, CodingKey { case detail, error, message }
 }
 
 extension PaiError {

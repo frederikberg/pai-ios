@@ -27,6 +27,12 @@ final class AppEnvironment {
     /// The Quick Actions arrangement. Belongs to the phone like sleep mode, and needs no sign-in.
     let quickActions: QuickActionsStore
 
+    /// Todos: the cached todos, lists and desk, and the queue of changes not yet sent. Belongs to
+    /// the phone rather than the connection, so a todo captured while signed out, or while an
+    /// expired sign-in is being renewed, waits instead of being lost; `connect` tells it where to
+    /// send.
+    let todos: TodosStore
+
     /// Set when the backend refused the stored token, so the shell can offer a way back that is
     /// distinct from first launch.
     private(set) var lastAuthFailure: String?
@@ -179,6 +185,7 @@ final class AppEnvironment {
         self.backendURL = defaults.string(forKey: Self.backendURLKey) ?? Self.defaultBackendURL
         self.sleepMode = Self.makeSleepMode(defaults)
         self.quickActions = Self.makeQuickActions(defaults)
+        self.todos = Self.makeTodos()
         self.router = Router(gate: .needsConfiguration)
         router.sleepMode = sleepMode
         sleepMode.onSleepBegan = { [weak self] in Task { @MainActor in self?.sleepBegan() } }
@@ -210,6 +217,7 @@ final class AppEnvironment {
     /// Keychain means the next launch tries it again and lands back here, which reads as the app
     /// being broken rather than as needing a new token.
     func handleAuthenticationFailure(detail: String?) async {
+        todos.disconnect()
         connection?.sessions.stopPolling()
         connection?.claudeAuth.stopPolling()
         await connection?.voice.stop()
@@ -223,6 +231,10 @@ final class AppEnvironment {
 
     /// A deliberate tap, with Settings already on screen.
     func signOut() async {
+        // The queue stays (each change goes out only as the person who made it); what the server
+        // said about this person's todos does not.
+        todos.disconnect()
+        todos.forgetCache()
         connection?.sessions.stopPolling()
         connection?.claudeAuth.stopPolling()
         await connection?.voice.stop()
@@ -295,6 +307,23 @@ final class AppEnvironment {
             }
         #endif
         return QuickActionsStore(storage: defaults)
+    }
+
+    /// The Todos store over its two directories in Application Support: `TodosOutbox` holds
+    /// changes the server has not seen and is backed up like the send outbox, `TodosCache` holds
+    /// only what the server has and is kept out of the backup. A fixture run keeps nothing.
+    private static func makeTodos() -> TodosStore {
+        #if DEBUG
+            if PaiFixtureLaunch.isEnabled() { return TodosStore(storage: InMemoryTodosStorage()) }
+        #endif
+        let support = URL.applicationSupportDirectory
+        var cacheRoot = support.appendingPathComponent("TodosCache", isDirectory: true)
+        let storage = FileTodosStorage(
+            rootURL: support.appendingPathComponent("TodosOutbox", isDirectory: true), cacheDirectory: cacheRoot)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? cacheRoot.setResourceValues(values)
+        return TodosStore(storage: storage)
     }
 
     /// The backend's record of this device's push registration belongs to the person who signed
@@ -400,8 +429,9 @@ final class AppEnvironment {
         // interface. A link that stays up while its gateway or DNS changes reports satisfied again
         // and again, and cancelling the backoff on each would send a failing message in a tight
         // loop.
-        pathObserver.onRegained = {
+        pathObserver.onRegained = { [todos] in
             Task { @MainActor [weak outbox] in outbox?.retryNow() }
+            Task { @MainActor in todos.retryNow() }
             Task { @MainActor [weak selfReports] in await selfReports?.flush() }
             Task { @MainActor [weak notesStore] in
                 notesStore?.setPathSatisfied(Self.pathSatisfied(true))
@@ -422,6 +452,8 @@ final class AppEnvironment {
         pathObserver.start()
         outboxPathObserver = pathObserver
         let toasts = ToastCenter()
+        todos.onRefusal = { [weak toasts] refusal in toasts?.show(refusal.message, kind: .error) }
+        todos.connect(client)
         notesStore.onSyncNotice = { [weak self, weak toasts] notice in
             let show = notice.noteId.map { id in
                 ToastMessage.Action(label: "Show") { [weak self] in self?.router.push(.note(id: id)) }
@@ -523,6 +555,9 @@ final class AppEnvironment {
         // not in the store's initializer because this runs only for the environment that is
         // installed in the view tree.
         connection.outbox.resume()
+        // Todos: everything read again (so a cold start without a network still had the cache),
+        // then whatever waits is sent.
+        Task { [todos] in await todos.refresh() }
         // Diary entries written offline go out the same way.
         Task { [selfReports = connection.selfReports] in await selfReports.flush() }
         // Edits left on disk by the last run go out too; not awaited, since they need nothing

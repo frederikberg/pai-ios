@@ -1,0 +1,34 @@
+{
+  "v": 1,
+  "changes": [
+    {
+      "change_id": "0190a000-0000-7000-8000-000000000010",
+      "summary": null,
+      "ops": [],
+      "capture": {
+        "text": "Ask about the parcel",
+        "todo_id": "0190a000-0000-7000-8000-000000000011",
+        "list": null,
+        "links": [{"kind": "url", "target": "https://example.org/parcel", "label": "Tracking"}],
+        "day": "2026-11-26"
+      },
+      "source": "shortcut",
+      "principal": "user:00000000-0000-4000-8000-000000000001",
+      "queued_at": "2026-11-26T09:00:00+00:00"
+    },
+    {
+      "change_id": "0190a000-0000-7000-8000-000000000020",
+      "summary": "two ops",
+      "ops": [
+        {"op": "todo.complete", "todo": "T-12", "as": "done"},
+        {"op": "desk.move", "item": "T-12", "position": {"before": "T-3"}, "future_field": [1, 2.5, {"deep": true}]}
+      ],
+      "source": "ios",
+      "principal": "user:00000000-0000-4000-8000-000000000001",
+      "queued_at": "2026-11-26T09:01:00+00:00"
+    },
+    {
+      "not_a_change": true
+    }
+  ]
+}

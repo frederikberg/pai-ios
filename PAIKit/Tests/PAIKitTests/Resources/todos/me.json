@@ -1,0 +1,262 @@
+{
+    "actor_kind": "human",
+    "display_name": "Owner",
+    "lists": [
+        {
+            "archived": false,
+            "color": null,
+            "counts": {
+                "open": 0
+            },
+            "icon": null,
+            "id": "d5a30a92-c7be-4253-b3e0-46ec28d542e5",
+            "kind": "issues",
+            "layout": "list",
+            "locked": false,
+            "members": [
+                {
+                    "display_name": "Owner",
+                    "principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                    "role": "owner"
+                },
+                {
+                    "display_name": "Anna",
+                    "principal": "user:7aff08a9-968a-41aa-a8dd-7fae5ddc1e3d",
+                    "role": "filer"
+                },
+                {
+                    "display_name": "Family agents",
+                    "principal": "ns:fam",
+                    "role": "filer"
+                }
+            ],
+            "name": "Family issues",
+            "role": "owner"
+        },
+        {
+            "archived": false,
+            "color": null,
+            "counts": {
+                "open": 0
+            },
+            "icon": null,
+            "id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+            "kind": "shared",
+            "layout": "checklist",
+            "locked": false,
+            "members": [
+                {
+                    "display_name": "Owner",
+                    "principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                    "role": "owner"
+                }
+            ],
+            "name": "Groceries",
+            "role": "owner"
+        },
+        {
+            "archived": false,
+            "color": null,
+            "counts": {
+                "open": 3
+            },
+            "icon": null,
+            "id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "kind": "personal",
+            "layout": "list",
+            "locked": false,
+            "members": [
+                {
+                    "display_name": "Owner",
+                    "principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                    "role": "owner"
+                }
+            ],
+            "name": "Personal",
+            "role": "owner"
+        },
+        {
+            "archived": false,
+            "color": null,
+            "counts": {
+                "open": 0
+            },
+            "icon": null,
+            "id": "b837441e-157d-4c64-97d9-3b5e4f841206",
+            "kind": "shared",
+            "layout": "list",
+            "locked": false,
+            "members": [
+                {
+                    "display_name": "Owner",
+                    "principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                    "role": "owner"
+                },
+                {
+                    "display_name": "Anna",
+                    "principal": "user:7aff08a9-968a-41aa-a8dd-7fae5ddc1e3d",
+                    "role": "viewer"
+                }
+            ],
+            "name": "Trip",
+            "role": "owner"
+        }
+    ],
+    "prefs": {
+        "active_scope": null,
+        "day_rollover": "03:30",
+        "deadline_lead_days": 2,
+        "default_list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+        "scopes": [],
+        "seen_seq": 0,
+        "timezone": "Europe/Berlin"
+    },
+    "principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+    "seq": 48,
+    "tags": [
+        {
+            "color": null,
+            "icon": null,
+            "id": "f7d60839-903a-4f7a-b4a8-cd492f8a4286",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "name": "errands",
+            "open_count": 2,
+            "quiet": false
+        }
+    ],
+    "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+    "views": [
+        {
+            "builtin": "today",
+            "defaults": {
+                "desk": null,
+                "horizon": null,
+                "list": null,
+                "parent": null,
+                "tags": null,
+                "when": null
+            },
+            "display": {},
+            "group_by": "none",
+            "icon": null,
+            "id": "7bda6040-6d78-4cf0-8e9c-003f37c3fba8",
+            "layout": "today",
+            "name": "Today",
+            "pinned": true,
+            "query": "is:today -is:desk",
+            "rank": "8",
+            "sort": "hand",
+            "tree": "fold"
+        },
+        {
+            "builtin": "upcoming",
+            "defaults": {
+                "desk": null,
+                "horizon": null,
+                "list": null,
+                "parent": null,
+                "tags": null,
+                "when": null
+            },
+            "display": {},
+            "group_by": "none",
+            "icon": null,
+            "id": "4953e1cb-743c-4383-b553-bcb9b509d732",
+            "layout": "agenda",
+            "name": "Upcoming",
+            "pinned": true,
+            "query": "is:open (when:>today OR deadline:>today)",
+            "rank": "H",
+            "sort": "when",
+            "tree": "fold"
+        },
+        {
+            "builtin": "all",
+            "defaults": {
+                "desk": null,
+                "horizon": null,
+                "list": null,
+                "parent": null,
+                "tags": null,
+                "when": null
+            },
+            "display": {},
+            "group_by": "horizon",
+            "icon": null,
+            "id": "e96db6c8-4b31-478a-9bf8-a12dfe968270",
+            "layout": "list",
+            "name": "All",
+            "pinned": true,
+            "query": "is:root",
+            "rank": "Q",
+            "sort": "hand",
+            "tree": "fold"
+        },
+        {
+            "builtin": "chrono",
+            "defaults": {
+                "desk": null,
+                "horizon": null,
+                "list": null,
+                "parent": null,
+                "tags": null,
+                "when": null
+            },
+            "display": {},
+            "group_by": "none",
+            "icon": null,
+            "id": "c35cf9aa-f390-4816-b235-f7031e03be22",
+            "layout": "list",
+            "name": "Chrono",
+            "pinned": true,
+            "query": "is:open",
+            "rank": "Z",
+            "sort": "-created",
+            "tree": "flat"
+        },
+        {
+            "builtin": "inbox",
+            "defaults": {
+                "desk": null,
+                "horizon": null,
+                "list": null,
+                "parent": null,
+                "tags": null,
+                "when": null
+            },
+            "display": {},
+            "group_by": "none",
+            "icon": null,
+            "id": "085f9e78-ec22-48f1-9ad7-54df2badf084",
+            "layout": "list",
+            "name": "Inbox",
+            "pinned": true,
+            "query": "is:inbox",
+            "rank": "i",
+            "sort": "-created",
+            "tree": "fold"
+        },
+        {
+            "builtin": "logbook",
+            "defaults": {
+                "desk": null,
+                "horizon": null,
+                "list": null,
+                "parent": null,
+                "tags": null,
+                "when": null
+            },
+            "display": {},
+            "group_by": "completed",
+            "icon": null,
+            "id": "869fbee8-d621-40c4-8581-6934c13f69e7",
+            "layout": "log",
+            "name": "Logbook",
+            "pinned": true,
+            "query": "is:done OR is:dropped",
+            "rank": "r",
+            "sort": "-completed",
+            "tree": "flat"
+        }
+    ]
+}

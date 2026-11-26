@@ -345,6 +345,32 @@ public struct PaiApiClient: Sendable {
         }
     }
 
+    /// Send a request whose refusals carry a structured body the caller reads itself: `refusal`
+    /// turns a non-2xx answer into the caller's own error. An answer it returns nil for goes
+    /// through `checkStatus` like every other request's, so a refused credential still reaches
+    /// `onAuthenticationFailure` and nothing here can swallow one.
+    func sendReadingRefusals(
+        path: String,
+        method: String,
+        query: [URLQueryItem] = [],
+        body: Data? = nil,
+        headers: [String: String] = [:],
+        refusal: (_ statusCode: Int, _ body: Data) -> Error?
+    ) async throws -> (Data, URLResponse) {
+        var request = try requestFactory.makeRequest(
+            path: path, method: method, query: query, body: body, contentType: body == nil ? nil : "application/json"
+        )
+        for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
+        let (data, response) = try await perform(request)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode),
+            http.statusCode != 401, let error = refusal(http.statusCode, data)
+        {
+            throw error
+        }
+        try checkStatus(response: response, data: data)
+        return (data, response)
+    }
+
     private func sendRaw(
         path: String,
         method: String,

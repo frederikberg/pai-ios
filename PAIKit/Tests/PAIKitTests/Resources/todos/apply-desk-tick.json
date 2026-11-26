@@ -1,0 +1,239 @@
+{
+    "applied": 3,
+    "change": {
+        "actor": {
+            "kind": "human",
+            "label": "Owner",
+            "principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+        },
+        "created_at": "2026-11-26T13:21:25.965206+00:00",
+        "events": null,
+        "id": "74c239e3-3126-4dde-b6c5-0db184f3b159",
+        "op_count": 3,
+        "seq_first": 31,
+        "seq_last": 34,
+        "session_id": null,
+        "source": "ios",
+        "summary": "desk.divider and 2 more",
+        "undo_of": null,
+        "undone_by": null
+    },
+    "events": [
+        {
+            "after": {
+                "added_at": "2026-11-26T13:21:25.965206+00:00",
+                "added_day": "2026-11-26",
+                "id": "0ee54595-a4c9-4048-a4dd-5a383b0c5155",
+                "kind": "divider",
+                "rank": "W",
+                "title": "Afternoon",
+                "todo_id": null,
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "74c239e3-3126-4dde-b6c5-0db184f3b159",
+            "entity": "desk_item",
+            "entity_id": "0ee54595-a4c9-4048-a4dd-5a383b0c5155",
+            "list_id": null,
+            "op": "create",
+            "seq": 31,
+            "todo_id": null
+        },
+        {
+            "after": {
+                "added_at": "2026-11-26T13:21:25.965206+00:00",
+                "added_day": "2026-11-26",
+                "id": "03b3dbb9-36f4-490e-8800-02144dae6d0f",
+                "kind": "todo",
+                "rank": "X",
+                "title": null,
+                "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74",
+                "user_id": "3172dc40-e9e2-46e5-abae-af25d3c0ddae"
+            },
+            "before": null,
+            "change_id": "74c239e3-3126-4dde-b6c5-0db184f3b159",
+            "entity": "desk_item",
+            "entity_id": "03b3dbb9-36f4-490e-8800-02144dae6d0f",
+            "list_id": null,
+            "op": "create",
+            "seq": 32,
+            "todo_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74"
+        },
+        {
+            "after": {
+                "completed_at": "2026-11-26T13:21:25.965206+00:00",
+                "status": "done"
+            },
+            "before": {
+                "completed_at": null,
+                "status": "open"
+            },
+            "change_id": "74c239e3-3126-4dde-b6c5-0db184f3b159",
+            "entity": "todo",
+            "entity_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "update",
+            "seq": 33,
+            "todo_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11"
+        },
+        {
+            "after": {
+                "at": "2026-11-26T13:21:25.965206+00:00",
+                "by_label": "Owner",
+                "by_principal": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "id": "ae36a4ef-3df9-45aa-8067-bc26243b57d8",
+                "kind": "done",
+                "local_day": "2026-11-26",
+                "occurrence": null,
+                "todo_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11"
+            },
+            "before": null,
+            "change_id": "74c239e3-3126-4dde-b6c5-0db184f3b159",
+            "entity": "completion",
+            "entity_id": "ae36a4ef-3df9-45aa-8067-bc26243b57d8",
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "op": "create",
+            "seq": 34,
+            "todo_id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11"
+        }
+    ],
+    "of": 3,
+    "replayed": false,
+    "results": [
+        {
+            "defaults": null,
+            "error": null,
+            "id": "0ee54595-a4c9-4048-a4dd-5a383b0c5155",
+            "index": 0,
+            "ok": true,
+            "ref": null,
+            "secret": null
+        },
+        {
+            "defaults": null,
+            "error": null,
+            "id": "03b3dbb9-36f4-490e-8800-02144dae6d0f",
+            "index": 1,
+            "ok": true,
+            "ref": "T-4",
+            "secret": null
+        },
+        {
+            "defaults": null,
+            "error": null,
+            "id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11",
+            "index": 2,
+            "ok": true,
+            "ref": "T-2",
+            "secret": null
+        }
+    ],
+    "todos": [
+        {
+            "asleep": false,
+            "attachments": [],
+            "body": null,
+            "body_hash": "d745db0ad108af2058bad9713382aba1a34e63f305df5c4d67c084a2b7043efb",
+            "body_preview": "Bring an ID.",
+            "checklist": {
+                "done": 1,
+                "total": 2
+            },
+            "children_open": 0,
+            "children_total": 0,
+            "completed_at": null,
+            "completed_count": 0,
+            "context": null,
+            "created": {
+                "at": "2026-11-26T13:21:24.923804+00:00",
+                "by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "kind": "human",
+                "label": "Owner",
+                "session_id": null,
+                "source": "ios"
+            },
+            "deadline": {
+                "date": "2026-12-03",
+                "lead_days": 2
+            },
+            "depth": 0,
+            "folded_ids": null,
+            "has_nudge": false,
+            "horizon": "whenever",
+            "id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74",
+            "in_band": true,
+            "inbox": true,
+            "inherited_tags": [],
+            "key": null,
+            "last_done_at": null,
+            "links": [],
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "number": 4,
+            "on_desk": true,
+            "parent_id": null,
+            "rank": "T",
+            "ref": "T-4",
+            "repeat": null,
+            "root_id": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74",
+            "someday": false,
+            "status": "open",
+            "tags": [],
+            "title": "Renew the library card",
+            "updated_at": "2026-11-26T13:21:24.923804+00:00",
+            "updated_seq": 30,
+            "version": 1,
+            "when": null
+        },
+        {
+            "asleep": false,
+            "attachments": [],
+            "body": null,
+            "body_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "body_preview": "",
+            "checklist": null,
+            "children_open": 0,
+            "children_total": 0,
+            "completed_at": "2026-11-26T13:21:25.965206+00:00",
+            "completed_count": 0,
+            "context": null,
+            "created": {
+                "at": "2026-11-26T13:21:24.923804+00:00",
+                "by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "kind": "human",
+                "label": "Owner",
+                "session_id": null,
+                "source": "ios"
+            },
+            "deadline": null,
+            "depth": 1,
+            "folded_ids": null,
+            "has_nudge": false,
+            "horizon": "whenever",
+            "id": "b23b7427-f28a-47a8-8389-56d7fd1e4d11",
+            "in_band": false,
+            "inbox": false,
+            "inherited_tags": [
+                "errands"
+            ],
+            "key": null,
+            "last_done_at": "2026-11-26T13:21:25.965206+00:00",
+            "links": [],
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "number": 2,
+            "on_desk": false,
+            "parent_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45",
+            "rank": "V",
+            "ref": "T-2",
+            "repeat": null,
+            "root_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45",
+            "someday": false,
+            "status": "done",
+            "tags": [],
+            "title": "Bring the receipt",
+            "updated_at": "2026-11-26T13:21:25.965206+00:00",
+            "updated_seq": 34,
+            "version": 2,
+            "when": null
+        }
+    ]
+}
