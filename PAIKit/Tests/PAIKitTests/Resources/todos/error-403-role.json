@@ -1,0 +1,10 @@
+{
+    "applied": 0,
+    "error": "role",
+    "index": 0,
+    "list_id": "b837441e-157d-4c64-97d9-3b5e4f841206",
+    "message": "op 0 (todo.create): That needs the filer role in this list.",
+    "needs": "filer",
+    "of": 1,
+    "op": "todo.create"
+}

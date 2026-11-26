@@ -1,0 +1,9 @@
+{
+    "applied": 0,
+    "error": "not_found",
+    "index": 0,
+    "message": "op 0 (todo.complete): No todo 'T-99999' you can see.",
+    "of": 1,
+    "op": "todo.complete",
+    "ref": "T-99999"
+}

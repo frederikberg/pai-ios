@@ -269,6 +269,9 @@ struct RootView: View {
                         connection.outbox.retryNow()
                         connection.voice.resumeOwedTakes()
                         Task { await connection.notes.resumeSync() }
+                        // Todos waiting to go out leave now; what changed elsewhere is read.
+                        environment.todos.retryNow()
+                        Task { await environment.todos.catchUp() }
                         // Sync at once instead of up to a poll interval from now, and let the
                         // open transcript replace a connection the OS suspended while away.
                         connection.sessions.requestSync()

@@ -1,0 +1,9 @@
+{
+    "applied": 0,
+    "error": "locked",
+    "index": 0,
+    "list_id": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+    "message": "op 0 (todo.create): This list is locked: only the importer writes to it.",
+    "of": 1,
+    "op": "todo.create"
+}

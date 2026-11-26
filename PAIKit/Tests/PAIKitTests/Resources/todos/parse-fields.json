@@ -1,0 +1,73 @@
+{
+    "create_op": {
+        "body": null,
+        "created_at": null,
+        "deadline": null,
+        "desk": null,
+        "horizon": "now",
+        "id": "7c9b9a01-75b3-48f2-a29f-b996ef4ddb68",
+        "inbox": null,
+        "key": null,
+        "link_session": null,
+        "links": null,
+        "list": null,
+        "nudges": null,
+        "op": "todo.create",
+        "parent": null,
+        "position": null,
+        "repeat": null,
+        "someday": null,
+        "tags": [
+            "home"
+        ],
+        "title": "Call the plumber",
+        "when": {
+            "date": "2026-11-27",
+            "time": "17:00"
+        }
+    },
+    "fields": {
+        "deadline": null,
+        "desk": false,
+        "horizon": "now",
+        "list": null,
+        "nudges": [],
+        "parent": null,
+        "repeat": null,
+        "tags": [
+            "home"
+        ],
+        "when": {
+            "date": "2026-11-27",
+            "time": "17:00"
+        }
+    },
+    "issues": [],
+    "title": "Call the plumber",
+    "tokens": [
+        {
+            "display": "Fri 27 Nov 17:00",
+            "end": 31,
+            "kind": "when",
+            "start": 17,
+            "value": {
+                "date": "2026-11-27",
+                "time": "17:00"
+            }
+        },
+        {
+            "display": "#home",
+            "end": 37,
+            "kind": "tag",
+            "start": 32,
+            "value": "home"
+        },
+        {
+            "display": "now",
+            "end": 40,
+            "kind": "horizon",
+            "start": 38,
+            "value": "now"
+        }
+    ]
+}

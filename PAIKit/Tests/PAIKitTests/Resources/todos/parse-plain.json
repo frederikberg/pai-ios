@@ -1,0 +1,38 @@
+{
+    "create_op": {
+        "body": null,
+        "created_at": null,
+        "deadline": null,
+        "desk": null,
+        "horizon": null,
+        "id": "7c191e13-f600-4202-80dc-28f3e3ca5bb9",
+        "inbox": null,
+        "key": null,
+        "link_session": null,
+        "links": null,
+        "list": null,
+        "nudges": null,
+        "op": "todo.create",
+        "parent": null,
+        "position": null,
+        "repeat": null,
+        "someday": null,
+        "tags": null,
+        "title": "Plain words only",
+        "when": null
+    },
+    "fields": {
+        "deadline": null,
+        "desk": false,
+        "horizon": null,
+        "list": null,
+        "nudges": [],
+        "parent": null,
+        "repeat": null,
+        "tags": [],
+        "when": null
+    },
+    "issues": [],
+    "title": "Plain words only",
+    "tokens": []
+}

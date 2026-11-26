@@ -1,0 +1,68 @@
+{
+    "create_op": {
+        "body": null,
+        "created_at": null,
+        "deadline": {
+            "date": "2026-11-27",
+            "lead_days": null
+        },
+        "desk": null,
+        "horizon": null,
+        "id": "5e883ae2-9d8a-4b86-bff7-748b97800062",
+        "inbox": null,
+        "key": null,
+        "link_session": null,
+        "links": null,
+        "list": null,
+        "nudges": null,
+        "op": "todo.create",
+        "parent": null,
+        "position": null,
+        "repeat": null,
+        "someday": null,
+        "tags": null,
+        "title": "Buy stamps",
+        "when": null
+    },
+    "fields": {
+        "deadline": {
+            "date": "2026-11-27",
+            "lead_days": null
+        },
+        "desk": false,
+        "horizon": null,
+        "list": "Nowhere",
+        "nudges": [],
+        "parent": null,
+        "repeat": null,
+        "tags": [],
+        "when": null
+    },
+    "issues": [
+        {
+            "length": 8,
+            "message": "No list of yours is called 'Nowhere'.",
+            "position": 11,
+            "suggestion": "Groceries"
+        }
+    ],
+    "title": "Buy stamps",
+    "tokens": [
+        {
+            "display": "/Nowhere",
+            "end": 19,
+            "kind": "list",
+            "start": 11,
+            "value": "Nowhere"
+        },
+        {
+            "display": "by Fri 27 Nov",
+            "end": 26,
+            "kind": "deadline",
+            "start": 20,
+            "value": {
+                "date": "2026-11-27"
+            }
+        }
+    ]
+}

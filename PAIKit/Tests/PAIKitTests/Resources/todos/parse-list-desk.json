@@ -1,0 +1,53 @@
+{
+    "create_op": {
+        "body": null,
+        "created_at": null,
+        "deadline": null,
+        "desk": true,
+        "horizon": null,
+        "id": "a73cad6a-7992-4774-b31c-85d16079db17",
+        "inbox": null,
+        "key": null,
+        "link_session": null,
+        "links": null,
+        "list": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+        "nudges": null,
+        "op": "todo.create",
+        "parent": null,
+        "position": null,
+        "repeat": null,
+        "someday": null,
+        "tags": null,
+        "title": "Oat milk",
+        "when": null
+    },
+    "fields": {
+        "deadline": null,
+        "desk": true,
+        "horizon": null,
+        "list": "Groceries",
+        "nudges": [],
+        "parent": null,
+        "repeat": null,
+        "tags": [],
+        "when": null
+    },
+    "issues": [],
+    "title": "Oat milk",
+    "tokens": [
+        {
+            "display": "/Groceries",
+            "end": 19,
+            "kind": "list",
+            "start": 9,
+            "value": "Groceries"
+        },
+        {
+            "display": "Desk",
+            "end": 21,
+            "kind": "desk",
+            "start": 20,
+            "value": true
+        }
+    ]
+}

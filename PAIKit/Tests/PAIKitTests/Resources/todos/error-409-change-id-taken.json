@@ -1,0 +1,4 @@
+{
+    "error": "change_id_taken",
+    "message": "Another actor already used this change id."
+}

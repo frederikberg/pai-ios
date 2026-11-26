@@ -1,0 +1,71 @@
+{
+    "explain": {
+        "defaults": [
+            "is:open",
+            "is:awake"
+        ],
+        "normalized": ""
+    },
+    "groups": [],
+    "next_cursor": null,
+    "seq": 48,
+    "todos": [
+        {
+            "asleep": false,
+            "attachments": [],
+            "body": null,
+            "body_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "body_preview": "",
+            "checklist": null,
+            "children_open": 1,
+            "children_total": 1,
+            "completed_at": null,
+            "completed_count": 0,
+            "context": null,
+            "created": {
+                "at": "2026-11-26T13:21:24.923804+00:00",
+                "by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "kind": "human",
+                "label": "Owner",
+                "session_id": null,
+                "source": "ios"
+            },
+            "deadline": null,
+            "depth": 0,
+            "folded_ids": [
+                "b23b7427-f28a-47a8-8389-56d7fd1e4d11"
+            ],
+            "has_nudge": false,
+            "horizon": "now",
+            "id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45",
+            "in_band": true,
+            "inbox": false,
+            "inherited_tags": [],
+            "key": null,
+            "last_done_at": null,
+            "links": [],
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "number": 1,
+            "on_desk": true,
+            "parent_id": null,
+            "rank": "V",
+            "ref": "T-1",
+            "repeat": null,
+            "root_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45",
+            "someday": false,
+            "status": "open",
+            "tags": [
+                "errands"
+            ],
+            "title": "Pick up the bike from the workshop",
+            "updated_at": "2026-11-26T13:21:24.923804+00:00",
+            "updated_seq": 26,
+            "version": 1,
+            "when": {
+                "date": "2026-11-26",
+                "time": "17:00"
+            }
+        }
+    ],
+    "total": 1
+}

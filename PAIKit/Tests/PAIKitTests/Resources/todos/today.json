@@ -1,0 +1,81 @@
+{
+    "day": "2026-11-26",
+    "desk": [
+        {
+            "added_at": "2026-11-26T13:21:24.923804+00:00",
+            "added_day": "2026-11-26",
+            "id": "a5982139-4ad2-46d3-a4d3-a1a08628a787",
+            "kind": "todo",
+            "rank": "V",
+            "title": null,
+            "todo_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45"
+        },
+        {
+            "added_at": "2026-11-26T13:21:25.965206+00:00",
+            "added_day": "2026-11-26",
+            "id": "0ee54595-a4c9-4048-a4dd-5a383b0c5155",
+            "kind": "divider",
+            "rank": "W",
+            "title": "Afternoon",
+            "todo_id": null
+        }
+    ],
+    "due": [],
+    "seq": 48,
+    "todos": {
+        "3d10b3b8-718b-43ba-a5a7-bfad494c0c45": {
+            "asleep": false,
+            "attachments": [],
+            "body": null,
+            "body_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "body_preview": "",
+            "checklist": null,
+            "children_open": 1,
+            "children_total": 1,
+            "completed_at": null,
+            "completed_count": 0,
+            "context": null,
+            "created": {
+                "at": "2026-11-26T13:21:24.923804+00:00",
+                "by": "user:3172dc40-e9e2-46e5-abae-af25d3c0ddae",
+                "kind": "human",
+                "label": "Owner",
+                "session_id": null,
+                "source": "ios"
+            },
+            "deadline": null,
+            "depth": 0,
+            "folded_ids": null,
+            "has_nudge": false,
+            "horizon": "now",
+            "id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45",
+            "in_band": true,
+            "inbox": false,
+            "inherited_tags": [],
+            "key": null,
+            "last_done_at": null,
+            "links": [],
+            "list_id": "cf4f610d-23a9-4f06-9990-983e9078518e",
+            "number": 1,
+            "on_desk": true,
+            "parent_id": null,
+            "rank": "V",
+            "ref": "T-1",
+            "repeat": null,
+            "root_id": "3d10b3b8-718b-43ba-a5a7-bfad494c0c45",
+            "someday": false,
+            "status": "open",
+            "tags": [
+                "errands"
+            ],
+            "title": "Pick up the bike from the workshop",
+            "updated_at": "2026-11-26T13:21:24.923804+00:00",
+            "updated_seq": 26,
+            "version": 1,
+            "when": {
+                "date": "2026-11-26",
+                "time": "17:00"
+            }
+        }
+    }
+}

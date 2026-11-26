@@ -1,0 +1,12 @@
+{
+    "applied": 0,
+    "at": "2026-11-26T13:21:28.105748+00:00",
+    "by": "Owner",
+    "error": "gone",
+    "index": 0,
+    "message": "op 0 (todo.update): T-4 was deleted.",
+    "of": 1,
+    "op": "todo.update",
+    "ref": "2b4e2cde-c539-4ca0-a60f-fba88dcbbf74",
+    "status": "deleted"
+}
