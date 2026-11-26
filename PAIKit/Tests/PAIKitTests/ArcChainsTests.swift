@@ -122,16 +122,50 @@ final class ArcChainsTests: XCTestCase {
         XCTAssertEqual(columns(timeline).map { $0.map(\.depth) }, [[0, 1, 2]])
     }
 
-    /// The server refuses a cycle, but a block in one must still be drawn rather than dropped.
-    func test_cycle_keepsEveryBlockOnScreen() {
+    /// The server refuses a cycle, but its members must still be drawn: each one a root.
+    func test_cycle_keepsEveryBlockOnScreenAsARoot() {
         let timeline = build([
             leader(1, "A", w: [2]),
             leader(2, "B", w: [1]),
         ])
 
-        let ids = columns(timeline).flatMap { $0 }.map(\.block.id)
+        let cols = columns(timeline)
 
-        XCTAssertEqual(ids.sorted(), [1, 2])
+        XCTAssertEqual(cols.map { $0.map(\.block.id) }, [[1], [2]])
+    }
+
+    // MARK: - Which lines show
+
+    /// Prerequisites already Done or Cancelled drop out of "also waits for", and a started block
+    /// shows no waiting line at all.
+    func test_metPrerequisites_dropOut_andStartedBlocksDoNotWait() {
+        let timeline = build([
+            leader(1, "A", s: .inProgress),
+            leader(2, "B", s: .done),
+            leader(3, "C", s: .cancelled),
+            leader(4, "D", s: .inProgress),
+            leader(5, "Waiting", w: [2, 3, 1, 4]),
+            leader(6, "Running", s: .inProgress, w: [1]),
+        ])
+
+        let entries = columns(timeline).flatMap { $0 }
+
+        let waiting = entries.first { $0.block.id == 5 }
+        XCTAssertEqual(waiting?.waitsForLine, "⏳ waits for #1 A")
+        XCTAssertEqual(waiting?.alsoLines, ["also waits for #4"])
+        let running = entries.first { $0.block.id == 6 }
+        XCTAssertNil(running?.waitsForLine)
+        XCTAssertEqual(running?.alsoLines, [])
+        XCTAssertFalse(running?.isWaiting ?? true)
+    }
+
+    func test_oneWaiter_readsWaits() {
+        let timeline = build([
+            leader(1, "A", s: .inProgress),
+            leader(2, "B", w: [1]),
+        ])
+
+        XCTAssertEqual(columns(timeline)[0][0].waiterLine, "1 waits for this")
     }
 
     // MARK: - Same agent
@@ -144,7 +178,16 @@ final class ArcChainsTests: XCTestCase {
 
         let entry = columns(timeline).flatMap { $0 }.first { $0.block.id == 6 }
 
-        XCTAssertEqual(entry?.sameAgentLine, "same agent as #5")
+        XCTAssertEqual(entry?.block.agentLabel, "same agent as #5")
+    }
+
+    /// Once the server fills the agent in on start, the agent's own label wins.
+    func test_followsWithAType_readsTheAgentLabel() {
+        let timeline = build([
+            leader(6, "Fix", s: .inProgress, g: ArcLeaderAgent(type: "aria", name: "arc-ios", follows: 5))
+        ])
+
+        XCTAssertEqual(columns(timeline)[0][0].block.agentLabel, "aria · arc-ios")
     }
 
     // MARK: - Wire decode

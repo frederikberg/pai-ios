@@ -7,28 +7,24 @@ public struct ArcChainEntry: Sendable, Equatable, Identifiable {
     public let block: ArcTimelineBlock
     /// 0 for a block nobody in its segment makes it wait; one more per prerequisite it hangs under.
     public let depth: Int
-    /// "3 wait for this" — on a block other blocks of its segment wait for.
+    /// "3 wait for this" ("1 waits for this") — on a block other blocks of its segment wait for.
     public let waiterLine: String?
-    /// "⏳ waits for #33 <sentence>" — on a block not started yet whose prerequisite is unresolved.
+    /// "⏳ waits for #33 <sentence>" — on a block not started yet, for its first unmet prerequisite.
     public let waitsForLine: String?
-    /// "also waits for #25" — one per prerequisite the indentation and the line above do not name.
+    /// "also waits for #25" — one per further unmet prerequisite.
     public let alsoLines: [String]
-    /// "same agent as #N" — on a planned leader that names the agent to reuse.
-    public let sameAgentLine: String?
 
     /// Greyed: the block has not started and something it needs is still open.
     public var isWaiting: Bool { waitsForLine != nil }
 
     public init(
-        block: ArcTimelineBlock, depth: Int, waiterLine: String?, waitsForLine: String?, alsoLines: [String],
-        sameAgentLine: String?
+        block: ArcTimelineBlock, depth: Int, waiterLine: String?, waitsForLine: String?, alsoLines: [String]
     ) {
         self.block = block
         self.depth = depth
         self.waiterLine = waiterLine
         self.waitsForLine = waitsForLine
         self.alsoLines = alsoLines
-        self.sameAgentLine = sameAgentLine
     }
 }
 
@@ -51,80 +47,70 @@ public enum ArcChains {
         var parentOf: [Int: Int] = [:]
         var waiterCount: [Int: Int] = [:]
         for block in segment.blocks {
-            let prerequisites = block.leader?.w ?? []
-            if let parent = prerequisites.first(where: { $0 != block.id && inSegment.contains($0) }) {
-                parentOf[block.id] = parent
+            let prerequisites = (block.leader?.w ?? []).filter { $0 != block.id && inSegment.contains($0) }
+            for prerequisite in Set(prerequisites) { waiterCount[prerequisite, default: 0] += 1 }
+            if let first = prerequisites.first { parentOf[block.id] = first }
+        }
+
+        // Whether following parents from `start` reaches `target`: attaching `target` under
+        // `start` would then close a loop.
+        func reaches(_ start: Int, _ target: Int) -> Bool {
+            var seen = Set<Int>()
+            var current: Int? = start
+            while let id = current, !seen.contains(id) {
+                if id == target { return true }
+                seen.insert(id)
+                current = parentOf[id]
             }
-            for prerequisite in Set(prerequisites) where prerequisite != block.id && inSegment.contains(prerequisite) {
-                waiterCount[prerequisite, default: 0] += 1
-            }
+            return false
         }
 
         var children: [Int: [ArcTimelineBlock]] = [:]
         var roots: [ArcTimelineBlock] = []
         for block in segment.blocks {
-            if let parent = parentOf[block.id] {
+            if let parent = parentOf[block.id], !reaches(parent, block.id) {
                 children[parent, default: []].append(block)
             } else {
                 roots.append(block)
             }
         }
 
-        var columns: [[ArcChainEntry]] = []
-        var placed = Set<Int>()
-        func append(_ block: ArcTimelineBlock, depth: Int, to column: inout [ArcChainEntry]) {
-            guard placed.insert(block.id).inserted else { return }
+        func flatten(_ block: ArcTimelineBlock, depth: Int, into column: inout [ArcChainEntry]) {
             column.append(
-                entry(
-                    for: block, depth: depth, parent: parentOf[block.id], waiters: waiterCount[block.id] ?? 0,
-                    blocks: byID))
-            for child in children[block.id] ?? [] { append(child, depth: depth + 1, to: &column) }
+                entry(for: block, depth: depth, waiters: waiterCount[block.id] ?? 0, blocks: byID))
+            for child in children[block.id] ?? [] { flatten(child, depth: depth + 1, into: &column) }
         }
-        for root in roots {
+        return roots.map { root in
             var column: [ArcChainEntry] = []
-            append(root, depth: 0, to: &column)
-            columns.append(column)
+            flatten(root, depth: 0, into: &column)
+            return column
         }
-        // A cycle (the server refuses them) leaves its members parentless-in-no-root; show each
-        // as a column of its own rather than dropping the block.
-        for block in segment.blocks where !placed.contains(block.id) {
-            var column: [ArcChainEntry] = []
-            append(block, depth: 0, to: &column)
-            columns.append(column)
-        }
-        return columns
     }
 
     private static func entry(
-        for block: ArcTimelineBlock, depth: Int, parent: Int?, waiters: Int, blocks: [Int: ArcTimelineBlock]
+        for block: ArcTimelineBlock, depth: Int, waiters: Int, blocks: [Int: ArcTimelineBlock]
     ) -> ArcChainEntry {
-        let prerequisites = block.leader?.w ?? []
-        let notStarted = block.leader?.s == .pending
-
-        var headline: Int?
-        if notStarted {
-            headline = prerequisites.first { id in
-                guard let status = blocks[id]?.leader?.s else { return false }
-                return status != .done && status != .cancelled
+        // Only a block that has not started waits; each prerequisite whose leader is neither
+        // Done nor Cancelled is still unmet.
+        var unmet: [ArcTimelineBlock] = []
+        if block.leader?.s == .pending {
+            var seen = Set<Int>()
+            for id in block.leader?.w ?? [] where seen.insert(id).inserted {
+                guard let prerequisite = blocks[id] else { continue }
+                let status = prerequisite.leader?.s
+                if status == .done || status == .cancelled { continue }
+                unmet.append(prerequisite)
             }
-        }
-        let named = Set([headline, parent].compactMap { $0 })
-        var seen = Set<Int>()
-        var also: [String] = []
-        for id in prerequisites where id != block.id && !named.contains(id) && seen.insert(id).inserted {
-            also.append("also waits for #\(id)")
         }
 
         var waitsFor: String?
-        if let headline {
-            waitsFor = "⏳ waits for #\(headline)"
-            if let sentence = blocks[headline]?.leader?.i, !sentence.isEmpty { waitsFor? += " \(sentence)" }
+        if let first = unmet.first {
+            waitsFor = "⏳ waits for #\(first.id)"
+            if let sentence = first.leader?.i, !sentence.isEmpty { waitsFor? += " \(sentence)" }
         }
-        var sameAgent: String?
-        if let follows = block.leader?.g?.follows { sameAgent = "same agent as #\(follows)" }
-
         return ArcChainEntry(
-            block: block, depth: depth, waiterLine: waiters > 0 ? "\(waiters) wait for this" : nil,
-            waitsForLine: waitsFor, alsoLines: also, sameAgentLine: sameAgent)
+            block: block, depth: depth,
+            waiterLine: waiters > 0 ? "\(waiters) \(waiters == 1 ? "waits" : "wait") for this" : nil,
+            waitsForLine: waitsFor, alsoLines: unmet.dropFirst().map { "also waits for #\($0.id)" })
     }
 }

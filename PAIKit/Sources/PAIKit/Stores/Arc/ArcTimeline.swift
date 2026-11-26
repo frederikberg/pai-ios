@@ -72,6 +72,7 @@ public struct ArcTimelineBlock: Sendable, Equatable, Identifiable {
     public var agentLabel: String? {
         guard let g = leader?.g else { return nil }
         if g.type == "main" { return "Main agent" }
+        if let follows = g.follows, g.type?.isEmpty ?? true { return "same agent as #\(follows)" }
         let parts = [g.type, g.modelCode, g.name].compactMap { $0 }.filter { !$0.isEmpty }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
