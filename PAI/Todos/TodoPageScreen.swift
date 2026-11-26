@@ -116,7 +116,7 @@ struct TodoPageScreen: View {
             TodoAddSheet(
                 todos: store,
                 draft: TodoCaptureDraft { [client = environment.connection?.apiClient, listId = list?.id] text in
-                    guard let client else { throw TodosUnexpectedAnswer(contentType: nil) }
+                    guard let client else { throw PaiError.transport("Not signed in") }
                     return try await client.todosParse(text: text, list: listId, source: .ios)
                 },
                 place: place, initialText: addText, onAdded: reportAdded)
