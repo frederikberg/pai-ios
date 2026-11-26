@@ -465,6 +465,12 @@ struct RootView: View {
             WeatherView()
         case .me:
             MeView()
+        case .todos:
+            TodoPageScreen(page: nil)
+        case .todosBrowse:
+            TodoBrowseScreen()
+        case .todosPage(let page):
+            TodoPageScreen(page: page)
         case .cameraImport:
             CameraImportView()
         case .usage:

@@ -7,6 +7,10 @@ import SwiftUI
 struct TodoAddSheet: View {
     let todos: TodosStore
     @State var draft: TodoCaptureDraft
+    /// The page it is added on: its view's defaults and its list apply, and the new row shows there.
+    var place: TodoCreatePlace = .anywhere
+    /// A line already typed when the sheet opens.
+    var initialText: String?
     /// Told the id of the queued change, so whoever presented the sheet can say how it went.
     let onAdded: (String) -> Void
 
@@ -58,12 +62,15 @@ struct TodoAddSheet: View {
             guard !Task.isCancelled else { return }
             await draft.read()
         }
-        .task { focused = true }
+        .task {
+            if let initialText, draft.text.isEmpty { draft.text = initialText }
+            focused = true
+        }
     }
 
     private func add() {
         guard let taken = draft.take() else { return }
-        onAdded(todos.capture(text: taken.text, parsed: taken.answer))
+        onAdded(todos.capture(text: taken.text, place: place, parsed: taken.answer))
         dismiss()
     }
 }

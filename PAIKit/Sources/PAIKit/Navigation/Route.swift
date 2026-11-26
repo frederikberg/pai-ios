@@ -142,6 +142,13 @@ public enum Route: Hashable, Sendable {
     /// The Me app (Today, 14 days, Diary) — reached from Apps' "Me" row. Carries no identity
     /// concern of its own, the same reason `.canteen` does not.
     case me
+    /// Todos' home: the first favourite view (Today) with the desk above it — reached from Apps'
+    /// "Todos" row and `pai://todos`.
+    case todos
+    /// Todos' views, lists and tags, the web's sidebar.
+    case todosBrowse
+    /// One Todos page: a saved view or a list.
+    case todosPage(TodoPage)
 
     /// Ignores `session`'s `messageID` and `notePreview`'s `heading` — see those cases. Everything else is a plain
     /// per-case comparison, same as the synthesized version this replaces.
@@ -177,6 +184,9 @@ public enum Route: Hashable, Sendable {
         case (.weather, .weather): return true
         case (.cameraImport, .cameraImport): return true
         case (.me, .me): return true
+        case (.todos, .todos): return true
+        case (.todosBrowse, .todosBrowse): return true
+        case (.todosPage(let a), .todosPage(let b)): return a == b
         default: return false
         }
     }
@@ -257,6 +267,13 @@ public enum Route: Hashable, Sendable {
         case .reminder(let id):
             hasher.combine(30)
             hasher.combine(id)
+        case .todos:
+            hasher.combine(31)
+        case .todosBrowse:
+            hasher.combine(32)
+        case .todosPage(let page):
+            hasher.combine(33)
+            hasher.combine(page)
         }
     }
 }
@@ -274,7 +291,7 @@ extension Route {
             .decisions, .browserList, .browser:
             true
         case .settings, .notes, .note, .noteContainers, .notePreview, .apps, .quickActions, .canteen, .alarm,
-            .weather, .cameraImport, .me:
+            .weather, .cameraImport, .me, .todos, .todosBrowse, .todosPage:
             false
         }
     }
@@ -293,7 +310,8 @@ extension Route {
         "noteContainers", "notePreview", "notifications", "recordings", "arcSpec", "apps", "arcSpecList", "arcReport",
         "arcOverview",
         "schedulerList", "schedulerTask", "reminder", "quickActions", "computerCall", "canteen", "usage", "decisions",
-        "subagentSession", "alarm", "weather", "cameraImport", "me",
+        "subagentSession", "alarm", "weather", "cameraImport", "me", "todos", "todosBrowse", "todosView", "todosList",
+        "todosGroceries",
     ]
 
     /// The subagent of the fixture session (`PaiFixtures.sessionSubagent`), what the
@@ -362,6 +380,11 @@ extension Route {
         case "weather": return .weather
         case "cameraImport": return .cameraImport
         case "me": return .me
+        case "todos": return .todos
+        case "todosBrowse": return .todosBrowse
+        case "todosView": return .todosPage(.view(PaiFixtures.todosHomeView))
+        case "todosList": return .todosPage(.list(PaiFixtures.todosPersonalList))
+        case "todosGroceries": return .todosPage(.list(PaiFixtures.todosGroceriesList))
         default: return nil
         }
     }
@@ -553,7 +576,8 @@ public final class Router {
             case .settings, .createSession, .subagents, .notes, .note, .noteContainers, .notePreview,
                 .notifications, .recordings, .arcSpec, .apps, .arcSpecList, .arcReport, .arcOverview,
                 .schedulerList, .schedulerTask, .reminder, .quickActions, .computerCall, .canteen, .usage,
-                .decisions, .browserList, .browser, .alarm, .weather, .cameraImport, .me:
+                .decisions, .browserList, .browser, .alarm, .weather, .cameraImport, .me, .todos, .todosBrowse,
+                .todosPage:
                 continue
             }
         }
@@ -569,7 +593,8 @@ public final class Router {
             case .session, .terminal, .settings, .createSession, .subagents, .notes, .noteContainers,
                 .notifications, .recordings, .arcSpec, .apps, .arcSpecList, .arcReport, .arcOverview,
                 .schedulerList, .schedulerTask, .reminder, .quickActions, .computerCall, .canteen, .usage,
-                .decisions, .browserList, .browser, .alarm, .weather, .cameraImport, .me:
+                .decisions, .browserList, .browser, .alarm, .weather, .cameraImport, .me, .todos, .todosBrowse,
+                .todosPage:
                 continue
             }
         }

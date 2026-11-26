@@ -233,16 +233,45 @@ actor FakeTodosServer: TodosBackend {
     }
 
     /// A todo the server holds already, as if made on another device.
-    func seed(id: String, title: String) throws {
+    func seed(id: String, title: String, parent: String? = nil) throws {
         var row = try template()
         number += 1
         seq += 1
         row.id = id
-        row.rootId = id
+        row.rootId = parent ?? id
+        row.parentId = parent
+        row.depth = parent == nil ? 0 : 1
         row.number = number
         row.title = title
         row.updatedSeq = seq
+        row.childrenOpen = 0
         todos[id] = row
+        if let parent, var owner = todos[parent] {
+            owner.childrenOpen += 1
+            todos[parent] = owner
+        }
+    }
+
+    /// Every view runs as the open roots, ungrouped, as a fold answer does.
+    func todosRunView(id: String, cursor: String?) async throws -> TodosQueryAnswer {
+        try reach()
+        let roots = todos.values.filter { $0.status == .open && $0.parentId == nil }.sorted { $0.title < $1.title }
+        return TodosQueryAnswer(
+            todos: roots, groups: [], total: roots.count, nextCursor: nil, seq: seq,
+            explain: TodoExplain(normalized: "", defaults: []))
+    }
+
+    func todosViewCounts() async throws -> TodosViewCountsAnswer {
+        try reach()
+        let views = try TodosWireSamples.decode(TodosMeAnswer.self, "me").views
+        return TodosViewCountsAnswer(views: views.map { .init(id: $0.id, count: 1) }, seq: seq)
+    }
+
+    func todosDetail(ref: String) async throws -> TodosDetailAnswer {
+        try reach()
+        guard let todo = todos[ref] else { throw try refusal("error-404-not-found", status: 404) }
+        let children = todos.values.filter { $0.parentId == ref && $0.status == .open }.sorted { $0.title < $1.title }
+        return TodosDetailAnswer(todo: todo, children: children, nudges: [])
     }
 }
 

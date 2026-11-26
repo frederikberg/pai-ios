@@ -43,7 +43,7 @@ final class AppRegistryTests: XCTestCase {
         let listed = AppRegistry.listed(for: owner()).map(\.id)
         let night = AppRegistry.listedAtNight(for: owner()).map(\.id)
         XCTAssertEqual(
-            night, ["quick-actions", "me", "notes", "alarm", "weather", "canteen", "camera-import"])
+            night, ["quick-actions", "me", "todos", "notes", "alarm", "weather", "canteen", "camera-import"])
         XCTAssertEqual(Set(listed).subtracting(night), ["arc", "scheduler", "usage", "decisions", "browser"])
         XCTAssertTrue(night.contains("quick-actions"))
         XCTAssertTrue(night.contains("camera-import"))
@@ -67,7 +67,8 @@ final class AppRegistryTests: XCTestCase {
 
     func testAGuestSeesOnlyWhatTheirRoleAdmits() {
         XCTAssertEqual(
-            AppRegistry.listedAtNight(for: guest()).map(\.id), ["quick-actions", "alarm", "weather", "camera-import"])
+            AppRegistry.listedAtNight(for: guest()).map(\.id),
+            ["quick-actions", "todos", "alarm", "weather", "camera-import"])
         XCTAssertEqual(
             AppRegistry.listed(for: .unknown).map(\.id), ["quick-actions", "camera-import", "usage"],
             "until the role is known only what needs none")

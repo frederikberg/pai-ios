@@ -11,6 +11,8 @@ public struct TodosCapture: Codable, Equatable, Sendable {
     /// the same todo.
     public let todoId: String
     public let list: String?
+    /// The page it was typed on; nil in a record that predates it, where `list` is the place.
+    public let place: TodoCreatePlace?
     public let links: [TodoLinkSpec]
     /// The person's day when the words were spoken, when their preferences were known then. The
     /// parser reads "tomorrow" against the day it runs on, so a capture that waited past a day
@@ -18,15 +20,17 @@ public struct TodosCapture: Codable, Equatable, Sendable {
     public let day: String?
 
     enum CodingKeys: String, CodingKey {
-        case text, body, list, links, day
+        case text, body, list, place, links, day
         case todoId = "todo_id"
     }
 
     public init(
-        text: String, body: String? = nil, todoId: String, list: String?, links: [TodoLinkSpec], day: String?
+        text: String, body: String? = nil, todoId: String, list: String?, place: TodoCreatePlace? = nil,
+        links: [TodoLinkSpec], day: String?
     ) {
         self.text = text
         self.body = body
+        self.place = place
         self.todoId = todoId
         self.list = list
         self.links = links
@@ -39,9 +43,15 @@ public struct TodosCapture: Codable, Equatable, Sendable {
         body = try container.decodeIfPresent(String.self, forKey: .body)
         todoId = try container.decode(String.self, forKey: .todoId)
         list = try container.decodeIfPresent(String.self, forKey: .list)
+        place = try container.decodeIfPresent(TodoCreatePlace.self, forKey: .place)
         links = try container.decodeIfPresent([TodoLinkSpec].self, forKey: .links) ?? []
         day = try container.decodeIfPresent(String.self, forKey: .day)
     }
+}
+
+extension TodosCapture {
+    /// Where the todo is made: the page it was typed on, else the capture's list.
+    var createPlace: TodoCreatePlace { place ?? TodoCreatePlace(defaults: nil, listId: list) }
 }
 
 /// One change waiting to be (re)sent: the web outbox's `QueuedChange`, plus the door it came
@@ -107,11 +117,33 @@ public struct TodosCache: Codable, Equatable, Sendable {
     /// Every todo the server has answered with and that has not been read back as closed or gone
     /// since, by id: the open todos after a full read, plus whatever later answers carried.
     public var todos: [String: Todo]
+    /// Each page's last read, by `TodoPage.key`.
+    public var results: [String: TodoPageResult]
+    public var children: [String: [String]]
+    public var viewCounts: [String: Int]
 
-    public init(me: TodosMeAnswer? = nil, today: TodosTodayAnswer? = nil, todos: [String: Todo] = [:]) {
+    public init(
+        me: TodosMeAnswer? = nil, today: TodosTodayAnswer? = nil, todos: [String: Todo] = [:],
+        results: [String: TodoPageResult] = [:], children: [String: [String]] = [:], viewCounts: [String: Int] = [:]
+    ) {
         self.me = me
         self.today = today
         self.todos = todos
+        self.results = results
+        self.children = children
+        self.viewCounts = viewCounts
+    }
+
+    enum CodingKeys: String, CodingKey { case me, today, todos, results, children, viewCounts }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        me = try container.decodeIfPresent(TodosMeAnswer.self, forKey: .me)
+        today = try container.decodeIfPresent(TodosTodayAnswer.self, forKey: .today)
+        todos = try container.decodeIfPresent([String: Todo].self, forKey: .todos) ?? [:]
+        results = try container.decodeIfPresent([String: TodoPageResult].self, forKey: .results) ?? [:]
+        children = try container.decodeIfPresent([String: [String]].self, forKey: .children) ?? [:]
+        viewCounts = try container.decodeIfPresent([String: Int].self, forKey: .viewCounts) ?? [:]
     }
 }
 

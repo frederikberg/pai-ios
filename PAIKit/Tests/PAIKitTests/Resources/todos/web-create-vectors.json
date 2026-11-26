@@ -1,0 +1,90 @@
+[
+  {
+    "name": "parse-fields",
+    "typed": {
+      "title": "Call the plumber",
+      "tags": [
+        "home"
+      ],
+      "horizon": "now",
+      "when": {
+        "date": "2026-11-27",
+        "time": "17:00"
+      }
+    },
+    "inView": {
+      "list": "LIST",
+      "tags": [
+        "errand",
+        "home"
+      ],
+      "horizon": "now",
+      "title": "Call the plumber",
+      "when": {
+        "date": "2026-11-27",
+        "time": "17:00"
+      },
+      "op": "todo.create",
+      "id": "n1"
+    }
+  },
+  {
+    "name": "parse-list-desk",
+    "typed": {
+      "title": "Oat milk",
+      "list": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+      "desk": true
+    },
+    "inView": {
+      "list": "d5779e76-b98c-4a1b-95e8-4322c950dedf",
+      "tags": [
+        "errand"
+      ],
+      "horizon": "week",
+      "title": "Oat milk",
+      "desk": true,
+      "op": "todo.create",
+      "id": "n1"
+    }
+  },
+  {
+    "name": "parse-unknown-list",
+    "typed": {
+      "title": "Buy stamps",
+      "deadline": {
+        "date": "2026-11-27",
+        "lead_days": null
+      }
+    },
+    "inView": {
+      "list": "LIST",
+      "tags": [
+        "errand"
+      ],
+      "horizon": "week",
+      "title": "Buy stamps",
+      "deadline": {
+        "date": "2026-11-27",
+        "lead_days": null
+      },
+      "op": "todo.create",
+      "id": "n1"
+    }
+  },
+  {
+    "name": "parse-plain",
+    "typed": {
+      "title": "Plain words only"
+    },
+    "inView": {
+      "list": "LIST",
+      "tags": [
+        "errand"
+      ],
+      "horizon": "week",
+      "title": "Plain words only",
+      "op": "todo.create",
+      "id": "n1"
+    }
+  }
+]

@@ -118,6 +118,10 @@
                     return Match(status: 200) { messagesResponse(query: query) }
                 }
             }
+            // Todos answers by method, path and body from its own corpus.
+            if let answer = PaiFixtures.todosRoute(method: method, path: path, body: body) {
+                return Match(status: answer.status) { answer.body }
+            }
             // The fixture session's draft, replaced by `-PaiFixtureDraftText`.
             if method == "GET", path == "/api/drafts",
                 PaiFixtureLaunch.requestedDraftText(arguments: arguments) != nil

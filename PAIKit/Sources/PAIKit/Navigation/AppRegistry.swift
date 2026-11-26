@@ -36,6 +36,8 @@ public enum AppRegistry {
         AppEntry(id: "quick-actions", title: "Quick Actions", systemImage: "square.grid.2x2", route: .quickActions),
         AppEntry(id: "me", title: "Me", systemImage: "leaf.fill", route: .me, isAvailable: { $0.canOpenMe }),
         AppEntry(
+            id: "todos", title: "Todos", systemImage: "checklist", route: .todos, isAvailable: { $0.canOpenTodos }),
+        AppEntry(
             id: "arc", title: "Arc", systemImage: "shippingbox", route: .arcSpecList, isAvailable: { $0.canOpenArc }),
         AppEntry(
             id: "notes", title: "Notes", systemImage: "note.text", route: .notes, isAvailable: { $0.canOpenNotes }),

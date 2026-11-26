@@ -49,6 +49,9 @@
         static let sleepFlag = "-PaiFixtureSleep"
         static let settingsCategoryFlag = "-PaiFixtureSettingsCategory"
         static let sleepSettingsFlag = "-PaiFixtureSleepSettings"
+        static let todosDeskFlag = "-PaiFixtureTodosDesk"
+        static let todosAddFlag = "-PaiFixtureTodosAdd"
+        static let todosExpandFlag = "-PaiFixtureTodosExpand"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -218,6 +221,22 @@
         /// reads. Absent is the showers-approaching answer.
         public static func requestedWeatherState(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: weatherFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureTodosDesk bar|split|desk`: the desk state a Todos page opens in.
+        public static func requestedTodosDesk(arguments: [String] = ProcessInfo.processInfo.arguments) -> TodoDeskMode?
+        {
+            value(for: todosDeskFlag, in: arguments).flatMap(TodoDeskMode.init(rawValue:))
+        }
+
+        /// `-PaiFixtureTodosAdd <text>`: a Todos page opens its add sheet with this line typed.
+        public static func requestedTodosAdd(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: todosAddFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureTodosExpand`: a Todos page opens the corpus todo that has subtasks.
+        public static func expandsTodosParent(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains(todosExpandFlag)
         }
 
         /// `-PaiFixtureMe <state>`: which of `PaiFixtures.meStates` the Me routes answer. Absent is the full one.
