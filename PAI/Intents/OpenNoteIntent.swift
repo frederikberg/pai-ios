@@ -123,6 +123,15 @@ struct PaiAppShortcuts: AppShortcutsProvider {
             systemImageName: "rectangle.stack.badge.plus"
         )
         AppShortcut(
+            intent: AddTodoIntent(),
+            phrases: [
+                "Add a todo in \(.applicationName)",
+                "New \(.applicationName) todo",
+            ],
+            shortTitle: "Add Todo",
+            systemImageName: "checkmark.circle"
+        )
+        AppShortcut(
             intent: OpenQuickActionsIntent(),
             phrases: [
                 "Open quick actions in \(.applicationName)",

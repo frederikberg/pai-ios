@@ -13,11 +13,16 @@ enum SharedItemLoader {
     struct Loaded {
         let items: [ShareItem]
         let refusal: String?
+        /// The first shared text and the first shared web link, which can also become a todo.
+        let todoText: String?
+        let todoLink: String?
     }
 
     private struct OversizeImage: LocalizedError {
         var errorDescription: String? { "exceeds the 50MB limit even after resizing." }
     }
+
+    private nonisolated static let linkFilename = "link.txt"
 
     private enum Payload: Sendable {
         case file(URL)
@@ -38,6 +43,8 @@ enum SharedItemLoader {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         var items: [ShareItem] = []
+        var todoText: String?
+        var todoLink: String?
         var unreadable: [String] = []
         var oversize: [String] = []
         for provider in providers {
@@ -71,13 +78,20 @@ enum SharedItemLoader {
                         return PaiFileUpload(filename: fitted.filename, mimeType: fitted.mimeType, data: fitted.data)
                     })
             case .text(let text, let filename):
+                if filename == linkFilename {
+                    todoLink = todoLink ?? text
+                } else {
+                    todoText = todoText ?? text
+                }
                 items.append(
                     ShareItem(name: filename) {
                         PaiFileUpload(filename: filename, mimeType: "text/plain", data: Data(text.utf8))
                     })
             }
         }
-        return Loaded(items: items, refusal: refusalMessage(unreadable: unreadable, oversize: oversize))
+        return Loaded(
+            items: items, refusal: refusalMessage(unreadable: unreadable, oversize: oversize), todoText: todoText,
+            todoLink: todoLink)
     }
 
     private static func refusalMessage(unreadable: [String], oversize: [String]) -> String? {
@@ -100,7 +114,7 @@ enum SharedItemLoader {
             !provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier),
             let link = await url(from: provider)
         {
-            return .text(link.absoluteString, filename: "link.txt")
+            return .text(link.absoluteString, filename: linkFilename)
         }
         if let type = provider.registeredTypeIdentifiers.first(where: isFileType),
             let file = await fileCopy(from: provider, type: type)

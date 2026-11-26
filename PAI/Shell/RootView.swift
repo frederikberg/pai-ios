@@ -23,6 +23,8 @@ struct RootView: View {
     @State private var arrivals = ArrivalBannerStore()
     /// Tells the server while the app is in front, so no device of this person is pushed meanwhile.
     @State private var presence: PresenceReporter?
+    /// The New todo sheet, opened by the control and the Home Screen quick action.
+    @State private var addingTodo = false
 
     /// The parked deep link, if one is waiting. Read through the observable inbox rather than
     /// polled, so a notification tapped while the app is already open navigates immediately
@@ -185,6 +187,14 @@ struct RootView: View {
                 // their own, so this is what stops each one falling through to pure black. See
                 // `paiScreenBackground()`'s own doc comment for why that step matters.
                 .paiScreenBackground()
+                .sheet(isPresented: $addingTodo) {
+                    TodoAddSheet(
+                        todos: environment.todos,
+                        draft: TodoCaptureDraft { [client = connection.apiClient] text in
+                            try await client.todosParse(text: text, list: nil, source: .ios)
+                        },
+                        onAdded: { changeId in reportAddedTodo(changeId, toasts: connection.toasts) })
+                }
                 .environment(environment)
                 .environment(connection.sessions)
                 .environment(connection.machines)
@@ -481,6 +491,11 @@ struct RootView: View {
         // A link the reader followed from outside the app (a tapped banner, a widget, a shortcut)
         // is a deliberate open with no touch inside the app to show for it.
         attention.noteActivity()
+        // The add sheet opens over whatever is on screen; the navigation stays where it was.
+        if link == .newTodo {
+            OverlayDismissal.dismissAll { addingTodo = true }
+            return
+        }
         // `.notification` is the one case `DeepLink.routes` cannot answer on its own — see its
         // doc comment. Resolving it needs a network round trip, so it gets its own path instead
         // of the synchronous `replace(with: link.routes)` every other case uses.
@@ -506,6 +521,16 @@ struct RootView: View {
         }
         // Routed only once the overlays are gone — see `OverlayDismissal`.
         OverlayDismissal.dismissAll { environment.router.replace(with: link.routes) }
+    }
+
+    /// Says how a todo from the add sheet went: added, or kept on the phone until it can go out. A
+    /// refusal is already told by the store's own toast.
+    private func reportAddedTodo(_ changeId: String, toasts: ToastCenter) {
+        Task {
+            let outcome = await environment.todos.outcome(of: changeId, timeout: 4)
+            if case .refused = outcome.settlement { return }
+            toasts.show(outcome.message(keeper: .app))
+        }
     }
 
     /// What a tapped push notification does once the app can act on it. The payload

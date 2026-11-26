@@ -4,6 +4,9 @@ import Foundation
 /// `POST /parse` once there is one, and only then made into its `todo.create`.
 public struct TodosCapture: Codable, Equatable, Sendable {
     public let text: String
+    /// What did not fit in a title: the lines after the first, or the whole text when its first
+    /// line was too long.
+    public let body: String?
     /// The id the created todo gets, fixed at capture so the queued row and the created one are
     /// the same todo.
     public let todoId: String
@@ -15,12 +18,15 @@ public struct TodosCapture: Codable, Equatable, Sendable {
     public let day: String?
 
     enum CodingKeys: String, CodingKey {
-        case text, list, links, day
+        case text, body, list, links, day
         case todoId = "todo_id"
     }
 
-    public init(text: String, todoId: String, list: String?, links: [TodoLinkSpec], day: String?) {
+    public init(
+        text: String, body: String? = nil, todoId: String, list: String?, links: [TodoLinkSpec], day: String?
+    ) {
         self.text = text
+        self.body = body
         self.todoId = todoId
         self.list = list
         self.links = links
@@ -30,6 +36,7 @@ public struct TodosCapture: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         text = try container.decode(String.self, forKey: .text)
+        body = try container.decodeIfPresent(String.self, forKey: .body)
         todoId = try container.decode(String.self, forKey: .todoId)
         list = try container.decodeIfPresent(String.self, forKey: .list)
         links = try container.decodeIfPresent([TodoLinkSpec].self, forKey: .links) ?? []

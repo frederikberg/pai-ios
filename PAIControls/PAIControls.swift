@@ -10,6 +10,7 @@ struct PAIControls: WidgetBundle {
     var body: some Widget {
         QuickActionsControl()
         AlarmControl()
+        NewTodoControl()
     }
 }
 
@@ -36,5 +37,19 @@ struct AlarmControl: ControlWidget {
         }
         .displayName("Alarm")
         .description("Open PAI's alarm app.")
+    }
+}
+
+/// Opens the New todo sheet with the keyboard up, from Control Center, the Lock Screen or the
+/// Action button.
+struct NewTodoControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "com.frederikberg.pai.controls.new-todo") {
+            ControlWidgetButton(action: OpenNewTodoIntent()) {
+                Label("New todo", systemImage: "checkmark.circle")
+            }
+        }
+        .displayName("New todo")
+        .description("Add a todo in PAI.")
     }
 }

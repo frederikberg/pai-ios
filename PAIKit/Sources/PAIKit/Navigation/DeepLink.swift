@@ -34,6 +34,10 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     case alarm(id: String?)
     /// The Weather app.
     case weather
+    /// The add sheet for one todo, keyboard up: what the New todo control and the Home Screen
+    /// quick action open. It is presented over whatever the app shows, so ``routes`` (empty) is
+    /// never applied for it; `RootView` presents the sheet instead.
+    case newTodo
 
     /// The routes this link lands on. Whole paths rather than single routes: a deep link arrives
     /// knowing nothing about what the app was showing, so it replaces the stack, and a note with
@@ -50,6 +54,7 @@ public enum DeepLink: Equatable, Sendable, Hashable {
         case .browser(nil): return [.browserList]
         case .alarm: return [.alarm]
         case .weather: return [.weather]
+        case .newTodo: return []
         }
     }
 
@@ -63,7 +68,7 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     /// the link is opening.
     public var dismissesOverlays: Bool {
         switch self {
-        case .quickActions, .alarm: return true
+        case .quickActions, .alarm, .newTodo: return true
         case .session, .note, .notesList, .createSession, .notification, .browser, .weather: return false
         }
     }
@@ -159,6 +164,9 @@ extension DeepLink {
         case "weather":
             guard segments.count == 1 else { return nil }
             return .weather
+        case "newtodo":
+            guard segments.count == 1 else { return nil }
+            return .newTodo
         case "browser":
             guard segments.count <= 2 else { return nil }
             guard segments.count == 2 else { return .browser(name: nil) }
@@ -248,6 +256,7 @@ extension DeepLink {
         case .browser(nil): return URL(string: "pai://browser")
         case .alarm: return URL(string: "pai://alarm")
         case .weather: return URL(string: "pai://weather")
+        case .newTodo: return URL(string: "pai://newtodo")
         }
     }
 
