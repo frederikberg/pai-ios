@@ -25,7 +25,6 @@ struct SettingsScreen: View {
         .paiListBackground()
         .navigationTitle("Settings")
         .task { await openFixtureCategory() }
-        .task { await tapFixtureRow() }
         .accessibilityIdentifier("settings-screen")
         .fixtureFact(
             "settingsCategories",
@@ -65,16 +64,6 @@ struct SettingsScreen: View {
         category.value(
             theme: settings.theme, sleepWindow: environment.sleepMode.window,
             openAlerts: settings.alerts.alerts?.count)
-    }
-
-    /// `-PaiFixtureTapSettingsRow <page>`: activates that row through the accessibility tree, the
-    /// same path a tap takes, so a row that highlights without opening its page shows up as a
-    /// list on screen. Does nothing in a Release build.
-    private func tapFixtureRow() async {
-        #if DEBUG
-            guard PaiFixtureLaunch.isEnabled(), let name = PaiFixtureLaunch.requestedSettingsRowTap() else { return }
-            await FixtureTap.activate(identifier: "settings-open-\(name)")
-        #endif
     }
 
     private func openFixtureCategory() async {
