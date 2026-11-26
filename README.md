@@ -118,7 +118,7 @@ A todo can be added without opening the app:
 - **New todo**, a Control Center control, and **New todo** in the app icon's quick actions, both opening a small sheet with the keyboard up.
 - **Todo** in the share sheet, for shared text or a link (attached to the todo).
 
-The words go to the server's capture parser (dates, `#tags`, `/List`, `*` for the desk), the same reading the web's quick add gets. Words captured without a network are read when they go out, unless the day has turned in between: then they become the title as they are. The share sheet has no storage in common with the app, so a todo shared without a network waits in the share sheet's own queue and goes out the next time something is shared to PAI.
+The words go to the server's capture parser (dates, `#tags`, `/List`, `*` for the desk), the same reading the web's quick add gets. Words captured without a network are read when they go out, unless the day has turned in between: then they become the title as they are. The share sheet has no storage in common with the app and keeps nothing: when the server does not take a shared todo within a few seconds, the sheet stays open with the words and a Try again. Add Todo through Siri or Shortcuts keeps a todo it could not send on the phone, and it goes out the next time PAI is open. A refused todo is told with its words, as a toast while the app is in front and as a notification otherwise; a server error is tried again a few times before it counts as refused.
 
 ## Notes offline
 

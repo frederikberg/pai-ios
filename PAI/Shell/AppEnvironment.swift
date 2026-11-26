@@ -452,7 +452,21 @@ final class AppEnvironment {
         pathObserver.start()
         outboxPathObserver = pathObserver
         let toasts = ToastCenter()
-        todos.onRefusal = { [weak toasts] refusal in toasts?.show(refusal.message, kind: .error) }
+        // In front a toast; otherwise (a retry that ran while the app was away) a local
+        // notification, so the words of a refused todo reach the person either way.
+        todos.onRefusal = { [weak toasts] refusal, words in
+            let text = refusal.told(about: words)
+            guard UIApplication.shared.applicationState != .active else {
+                toasts?.show(text, kind: .error)
+                return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = "Todo not added"
+            content.body = text
+            content.threadIdentifier = "todos-refused"
+            UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        }
         todos.connect(client)
         notesStore.onSyncNotice = { [weak self, weak toasts] notice in
             let show = notice.noteId.map { id in

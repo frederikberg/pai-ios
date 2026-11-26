@@ -45,6 +45,30 @@ actor FakeTodosServer: TodosBackend {
     static let lockedList = "locked-list"
 
     func set(network: Network) { self.network = network }
+
+    /// Who `/me` says the credential is; the captured sample's person when nil.
+    private var principal: String?
+    func signIn(as principal: String?) { self.principal = principal }
+
+    /// Answers the next applies fail with, in order, before anything is written.
+    private var applyFailures: [Error] = []
+    func failNextApplies(_ errors: [Error]) { applyFailures = errors }
+
+    /// `/me` waits until `releaseMe()` while held.
+    private var meHeld = false
+    private var meWaiters: [CheckedContinuation<Void, Never>] = []
+    func holdMe() { meHeld = true }
+    func releaseMe() {
+        meHeld = false
+        for waiter in meWaiters { waiter.resume() }
+        meWaiters = []
+    }
+
+    /// Events the feed answers with, as if written on another device.
+    private var feed: [TodoEvent] = []
+    func publish(_ event: TodoEvent) { feed.append(event) }
+    private(set) var meReads = 0
+    private(set) var applyCalls = 0
     func loseTheNextAnswer() { loseNextAnswer = true }
 
     private func reach() throws {
@@ -67,6 +91,8 @@ actor FakeTodosServer: TodosBackend {
 
     func todosApply(_ change: TodosChangeRequest, source: TodosSource) async throws -> TodosApplyResult {
         try reach()
+        applyCalls += 1
+        if !applyFailures.isEmpty { throw applyFailures.removeFirst() }
         if let answer = answers[change.changeId] {
             return TodosApplyResult(
                 change: answer.change, applied: answer.applied, of: answer.of, results: answer.results,
@@ -121,10 +147,12 @@ actor FakeTodosServer: TodosBackend {
         todos = staged
         desk = stagedDesk
         appliedLog.append(change.changeId)
+        appliedAs[change.changeId] = principal ?? (try? TodosWireSamples.decode(TodosMeAnswer.self, "me").principal)
         let answer = TodosApplyResult(
             change: TodoChange(
                 id: change.changeId, seqFirst: seq, seqLast: seq,
-                actor: TodoActor(principal: "user:fake", kind: .human, label: "Owner"), source: source.rawValue,
+                actor: TodoActor(principal: principal ?? "user:sample", kind: .human, label: "Owner"),
+                source: source.rawValue,
                 sessionId: nil, summary: "", opCount: change.ops.count, undoOf: nil, undoneBy: nil,
                 createdAt: "2026-11-26T10:00:00+00:00", events: nil),
             applied: change.ops.count, of: change.ops.count,
@@ -138,9 +166,26 @@ actor FakeTodosServer: TodosBackend {
         return answer
     }
 
+    /// Change ids applied, with the principal whose credential applied them.
+    private(set) var appliedAs: [String: String] = [:]
+
+    /// The next `/me` reads fail as with no network.
+    private var meFailures = 0
+    func failNextMe(_ count: Int = 1) { meFailures = count }
+
     func todosMe() async throws -> TodosMeAnswer {
+        if meHeld { await withCheckedContinuation { meWaiters.append($0) } }
         try reach()
-        return try TodosWireSamples.decode(TodosMeAnswer.self, "me")
+        if meFailures > 0 {
+            meFailures -= 1
+            throw URLError(.networkConnectionLost)
+        }
+        meReads += 1
+        let sample = try TodosWireSamples.decode(TodosMeAnswer.self, "me")
+        guard let principal else { return sample }
+        return TodosMeAnswer(
+            principal: principal, userId: sample.userId, displayName: "Someone", actorKind: .human,
+            lists: sample.lists, prefs: sample.prefs, views: sample.views, tags: sample.tags, seq: sample.seq)
     }
 
     func todosToday() async throws -> TodosTodayAnswer {
@@ -161,12 +206,30 @@ actor FakeTodosServer: TodosBackend {
     func todosParse(text: String, list: String?, source: TodosSource) async throws -> TodosParseAnswer {
         try reach()
         parsed.append(text)
-        return try TodosWireSamples.decode(TodosParseAnswer.self, "parse-fields")
+        let sample = try TodosWireSamples.decode(TodosParseAnswer.self, "parse-fields")
+        if text.hasPrefix("Call the plumber") { return sample }
+        // Words the sample does not cover read as a plain title, as the parser reads them.
+        let plain: [String: Any] = [
+            "title": text, "tokens": [], "issues": [],
+            "fields": [
+                "tags": [], "horizon": NSNull(), "when": NSNull(), "deadline": NSNull(), "repeat": NSNull(),
+                "parent": NSNull(), "list": NSNull(), "desk": false, "nudges": [],
+            ],
+            "create_op": ["op": "todo.create", "id": UUID().uuidString.lowercased(), "title": text],
+        ]
+        return try JSONDecoder().decode(TodosParseAnswer.self, from: JSONSerialization.data(withJSONObject: plain))
     }
 
     func todosEvents(after: Int) async throws -> TodosEventsAnswer {
         try reach()
-        return TodosEventsAnswer(events: [], head: seq, reset: false)
+        let events = feed.filter { $0.seq > after }
+        return TodosEventsAnswer(events: events, head: max(seq, events.map(\.seq).max() ?? 0), reset: false)
+    }
+
+    /// The next feed position, for an event published by a test.
+    func nextSeq() -> Int {
+        seq += 1
+        return seq
     }
 
     /// A todo the server holds already, as if made on another device.
@@ -181,4 +244,15 @@ actor FakeTodosServer: TodosBackend {
         row.updatedSeq = seq
         todos[id] = row
     }
+}
+
+/// Storage whose queue never reaches the disk, as on a full or purged volume.
+final class FailingQueueStorage: TodosStorage, @unchecked Sendable {
+    private let memory = InMemoryTodosStorage()
+    func loadQueue() -> [TodosQueuedChange] { [] }
+    func saveQueue(_ queue: [TodosQueuedChange]) -> Bool { false }
+    func loadRefused() -> [TodosRefusedChange] { memory.loadRefused() }
+    func saveRefused(_ refused: [TodosRefusedChange]) { memory.saveRefused(refused) }
+    func loadCache() -> TodosCache? { memory.loadCache() }
+    func saveCache(_ cache: TodosCache?) { memory.saveCache(cache) }
 }

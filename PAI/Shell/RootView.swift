@@ -300,6 +300,7 @@ struct RootView: View {
                             await PushRegistrar.clearStoppedAlarmNotifications(ringing: Set(list.ringing.map(\.id)))
                         }
                     case .background:
+                        environment.todos.flushCache()
                         attention.setAppActive(false)
                         presence?.setActive(false)
                         // The one place a backgrounding is guaranteed to be observed — flushed here
@@ -523,13 +524,14 @@ struct RootView: View {
         OverlayDismissal.dismissAll { environment.router.replace(with: link.routes) }
     }
 
-    /// Says how a todo from the add sheet went: added, or kept on the phone until it can go out. A
-    /// refusal is already told by the store's own toast.
+    /// Says how a todo from the add sheet went: added, refused, or kept on the phone until it can
+    /// go out. The store tells no refusal of its own for a change someone waits on.
     private func reportAddedTodo(_ changeId: String, toasts: ToastCenter) {
         Task {
             let outcome = await environment.todos.outcome(of: changeId, timeout: 4)
-            if case .refused = outcome.settlement { return }
-            toasts.show(outcome.message(keeper: .app))
+            var kind = ToastMessage.Kind.info
+            if case .refused = outcome.settlement { kind = .error }
+            toasts.show(outcome.message(keeper: .app), kind: kind)
         }
     }
 

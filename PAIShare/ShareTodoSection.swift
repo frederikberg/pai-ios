@@ -2,15 +2,21 @@ import PAIKit
 import SwiftUI
 
 /// "Todo" in the share sheet: the shared text (or the link) as a todo's words, editable, with
-/// the link attached. What the server's parser reads in the words applies, as in the app.
+/// the link attached. What the server's parser reads in the words applies, as in the app. A todo
+/// the server did not take stays here with its words and a Try again; nothing waits elsewhere.
 struct ShareTodoSection: View {
     @Bindable var todo: ShareTodoStore
     let close: () -> Void
 
     var body: some View {
         Section("Todo") {
-            switch todo.phase {
-            case .editing, .sending:
+            if case .added(let outcome) = todo.phase {
+                Label(outcome.message(keeper: .shareSheet), systemImage: "checkmark.circle")
+                    .task {
+                        try? await Task.sleep(for: .seconds(1.2))
+                        close()
+                    }
+            } else {
                 TextField(
                     todo.link == nil ? "New todo" : "New todo (the link is attached)", text: $todo.text, axis: .vertical
                 )
@@ -18,27 +24,21 @@ struct ShareTodoSection: View {
                 if let link = todo.link {
                     Label(link, systemImage: "link").font(.footnote).lineLimit(1).truncationMode(.middle)
                 }
+                if case .notAdded(let outcome) = todo.phase {
+                    Text(outcome.message(keeper: .shareSheet)).font(.footnote).foregroundStyle(.secondary)
+                }
                 Button {
                     Task { await todo.add() }
                 } label: {
                     if todo.phase == .sending {
                         ProgressView()
+                    } else if case .notAdded = todo.phase {
+                        Label("Try again", systemImage: "arrow.clockwise")
                     } else {
                         Label("Add as todo", systemImage: "checkmark.circle")
                     }
                 }
                 .disabled(!todo.canAdd)
-            case .done(let outcome):
-                Label(outcome.message(keeper: .shareSheet), systemImage: outcome.added ? "checkmark.circle" : "clock")
-                    .task {
-                        guard outcome.added else { return }
-                        try? await Task.sleep(for: .seconds(1.2))
-                        close()
-                    }
-            }
-            if todo.waitingFromEarlier > 0 {
-                Text("\(todo.waitingFromEarlier) todo(s) from an earlier share are still waiting for a connection.")
-                    .font(.footnote).foregroundStyle(.secondary)
             }
         }
     }

@@ -11,6 +11,8 @@ public enum TodosFailure: Equatable, Sendable {
     case signedOut
     /// The server refused the change. Sending it again gets the same answer.
     case refused(TodosRefusal)
+    /// The server failed (500): sent again a bounded number of times, then refused.
+    case serverError(TodosRefusal)
 
     /// Statuses after which a replay may still succeed. A conflict, a missing role and an unbuilt
     /// route do not improve by waiting.
@@ -20,6 +22,7 @@ public enum TodosFailure: Equatable, Sendable {
         switch error {
         case let error as TodosApiError:
             if retryableStatuses.contains(error.statusCode) { return .retry }
+            if error.statusCode == 500 { return .serverError(TodosRefusal(body: error.body)) }
             return .refused(TodosRefusal(body: error.body))
         case is TodosUnexpectedAnswer:
             return .signedOut
@@ -30,8 +33,9 @@ public enum TodosFailure: Equatable, Sendable {
             switch error {
             case .transport: return .retry
             case .detail(_, let statusCode), .http(let statusCode, _):
-                return retryableStatuses.contains(statusCode)
-                    ? .retry : .refused(TodosRefusal(code: nil, message: error.userMessage))
+                if retryableStatuses.contains(statusCode) { return .retry }
+                let refusal = TodosRefusal(code: nil, message: error.userMessage)
+                return statusCode == 500 ? .serverError(refusal) : .refused(refusal)
             case .decoding: return .refused(TodosRefusal(code: nil, message: error.userMessage))
             }
         default:
@@ -82,5 +86,14 @@ public struct TodosRefusal: Equatable, Sendable {
         let prefix = message[..<colon.lowerBound]
         guard prefix.dropFirst(3).first?.isNumber == true else { return message }
         return String(message[colon.upperBound...])
+    }
+}
+
+extension TodosRefusal {
+    /// The refusal told with the words it cost, so they can be typed again: "Not added “Oat
+    /// milk”: This list is locked …". Without words (a tick, a desk move), the reason alone.
+    public func told(about words: String?) -> String {
+        guard let words, !words.isEmpty else { return message }
+        return "Not added \u{201C}\(words)\u{201D}: \(message)"
     }
 }
