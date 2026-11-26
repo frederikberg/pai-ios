@@ -62,9 +62,8 @@ struct TodoAddSheet: View {
     }
 
     private func add() {
-        guard draft.canAdd else { return }
-        let changeId = todos.capture(text: draft.text, parsed: draft.answer(for: draft.text))
-        onAdded(changeId)
+        guard let taken = draft.take() else { return }
+        onAdded(todos.capture(text: taken.text, parsed: taken.answer))
         dismiss()
     }
 }

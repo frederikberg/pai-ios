@@ -20,9 +20,7 @@ struct ShareScreen: View {
                                 attemptMark: .extensionDefaults),
                             todo: loaded.todoText == nil && loaded.todoLink == nil
                                 ? nil
-                                : ShareTodoStore(
-                                    sharedText: loaded.todoText, link: loaded.todoLink,
-                                    storageRoot: URL.applicationSupportDirectory),
+                                : ShareTodoStore(sharedText: loaded.todoText, link: loaded.todoLink),
                             client: client,
                             close: close)
                     } else {

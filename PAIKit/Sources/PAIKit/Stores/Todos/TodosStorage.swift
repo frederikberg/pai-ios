@@ -119,7 +119,9 @@ public struct TodosCache: Codable, Equatable, Sendable {
 /// typed, so nothing that drops the cache touches it.
 public protocol TodosStorage: Sendable {
     func loadQueue() -> [TodosQueuedChange]
-    func saveQueue(_ queue: [TodosQueuedChange])
+    /// False when the queue did not reach the disk.
+    @discardableResult
+    func saveQueue(_ queue: [TodosQueuedChange]) -> Bool
     func loadRefused() -> [TodosRefusedChange]
     func saveRefused(_ refused: [TodosRefusedChange])
     func loadCache() -> TodosCache?
@@ -181,16 +183,18 @@ public struct FileTodosStorage: TodosStorage {
         return queue
     }
 
-    public func saveQueue(_ queue: [TodosQueuedChange]) {
+    @discardableResult
+    public func saveQueue(_ queue: [TodosQueuedChange]) -> Bool {
         guard !queue.isEmpty else {
             try? fileManager.removeItem(at: outboxURL)
-            return
+            return !fileManager.fileExists(atPath: outboxURL.path)
         }
         let entries = queue.compactMap { change -> PaiJSONValue? in
             guard let data = try? JSONEncoder().encode(change) else { return nil }
             return try? JSONDecoder().decode(PaiJSONValue.self, from: data)
         }
-        NotesFileIO.write(Record(v: Self.recordVersion, changes: entries), to: outboxURL)
+        guard entries.count == queue.count else { return false }
+        return NotesFileIO.write(Record(v: Self.recordVersion, changes: entries), to: outboxURL)
     }
 
     public func loadRefused() -> [TodosRefusedChange] {
@@ -235,7 +239,11 @@ public final class InMemoryTodosStorage: TodosStorage, @unchecked Sendable {
     public init() {}
 
     public func loadQueue() -> [TodosQueuedChange] { lock.withLock { queue } }
-    public func saveQueue(_ queue: [TodosQueuedChange]) { lock.withLock { self.queue = queue } }
+    @discardableResult
+    public func saveQueue(_ queue: [TodosQueuedChange]) -> Bool {
+        lock.withLock { self.queue = queue }
+        return true
+    }
     public func loadRefused() -> [TodosRefusedChange] { lock.withLock { refused } }
     public func saveRefused(_ refused: [TodosRefusedChange]) { lock.withLock { self.refused = refused } }
     public func loadCache() -> TodosCache? { lock.withLock { cache } }

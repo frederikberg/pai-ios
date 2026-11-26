@@ -79,6 +79,8 @@ final class TodosCaptureTests: XCTestCase {
         XCTAssertEqual(waiting.settlement, .waiting)
         XCTAssertEqual(store.queue.count, 1)
         XCTAssertEqual(waiting.message(keeper: .app), "Saved on this iPhone. It is added once there is a connection.")
+        XCTAssertEqual(
+            waiting.message(keeper: .intent), "Saved on this iPhone. Open PAI when there is a connection to send it.")
     }
 
     /// Words longer than a title keep everything: the first line is the title, the rest the body.
@@ -101,34 +103,31 @@ final class TodosCaptureTests: XCTestCase {
     }
 
     /// The share sheet's Todo goes through the same outbox: a shared link becomes a todo with the
-    /// link attached; one that could not go out waits in the sheet's own queue and is sent the
-    /// next time the sheet opens.
-    func testASharedLinkBecomesATodoAndWaitsForTheNextShare() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("share-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: root) }
+    /// link attached. One the server did not take keeps its words in the sheet, and Try again with
+    /// the same words resends the same change, so a lost answer never makes two todos.
+    func testASharedLinkBecomesATodoAndATryAgainNeverMakesTwo() async throws {
         let server = FakeTodosServer()
         await server.set(network: .down)
-
-        let first = ShareTodoStore(sharedText: nil, link: "https://example.org/recipe", storageRoot: root)
-        first.start(server)
-        XCTAssertTrue(first.canAdd)
-        await first.add(timeout: 0.05)
-        guard case .done(let outcome) = first.phase else { return XCTFail("\(first.phase)") }
+        let share = ShareTodoStore(sharedText: nil, link: "https://example.org/recipe")
+        share.start(server)
+        XCTAssertTrue(share.canAdd)
+        await share.add(timeout: 30)
+        guard case .notAdded(let outcome) = share.phase else { return XCTFail("\(share.phase)") }
         XCTAssertEqual(outcome.settlement, .waiting)
+        XCTAssertTrue(share.canAdd, "the words stay, ready to try again")
 
         await server.set(network: .up)
-        let next = ShareTodoStore(sharedText: "Read later\nfrom the bus", link: nil, storageRoot: root)
-        XCTAssertEqual(next.text, "Read later")
-        XCTAssertEqual(next.waitingFromEarlier, 1)
-        next.start(server)
-        await next.todos.drain()
+        await server.loseTheNextAnswer()
+        await share.add(timeout: 30)
+        guard case .notAdded = share.phase else { return XCTFail("\(share.phase)") }
+        await share.add(timeout: 30)
+        guard case .added = share.phase else { return XCTFail("\(share.phase)") }
 
         let created = await server.createdOps.values
+        XCTAssertEqual(created.count, 1)
         let fromLink = try XCTUnwrap(created.first)
         XCTAssertEqual(fromLink.string("title"), "https://example.org/recipe")
-        XCTAssertEqual(
-            fromLink.decoded("links", as: [TodoLinkSpec].self), [.url("https://example.org/recipe")])
-        XCTAssertTrue(next.todos.queue.isEmpty)
+        XCTAssertEqual(fromLink.decoded("links", as: [TodoLinkSpec].self), [.url("https://example.org/recipe")])
         let sources = await server.todos.values.map(\.created.source)
         XCTAssertEqual(sources, ["share"])
     }

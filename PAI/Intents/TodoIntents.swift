@@ -7,8 +7,9 @@ import PAIKit
 /// same reading the web's quick add and the `todo` CLI get.
 ///
 /// Queued through the app's one Todos store rather than a standalone client: without a network
-/// or a sign-in the todo waits on the phone and goes out by itself later, so nothing said is
-/// lost. The answer waits a few seconds for the server, then says where the todo is.
+/// or a sign-in the todo waits on the phone, on disk, and goes out the next time PAI is open, so
+/// nothing said is lost. The answer waits a few seconds for the server, then says where the todo
+/// is; words that are only spaces queue nothing and say so.
 struct AddTodoIntent: AppIntent {
     static var title: LocalizedStringResource { "Add Todo" }
     static var description: IntentDescription {
@@ -33,7 +34,7 @@ struct AddTodoIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let outcome = await AppEnvironment.shared.todos.captureAndWait(
             text: text, source: .shortcut, timeout: Self.waitSeconds)
-        let message = outcome.message(keeper: .app)
+        let message = outcome.message(keeper: .intent)
         if case .refused = outcome.settlement { throw AddTodoIntentError(message: message) }
         return .result(dialog: IntentDialog(LocalizedStringResource(stringLiteral: message)))
     }

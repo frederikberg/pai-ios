@@ -57,4 +57,16 @@ public final class TodoCaptureDraft {
     }
 
     public var canAdd: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    /// The line to add and the parser's answer for exactly it, emptying the line, so a second tap
+    /// on Add (or Return) before the sheet has left finds nothing to add.
+    public func take() -> (text: String, answer: TodosParseAnswer?)? {
+        guard canAdd else { return nil }
+        let taken = (text, answer(for: text))
+        text = ""
+        answer = nil
+        answerText = ""
+        asked += 1
+        return taken
+    }
 }

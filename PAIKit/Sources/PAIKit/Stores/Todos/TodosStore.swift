@@ -49,9 +49,12 @@ public final class TodosStore {
     public private(set) var signedOut = false
     /// Ids of changes this phone applied, newest last.
     public private(set) var appliedIds: [String] = []
+    /// The last write of the queue to disk failed: what is queued now exists only in memory.
+    public private(set) var unsaved = false
 
-    /// Told the reason when the server refuses a change.
-    public var onRefusal: (@MainActor (TodosRefusal) -> Void)?
+    /// Told the reason, and the words a person typed or spoke into it, when the server refuses a
+    /// change nobody is waiting on (`settled`). A door that waits tells its own verdict.
+    public var onRefusal: (@MainActor (TodosRefusal, _ words: String?) -> Void)?
 
     @ObservationIgnored private var serverDesk: [TodoDeskItem]
     /// Applied desk changes, drawn until a `/today` read at or after their last event replaces
@@ -72,8 +75,16 @@ public final class TodosStore {
     private let makeId: @Sendable () -> String
 
     @ObservationIgnored private var drainTask: Task<Void, Never>?
+    @ObservationIgnored private var drainToken: UUID?
     @ObservationIgnored private var failures = 0
     @ObservationIgnored private var retryTask: Task<Void, Never>?
+    /// Who the current connection's credential is, once a `/me` through it answered; nil until
+    /// then. A change queued by a person goes out only when this is that person.
+    @ObservationIgnored private var confirmedPrincipal: String?
+    /// Server errors (500) met per change, so a hiccup is retried and a broken change is not
+    /// retried forever.
+    @ObservationIgnored private var serverErrors: [String: Int] = [:]
+    @ObservationIgnored private var cacheWrite: Task<Void, Never>?
 
     /// Resend delays after a dropped connection; the last one repeats.
     public static let retryDelaysSeconds: [TimeInterval] = [1, 2, 5, 15, 30]
@@ -84,6 +95,12 @@ public final class TodosStore {
     static let refusedKept = 50
     /// One query page; the server's ceiling.
     static let openPageSize = 1000
+    /// More pages than any person's open todos fill; a cursor that never ends stops here.
+    static let openPagesMax = 20
+    /// How often a change meeting a server error is sent before it counts as refused.
+    static let serverErrorAttempts = 5
+    /// The cache is written this long after the last change to it, not on every answer.
+    static let cacheWriteDelaySeconds: TimeInterval = 1
     /// Every open todo, asleep and quiet ones too: `is:any` speaks about the status, the
     /// awake and the quiet-tag axes, so the query's implicit defaults stay out; `is:open` then
     /// narrows the status.
@@ -118,6 +135,7 @@ public final class TodosStore {
     /// `disconnect`; this only says where to send it.
     public func connect(_ backend: any TodosBackend) {
         self.backend = backend
+        confirmedPrincipal = nil
         signedOut = false
         Task { await drain() }
     }
@@ -125,6 +143,7 @@ public final class TodosStore {
     /// The sign-in ended: nothing is sent until the next `connect`, and nothing queued is lost.
     public func disconnect() {
         backend = nil
+        confirmedPrincipal = nil
         retryTask?.cancel()
         retryTask = nil
     }
@@ -140,6 +159,8 @@ public final class TodosStore {
         settling = []
         lastToday = nil
         cursor = 0
+        cacheWrite?.cancel()
+        cacheWrite = nil
         storage.saveCache(nil)
         recompute()
     }
@@ -151,7 +172,7 @@ public final class TodosStore {
     public func submit(_ ops: [TodoOp], summary: String? = nil, source: TodosSource = .ios) -> String {
         enqueue(
             TodosQueuedChange(
-                changeId: makeId(), summary: summary, ops: ops, source: source.rawValue, principal: me?.principal,
+                changeId: makeId(), summary: summary, ops: ops, source: source.rawValue, principal: confirmedPrincipal,
                 queuedAt: IsoTimestamp.utcString(from: now())))
     }
 
@@ -171,7 +192,7 @@ public final class TodosStore {
         return enqueue(
             TodosQueuedChange(
                 changeId: makeId(), summary: nil, ops: ops, capture: capture, source: source.rawValue,
-                principal: me?.principal, queuedAt: IsoTimestamp.utcString(from: now())))
+                principal: confirmedPrincipal, queuedAt: IsoTimestamp.utcString(from: now())))
     }
 
     /// The longest first line kept as the words; a title may hold 500 characters, and the parser
@@ -191,17 +212,30 @@ public final class TodosStore {
     }
 
     /// Capture, then wait up to `timeout` seconds for the server's verdict, for a door that
-    /// reports back (Siri, the share sheet). The capture is queued either way.
+    /// reports back (Siri, the share sheet). The capture is queued, on disk, before anything is
+    /// asked of the network; words that are only spaces queue nothing.
     public func captureAndWait(
         text: String, links: [TodoLinkSpec] = [], source: TodosSource, timeout: TimeInterval
     ) async -> TodosCaptureOutcome {
-        await loadMeIfUnknown()
+        guard !Self.split(text).words.isEmpty else {
+            return TodosCaptureOutcome(
+                changeId: "", settlement: .refused(TodosRefusal(code: "empty", message: "There are no words to add.")),
+                title: "", signedOut: signedOut, saved: true)
+        }
         return await outcome(of: capture(text: text, links: links, source: source), timeout: timeout)
+    }
+
+    /// Take a queued change out before it was sent, for a door that lets the person change the
+    /// words and try again. A change whose request is already on its way may still land.
+    public func withdraw(changeId: String) {
+        guard let change = queue.first(where: { $0.changeId == changeId }) else { return }
+        remove(change)
     }
 
     /// Wait up to `timeout` seconds for a queued capture's verdict, and name the todo it made.
     public func outcome(of changeId: String, timeout: TimeInterval) async -> TodosCaptureOutcome {
         let capture = queue.first { $0.changeId == changeId }?.capture
+        let saved = !unsaved
         let settlement = await settled(changeId, timeout: timeout)
         var title = capture?.text ?? ""
         if case .applied(let result?) = settlement,
@@ -209,14 +243,8 @@ public final class TodosStore {
         {
             title = made.title
         }
-        return TodosCaptureOutcome(changeId: changeId, settlement: settlement, title: title, signedOut: signedOut)
-    }
-
-    /// Read who is signed in when nothing is known yet, so a capture knows the person's day and
-    /// whose it is. Cheaper than `refresh`, which a door in the background has no time for.
-    public func loadMeIfUnknown() async {
-        guard me == nil else { return }
-        await refreshMe()
+        return TodosCaptureOutcome(
+            changeId: changeId, settlement: settlement, title: title, signedOut: signedOut, saved: saved)
     }
 
     /// Tick an open todo, or reopen a closed one.
@@ -240,7 +268,7 @@ public final class TodosStore {
 
     private func enqueue(_ change: TodosQueuedChange) -> String {
         queue.append(change)
-        storage.saveQueue(queue)
+        persistQueue()
         recompute()
         Task { await drain() }
         return change.changeId
@@ -276,6 +304,12 @@ public final class TodosStore {
         waiters.removeValue(forKey: token)?.continuation.resume(returning: outcome)
     }
 
+    /// Everyone waiting hears "waiting" at once: the send stopped for want of a network or a
+    /// sign-in, and waiting out the timeout would tell them nothing more.
+    private func releaseWaiters() {
+        for token in waiters.keys { finishWaiter(token, .waiting) }
+    }
+
     private func settle(_ changeId: String, _ outcome: TodosSettlement) {
         outcomes[changeId] = outcome
         outcomeOrder.append(changeId)
@@ -293,10 +327,17 @@ public final class TodosStore {
             return
         }
         guard backend != nil else { return }
-        let task = Task { await sendQueue() }
+        // Cleared by the task itself the moment it ends: cleared by the caller after its await,
+        // a finished task would stay in place for a while, and a drain joining it would send
+        // nothing.
+        let token = UUID()
+        drainToken = token
+        let task = Task {
+            await sendQueue()
+            if drainToken == token { drainTask = nil }
+        }
         drainTask = task
         await task.value
-        if drainTask == task { drainTask = nil }
     }
 
     private func sendQueue() async {
@@ -304,10 +345,13 @@ public final class TodosStore {
         retryTask = nil
         var acceptedDesk = false
         var acceptedReference = false
+        if let backend, confirmedPrincipal == nil, !queue.isEmpty {
+            guard await confirmIdentity(backend) else { return }
+        }
         while let backend, let index = nextSendable() {
             var head = queue[index]
             if head.ops.isEmpty, let capture = head.capture {
-                guard let op = await readCapture(capture, source: head.source, backend: backend) else { return }
+                guard let op = await readCapture(capture, of: head, backend: backend) else { return }
                 head.ops = [op]
                 replace(head)
             }
@@ -333,8 +377,18 @@ public final class TodosStore {
                 case .refused(let refusal):
                     drop(head, refusal, current: (error as? TodosApiError)?.body.current)
                     continue
+                case .serverError(let refusal):
+                    let attempts = (serverErrors[head.changeId] ?? 0) + 1
+                    serverErrors[head.changeId] = attempts
+                    guard attempts >= Self.serverErrorAttempts else {
+                        waitForServer()
+                        return
+                    }
+                    drop(head, refusal, current: nil)
+                    continue
                 }
             }
+            serverErrors[head.changeId] = nil
             failures = 0
             offline = false
             signedOut = false
@@ -348,20 +402,54 @@ public final class TodosStore {
         if backend != nil, nextSendable() != nil, retryTask == nil { await sendQueue() }
     }
 
-    /// The first change that may go out as whoever is signed in now. A change queued by someone
-    /// else waits for them; one queued before anyone was known goes out as the next person.
+    /// The first change that may go out as whoever is signed in now. A change queued by a
+    /// person waits until a `/me` through this connection said it is that person; one queued
+    /// while nobody was confirmed goes out as the next person.
     private func nextSendable() -> Int? {
-        queue.firstIndex { $0.principal == nil || $0.principal == me?.principal }
+        queue.firstIndex { $0.principal == nil || ($0.principal == confirmedPrincipal && confirmedPrincipal != nil) }
+    }
+
+    /// Ask who this connection's credential is before sending anything. False when the answer
+    /// did not come; the send waits.
+    private func confirmIdentity(_ backend: any TodosBackend) async -> Bool {
+        do {
+            adoptMe(try await backend.todosMe())
+            return true
+        } catch {
+            switch TodosFailure.of(error) {
+            case .retry, .serverError: waitForNetwork()
+            case .signedOut: waitForSignIn()
+            case .refused: note(error)
+            }
+            return false
+        }
+    }
+
+    /// A `/me` answer through this connection: who is signed in. A different person than the
+    /// cache's starts from nothing; the queue stays, guarded by who queued each change.
+    private func adoptMe(_ answer: TodosMeAnswer) {
+        if let known = me?.principal, known != answer.principal { forgetCache() }
+        me = answer
+        confirmedPrincipal = answer.principal
+        cursor = max(cursor, answer.seq)
+        recompute()
+        scheduleCacheWrite()
     }
 
     /// The capture's `todo.create`, read by the parser when it is still the day it was spoken on;
     /// its words as the title when not, or when the parser refuses. Nil when the parser could not
     /// be reached: the change waits.
-    private func readCapture(_ capture: TodosCapture, source: String, backend: any TodosBackend) async -> TodoOp? {
-        guard let spokenOn = capture.day, spokenOn == currentDay() else { return Self.plainCreateOp(capture) }
+    ///
+    /// The day it was spoken on is the capture's own when the person's preferences were known
+    /// then, else the day of its queueing by the preferences known now.
+    private func readCapture(
+        _ capture: TodosCapture, of change: TodosQueuedChange, backend: any TodosBackend
+    ) async -> TodoOp? {
+        let spokenOn = capture.day ?? IsoTimestamp.date(from: change.queuedAt).flatMap(personsDay(of:))
+        guard let spokenOn, spokenOn == currentDay() else { return Self.plainCreateOp(capture) }
         do {
             let answer = try await backend.todosParse(
-                text: capture.text, list: capture.list, source: TodosSource(rawValue: source) ?? .ios)
+                text: capture.text, list: capture.list, source: TodosSource(rawValue: change.source) ?? .ios)
             return Self.createOp(capture, from: answer)
         } catch {
             switch TodosFailure.of(error) {
@@ -371,7 +459,7 @@ public final class TodosStore {
             case .signedOut:
                 waitForSignIn()
                 return nil
-            case .refused:
+            case .refused, .serverError:
                 return Self.plainCreateOp(capture)
             }
         }
@@ -396,16 +484,28 @@ public final class TodosStore {
 
     private func waitForNetwork() {
         offline = true
+        backOff()
+    }
+
+    /// The network is up and the server failed: try again after the same backoff.
+    private func waitForServer() {
+        offline = false
+        backOff()
+    }
+
+    private func backOff() {
         let delays = Self.retryDelaysSeconds
         let delay = delays[min(failures, delays.count - 1)]
         failures += 1
         scheduleRetry(after: delay)
+        releaseWaiters()
     }
 
     private func waitForSignIn() {
         signedOut = true
         offline = false
         scheduleRetry(after: Self.signedOutRetrySeconds)
+        releaseWaiters()
     }
 
     private func scheduleRetry(after seconds: TimeInterval) {
@@ -433,13 +533,19 @@ public final class TodosStore {
             }
         }
         remove(head)
+        let told = isAwaited(head.changeId)
         settle(head.changeId, .applied(result))
         let failed = result?.results.filter { !$0.ok } ?? []
-        if let result, !failed.isEmpty {
+        if let result, !failed.isEmpty, !told {
             onRefusal?(
-                TodosRefusal(code: nil, message: "\(failed.count) of \(result.of) changes were not applied."))
+                TodosRefusal(code: nil, message: "\(failed.count) of \(result.of) changes were not applied."),
+                Self.wordsOf(head))
         }
-        storage.saveCache(cacheSnapshot())
+        scheduleCacheWrite()
+    }
+
+    private func isAwaited(_ changeId: String) -> Bool {
+        waiters.values.contains { $0.changeId == changeId }
     }
 
     /// The server refused the whole change: it leaves the queue, and with it its drawing.
@@ -453,9 +559,11 @@ public final class TodosStore {
             if refused.count > Self.refusedKept { refused.removeFirst(refused.count - Self.refusedKept) }
             storage.saveRefused(refused)
         }
+        serverErrors[head.changeId] = nil
         remove(head)
+        let told = isAwaited(head.changeId)
         settle(head.changeId, .refused(refusal))
-        onRefusal?(refusal)
+        if !told { onRefusal?(refusal, Self.wordsOf(head)) }
     }
 
     /// What someone typed or spoke into a change: the captured words, else the titles it creates.
@@ -468,14 +576,18 @@ public final class TodosStore {
     private func replace(_ change: TodosQueuedChange) {
         guard let index = queue.firstIndex(where: { $0.changeId == change.changeId }) else { return }
         queue[index] = change
-        storage.saveQueue(queue)
+        persistQueue()
         recompute()
     }
 
     private func remove(_ change: TodosQueuedChange) {
         queue.removeAll { $0.changeId == change.changeId }
-        storage.saveQueue(queue)
+        persistQueue()
         recompute()
+    }
+
+    private func persistQueue() {
+        unsaved = !storage.saveQueue(queue)
     }
 
     static func touchesDesk(_ op: TodoOp) -> Bool {
@@ -491,23 +603,25 @@ public final class TodosStore {
 
     /// Read everything again: who is signed in and their lists, the desk, and every open todo;
     /// then send what waits. A different person than the cache's starts from nothing.
-    public func refresh() async {
-        guard let backend else { return }
+    /// True when every read answered.
+    @discardableResult
+    public func refresh() async -> Bool {
+        guard let backend else { return false }
+        var complete = false
         do {
-            let answer = try await backend.todosMe()
-            if let known = me?.principal, known != answer.principal { forgetCache() }
-            me = answer
-            cursor = max(cursor, answer.seq)
+            adoptMe(try await backend.todosMe())
             applyToday(try await backend.todosToday())
             try await readOpenTodos(backend)
             signedOut = false
             offline = false
             recompute()
-            storage.saveCache(cacheSnapshot())
+            scheduleCacheWrite()
+            complete = true
         } catch {
             note(error)
         }
         await drain()
+        return complete
     }
 
     /// Ask the feed what happened since the last read, and read again what it names. The phone's
@@ -520,27 +634,31 @@ public final class TodosStore {
                 await refresh()
                 return
             }
-            cursor = max(cursor, answer.head)
             let own = Set(appliedIds)
             let effect = TodosOverlay.effectOfEvents(answer.events.filter { !own.contains($0.changeId) })
+            // The cursor moves past the events only once what they name was read again, so a
+            // read that failed is asked for again by the next catch-up.
+            var read = true
             if !effect.todoIds.isEmpty {
-                await refresh()
+                read = await refresh()
             } else if effect.refreshMe {
-                await refreshMe()
+                read = await refreshMe()
             }
+            if read { cursor = max(cursor, answer.head) }
         } catch {
             note(error)
         }
     }
 
-    private func refreshMe() async {
-        guard let backend else { return }
+    @discardableResult
+    private func refreshMe() async -> Bool {
+        guard let backend else { return false }
         do {
-            me = try await backend.todosMe()
-            recompute()
-            storage.saveCache(cacheSnapshot())
+            adoptMe(try await backend.todosMe())
+            return true
         } catch {
             note(error)
+            return false
         }
     }
 
@@ -549,17 +667,35 @@ public final class TodosStore {
         do {
             applyToday(try await backend.todosToday())
             recompute()
-            storage.saveCache(cacheSnapshot())
+            scheduleCacheWrite()
         } catch {
             note(error)
         }
+    }
+
+    /// Write the cache a moment after the last change to it: every accepted change and read
+    /// touches it, and it is the whole open-todo set.
+    private func scheduleCacheWrite() {
+        cacheWrite?.cancel()
+        cacheWrite = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.cacheWriteDelaySeconds * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.flushCache()
+        }
+    }
+
+    /// Write the cache now, for the app leaving the screen.
+    public func flushCache() {
+        cacheWrite?.cancel()
+        cacheWrite = nil
+        storage.saveCache(cacheSnapshot())
     }
 
     private func note(_ error: Error) {
         switch TodosFailure.of(error) {
         case .retry: offline = true
         case .signedOut: signedOut = true
-        case .refused: break
+        case .refused, .serverError: break
         }
     }
 
@@ -583,6 +719,7 @@ public final class TodosStore {
         var rows: [Todo] = []
         var page: String?
         var readAt = 0
+        var pages = 0
         repeat {
             let answer = try await backend.todosQuery(
                 TodosQueryRequest(
@@ -591,7 +728,8 @@ public final class TodosStore {
             rows += answer.todos
             readAt = max(readAt, answer.seq)
             page = answer.nextCursor
-        } while page != nil
+            pages += 1
+        } while page != nil && pages < Self.openPagesMax
         let keep = Set(serverDesk.compactMap(\.todoId)).union(dueIds)
         var next: [String: Todo] = [:]
         for todo in base.values where todo.updatedSeq > readAt || keep.contains(todo.id) { next[todo.id] = todo }
@@ -624,9 +762,11 @@ public final class TodosStore {
     }
 
     /// The person's day now, by their preferences; nil while they are unknown.
-    private func currentDay() -> String? {
+    private func currentDay() -> String? { personsDay(of: now()) }
+
+    private func personsDay(of instant: Date) -> String? {
         guard let prefs = me?.prefs else { return nil }
-        return TodosOverlay.dayOf(now(), timezone: prefs.timezone, rollover: prefs.dayRollover)
+        return TodosOverlay.dayOf(instant, timezone: prefs.timezone, rollover: prefs.dayRollover)
     }
 
     // MARK: - Reading what is held
@@ -675,11 +815,15 @@ public struct TodosCaptureOutcome: Equatable, Sendable {
     public let title: String
     /// The wait ended on a lost sign-in rather than a missing network.
     public let signedOut: Bool
+    /// The capture reached the disk. When it did not, it exists only while this process lives.
+    public let saved: Bool
 
-    /// Where a capture that could not go out yet waits: the app keeps it until it can be sent;
-    /// the share sheet keeps it in its own queue, which goes out the next time it opens.
+    /// Which door asks, which decides what a capture that could not go out yet means: the app on
+    /// screen sends it by itself once it can; an intent's process is suspended soon after it
+    /// answers, so the capture goes out when PAI is next opened; the share sheet queues nothing
+    /// and offers to try again.
     public enum Keeper: Sendable {
-        case app, shareSheet
+        case app, intent, shareSheet
     }
 
     public var added: Bool {
@@ -694,13 +838,14 @@ public struct TodosCaptureOutcome: Equatable, Sendable {
         case .refused(let refusal):
             return "Not added: \(refusal.message)"
         case .waiting:
+            if !saved, keeper != .shareSheet { return "Could not save this todo on the iPhone. Add it again in PAI." }
             switch (keeper, signedOut) {
             case (.app, false): return "Saved on this iPhone. It is added once there is a connection."
             case (.app, true): return "Saved on this iPhone. It is added once you sign in to PAI again."
-            case (.shareSheet, false):
-                return "Saved here. It is added the next time you share to PAI with a connection."
-            case (.shareSheet, true):
-                return "Saved here. Sign in to PAI again; it is added the next time you share to PAI."
+            case (.intent, false): return "Saved on this iPhone. Open PAI when there is a connection to send it."
+            case (.intent, true): return "Saved on this iPhone. Open PAI and sign in again to send it."
+            case (.shareSheet, false): return "Not added yet: there is no connection. Try again, or copy the text."
+            case (.shareSheet, true): return "Not added: open PAI and sign in again, then share again."
             }
         }
     }

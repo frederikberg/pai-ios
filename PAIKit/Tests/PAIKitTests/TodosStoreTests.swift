@@ -40,6 +40,7 @@ final class TodosStoreTests: XCTestCase {
         first.toggleDone(todoId: "11111111-0000-7000-8000-000000000001")
         await first.drain()
         XCTAssertEqual(first.queue.count, 1)
+        first.flushCache()
 
         let relaunched = makeStore(
             FileTodosStorage(rootURL: storage.rootURL, cacheDirectory: storage.cacheURL.deletingLastPathComponent()))
@@ -165,7 +166,7 @@ final class TodosStoreTests: XCTestCase {
         let server = FakeTodosServer()
         let store = makeStore()
         var told: [TodosRefusal] = []
-        store.onRefusal = { told.append($0) }
+        store.onRefusal = { refusal, _ in told.append(refusal) }
         await server.set(network: .down)
         store.connect(server)
         let refusedChange = store.submit([
