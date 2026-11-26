@@ -52,6 +52,9 @@
         static let todosDeskFlag = "-PaiFixtureTodosDesk"
         static let todosAddFlag = "-PaiFixtureTodosAdd"
         static let todosExpandFlag = "-PaiFixtureTodosExpand"
+        static let todosOpenFlag = "-PaiFixtureTodosOpen"
+        static let todosSearchFlag = "-PaiFixtureTodosSearch"
+        static let todosArrangeFlag = "-PaiFixtureTodosArrange"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -237,6 +240,21 @@
         /// `-PaiFixtureTodosExpand`: a Todos page opens the corpus todo that has subtasks.
         public static func expandsTodosParent(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
             arguments.contains(todosExpandFlag)
+        }
+
+        /// `-PaiFixtureTodosOpen`: a Todos page opens the sheet of the corpus todo with subtasks.
+        public static func opensTodosSheet(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains(todosOpenFlag)
+        }
+
+        /// `-PaiFixtureTodosSearch <text>`: Todos' search opens with this typed.
+        public static func requestedTodosSearch(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: todosSearchFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureTodosArrange`: the desk opens with its cards in arranging mode.
+        public static func arrangesTodosDesk(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains(todosArrangeFlag)
         }
 
         /// `-PaiFixtureMe <state>`: which of `PaiFixtures.meStates` the Me routes answer. Absent is the full one.

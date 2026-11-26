@@ -15,6 +15,7 @@ struct TodoPageScreen: View {
     @State private var adding = false
     @State private var addText: String?
     @State private var ticks = 0
+    @State private var opened: TodoSheetTarget?
 
     private var store: TodosStore { environment.todos }
 
@@ -95,7 +96,7 @@ struct TodoPageScreen: View {
     var body: some View {
         TodoDeskPanel(
             todos: store, mode: $deskMode, listTitle: title, listCount: count, rowModel: rowModel,
-            onTick: tick
+            onTick: tick, onOpen: open
         ) {
             pageList
         }
@@ -103,6 +104,14 @@ struct TodoPageScreen: View {
         .navigationTitle("Todos")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    environment.router.push(.todosSearch)
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+                .accessibilityLabel("Search")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     environment.router.push(.todosBrowse)
@@ -115,12 +124,14 @@ struct TodoPageScreen: View {
         .sheet(isPresented: $adding) {
             TodoAddSheet(
                 todos: store,
-                draft: TodoCaptureDraft { [client = environment.connection?.apiClient, listId = list?.id] text in
+                draft: TodoCaptureDraft(text: addText ?? "") {
+                    [client = environment.connection?.apiClient, listId = list?.id] text in
                     guard let client else { throw PaiError.transport("Not signed in") }
                     return try await client.todosParse(text: text, list: listId, source: .ios)
                 },
                 place: place, initialText: addText, onAdded: reportAdded)
         }
+        .sheet(item: $opened) { target in TodoSheetView(todoId: target.id) }
         .sensoryFeedback(.success, trigger: ticks)
         .task(id: deskKind) { deskMode = startingDeskMode() }
         .onChange(of: deskMode) { _, mode in environment.todoDeskModes.set(mode, for: deskKind) }
@@ -132,24 +143,38 @@ struct TodoPageScreen: View {
         .fixtureFact("todosDeskCards", String(store.deskItems.filter { $0.kind == .todo }.count))
     }
 
+    /// Upcoming and the Logbook are day screens; every other layout is a list of rows.
+    private var dayLayout: String? {
+        guard let layout = view?.layout, layout == "agenda" || layout == "log" else { return nil }
+        return layout
+    }
+
     private var pageList: some View {
         List {
             header
                 .listRowSeparator(.hidden)
-            if let blocked = TodoPermissions.tickBlockedReason(list) {
-                Label(blocked, systemImage: "lock")
-                    .font(.footnote)
-                    .foregroundStyle(PaiPalette.Semantic.textMuted)
-                    .listRowSeparator(.hidden)
+            if let dayLayout {
+                TodoDayRows(layout: dayLayout, rowModel: rowModel, onTick: tick, onOpen: open)
+            } else {
+                pageRows
             }
-            ForEach(rows) { row in
-                rowView(row)
-            }
-            footer
-                .listRowSeparator(.hidden)
         }
         .listStyle(.plain)
         .refreshable { await load() }
+    }
+
+    @ViewBuilder private var pageRows: some View {
+        if let blocked = TodoPermissions.tickBlockedReason(list) {
+            Label(blocked, systemImage: "lock")
+                .font(.footnote)
+                .foregroundStyle(PaiPalette.Semantic.textMuted)
+                .listRowSeparator(.hidden)
+        }
+        ForEach(rows) { row in
+            rowView(row)
+        }
+        footer
+            .listRowSeparator(.hidden)
     }
 
     private var header: some View {
@@ -181,7 +206,7 @@ struct TodoPageScreen: View {
             if let todo = store.todos[id] {
                 TodoRowView(
                     model: rowModel(todo), depth: depth, expandable: expandable, expanded: isExpanded, compact: compact,
-                    onTick: { tick(id) }, onToggleExpanded: { toggleExpanded(id) }
+                    onTick: { tick(id) }, onToggleExpanded: { toggleExpanded(id) }, onOpen: { open(id) }
                 )
                 .opacity(store.pendingIds.contains(id) ? 0.75 : 1)
                 .swipeActions(edge: .leading) {
@@ -247,6 +272,10 @@ struct TodoPageScreen: View {
         ticks += 1
     }
 
+    private func open(_ id: String) {
+        opened = TodoSheetTarget(id: id)
+    }
+
     private func toggleExpanded(_ id: String) {
         if expanded.contains(id) {
             expanded.remove(id)
@@ -257,6 +286,10 @@ struct TodoPageScreen: View {
     }
 
     private func load() async {
+        if let dayLayout {
+            if dayLayout == "agenda" { await store.loadUpcoming() } else { await store.loadLogbook() }
+            return
+        }
         guard let resolved else { return }
         await store.loadPage(resolved)
         for id in expanded { await store.loadChildren(of: id) }
@@ -282,6 +315,7 @@ struct TodoPageScreen: View {
     private func openFixtureState() {
         #if DEBUG
             if PaiFixtureLaunch.expandsTodosParent() { toggleExpanded(PaiFixtures.todosParent) }
+            if PaiFixtureLaunch.opensTodosSheet() { open(PaiFixtures.todosParent) }
             if let text = PaiFixtureLaunch.requestedTodosAdd() {
                 addText = text
                 adding = true

@@ -553,8 +553,9 @@ fi
 
 if want todos-screens; then
   # The Todos home with the desk in each of its three states, a view, a list, the checklist of a
-  # shared list, a todo opened on its subtasks, the add sheet with the parser's chips, and Browse,
-  # each light and dark. The fixture's desk has five cards under one section.
+  # shared list, a todo opened on its subtasks, the add sheet with the parser's chips, Browse, a
+  # todo's sheet, Upcoming, the Logbook, search, and the desk being arranged, each light and dark.
+  # The fixture's desk has five cards under one section.
   todos_screen() {
     name=$1 facts=$2
     shift 2
@@ -574,6 +575,11 @@ if want todos-screens; then
   todos_screen checklist "todosPage=Personal" -PaiFixtureRoute todosList -PaiFixtureTodosExpand
   todos_screen add "todosPage=Today" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps tomorrow #errand p1"
   todos_screen browse "todosBrowse=7,1,3" -PaiFixtureRoute todosBrowse
+  todos_screen sheet "todosSheet=T-9" -PaiFixtureRoute todosList -PaiFixtureTodosOpen
+  todos_screen upcoming "todosPage=Upcoming" -PaiFixtureRoute todosUpcoming
+  todos_screen logbook "todosPage=Logbook todosDayRows=7" -PaiFixtureRoute todosLogbook
+  todos_screen search "todosSearchHits=1" -PaiFixtureRoute todosSearch -PaiFixtureTodosSearch plumber
+  todos_screen desk-arrange "todosDeskMode=desk" -PaiFixtureRoute todos -PaiFixtureTodosDesk desk -PaiFixtureTodosArrange
   xcrun simctl ui "$udid" appearance dark
 fi
 

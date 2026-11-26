@@ -68,6 +68,19 @@ public final class TodosStore {
     /// their last event holds them, so a new row does not blink out between the answer and the read.
     @ObservationIgnored private var heldCreates: [(todoId: String, page: String, seq: Int)] = []
 
+    /// What each open todo's sheet last read: the todo, its nudges, all its children, its changes.
+    public private(set) var details: [String: TodosDetailAnswer] = [:]
+    /// The days ahead and the Logbook, as last read.
+    public private(set) var upcoming: TodosUpcomingAnswer?
+    public private(set) var logbook: TodosLogbookAnswer?
+    /// The Logbook's todos, kept apart from the open ones the cache holds.
+    public private(set) var logbookTodos: [String: Todo] = [:]
+    /// Subtasks a change created, drawn under their parent until a read of the parent's children
+    /// that began after the change was applied holds them, so a new subtask does not blink out.
+    @ObservationIgnored private var heldChildren: [(todoId: String, parent: String, applied: Int)] = []
+    /// Counts reads and applied changes, in the order they happen.
+    @ObservationIgnored private var moment = 0
+
     /// Told the reason, and the words a person typed or spoke into it, when the server refuses a
     /// change nobody is waiting on (`settled`). A door that waits tells its own verdict.
     public var onRefusal: (@MainActor (TodosRefusal, _ words: String?) -> Void)?
@@ -569,6 +582,12 @@ public final class TodosStore {
             if head.ops.contains(where: Self.touchesDesk) {
                 settling.append((head, result.change?.seqLast ?? Int.max))
             }
+            moment += 1
+            for op in head.ops where op.name == "todo.create" {
+                if let id = op.string("id"), let parent = op.string("parent") {
+                    heldChildren.append((id, parent, moment))
+                }
+            }
             if let page = head.capture?.place?.page {
                 for op in head.ops where op.name == "todo.create" {
                     if let id = op.string("id") { heldCreates.append((id, page, result.change?.seqLast ?? Int.max)) }
@@ -867,15 +886,99 @@ public final class TodosStore {
     /// Read a todo's open children, for a row opened to show them.
     public func loadChildren(of todoId: String) async {
         guard let backend else { return }
+        moment += 1
+        let started = moment
         do {
             let answer = try await backend.todosDetail(ref: todoId)
             let children = answer.children ?? []
             merge([answer.todo] + children)
             childIds[todoId] = children.map(\.id)
+            heldChildren.removeAll { $0.parent == todoId && $0.applied < started }
             scheduleCacheWrite()
         } catch {
             note(error)
         }
+    }
+
+    /// Read a todo for its sheet: its nudges, every child (done ones after the open), its changes.
+    public func loadSheet(_ todoId: String) async {
+        guard let backend else { return }
+        moment += 1
+        let started = moment
+        do {
+            let answer = try await backend.todosSheet(ref: todoId)
+            let children = answer.children ?? []
+            merge([answer.todo] + children)
+            details[todoId] = answer
+            childIds[todoId] = children.filter { $0.status == .open }.map(\.id)
+            heldChildren.removeAll { $0.parent == todoId && $0.applied < started }
+        } catch {
+            note(error)
+        }
+    }
+
+    /// A todo's children for its sheet, in the last read's order, with the ones a change made
+    /// since (queued or held) after them.
+    public func sheetChildren(of todoId: String) -> [String] {
+        var ids = details[todoId]?.children?.map(\.id) ?? childIds[todoId] ?? []
+        for held in heldChildren where held.parent == todoId && !ids.contains(held.todoId) { ids.append(held.todoId) }
+        for change in queue {
+            for op in change.ops where op.name == "todo.create" && op.string("parent") == todoId {
+                if let id = op.string("id"), !ids.contains(id) { ids.append(id) }
+            }
+        }
+        return ids
+    }
+
+    /// The caller's nudges on a todo, with queued sets and removes drawn over them.
+    public func nudges(of todoId: String) -> [TodoNudge] {
+        TodoWords.overlayNudges(details[todoId]?.nudges ?? [], ops: queue.flatMap(\.ops), todoId: todoId)
+    }
+
+    /// The days ahead (the server's ceiling is 92).
+    public func loadUpcoming(days: Int = 30) async {
+        guard let backend else { return }
+        do {
+            let answer = try await backend.todosUpcoming(days: days)
+            merge(Array(answer.todos.values))
+            upcoming = answer
+        } catch {
+            note(error)
+        }
+    }
+
+    /// The Logbook's first page again, or its next page.
+    public func loadLogbook(more: Bool = false) async {
+        guard let backend else { return }
+        let cursor = more ? logbook?.nextCursor : nil
+        if more, cursor == nil { return }
+        do {
+            let answer = try await backend.todosLogbook(cursor: cursor)
+            for (id, todo) in answer.todos { logbookTodos[id] = todo }
+            if more, let held = logbook {
+                var days = held.days
+                for day in answer.days {
+                    if let index = days.firstIndex(where: { $0.date == day.date }) {
+                        days[index] = TodosLogbookAnswer.Day(date: day.date, entries: days[index].entries + day.entries)
+                    } else {
+                        days.append(day)
+                    }
+                }
+                logbook = TodosLogbookAnswer(days: days, todos: [:], nextCursor: answer.nextCursor)
+            } else {
+                logbook = TodosLogbookAnswer(days: answer.days, todos: [:], nextCursor: answer.nextCursor)
+            }
+        } catch {
+            note(error)
+        }
+    }
+
+    /// The one search box's answer for what was typed.
+    public func search(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer {
+        guard let backend else { throw PaiError.transport("Not signed in") }
+        let answer = try await backend.todosSearch(request)
+        merge(([answer.top].compactMap { $0 } + answer.todos + answer.fewer).map(\.todo).filter { $0.status == .open })
+        return answer
     }
 
     /// The numbers beside the views.
@@ -926,6 +1029,12 @@ public final class TodosStore {
     }
 
     // MARK: - Reading what is held
+
+    /// The person's day: what the server last said, else the day by their preferences now.
+    public var personsToday: String {
+        if let day { return day }
+        return currentDay() ?? IsoTimestamp.utcString(from: now()).prefix(10).description
+    }
 
     /// The lists the person may see.
     public var lists: [TodoList] { me?.lists ?? [] }

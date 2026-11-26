@@ -471,6 +471,8 @@ struct RootView: View {
             TodoBrowseScreen()
         case .todosPage(let page):
             TodoPageScreen(page: page)
+        case .todosSearch:
+            TodoSearchScreen()
         case .cameraImport:
             CameraImportView()
         case .usage:

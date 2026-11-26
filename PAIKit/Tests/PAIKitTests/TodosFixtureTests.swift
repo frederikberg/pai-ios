@@ -8,10 +8,11 @@
     /// never shows an error screen for a fixture key the wire does not have.
     final class TodosFixtureTests: XCTestCase {
 
-        private func answer<T: Decodable>(_ type: T.Type, _ method: String, _ path: String, body: String? = nil) throws
-            -> T
-        {
-            let route = PaiFixtureURLProtocol.route(method: method, path: path, body: body.map { Data($0.utf8) })
+        private func answer<T: Decodable>(
+            _ type: T.Type, _ method: String, _ path: String, query: [URLQueryItem] = [], body: String? = nil
+        ) throws -> T {
+            let route = PaiFixtureURLProtocol.route(
+                method: method, path: path, query: query, body: body.map { Data($0.utf8) })
             XCTAssertEqual(route.status, 200, "\(method) \(path)")
             return try JSONDecoder().decode(T.self, from: route.body())
         }
@@ -44,6 +45,21 @@
                 body: #"{"change_id":"c1","ops":[{"op":"todo.complete","todo":"T-1"}]}"#)
             XCTAssertEqual(applied.applied, 1)
             _ = try answer(TodosEventsAnswer.self, "GET", "/api/todos/events")
+            let sheet = try answer(
+                TodosDetailAnswer.self, "GET", "/api/todos/todos/\(PaiFixtures.todosParent)",
+                query: [URLQueryItem(name: "closed", value: "1")])
+            XCTAssertEqual(sheet.nudges.count, 1)
+            XCTAssertEqual(sheet.history?.count, 2)
+            XCTAssertTrue(sheet.children?.contains { $0.status == .done } == true)
+            let upcoming = try answer(TodosUpcomingAnswer.self, "GET", "/api/todos/upcoming")
+            XCTAssertGreaterThan(
+                TodoDays.upcomingRows(upcoming, todos: upcoming.todos, today: PaiFixtures.todosDay, pending: []).count,
+                14)
+            let logbook = try answer(TodosLogbookAnswer.self, "GET", "/api/todos/logbook")
+            XCTAssertEqual(
+                TodoDays.logbookRows(logbook.days, todos: logbook.todos, today: PaiFixtures.todosDay).count, 7)
+            let found = try answer(TodosSearchAnswer.self, "POST", "/api/todos/search", body: #"{"q":"plumber"}"#)
+            XCTAssertEqual(found.todos.count, 1)
         }
     }
 #endif

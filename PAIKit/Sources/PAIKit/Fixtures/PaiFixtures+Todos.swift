@@ -12,6 +12,8 @@ extension PaiFixtures {
     public static let todosFlatList = "0190f000-0000-7000-8000-00000000a003"
     public static let todosTodayView = "0190f000-0000-7000-8000-00000000b001"
     public static let todosHomeView = "0190f000-0000-7000-8000-00000000b006"
+    public static let todosUpcomingView = "0190f000-0000-7000-8000-00000000b002"
+    public static let todosLogbookView = "0190f000-0000-7000-8000-00000000b005"
     /// The todo whose subtasks the checklist screenshot opens.
     public static let todosParent = "0190f000-0000-7000-8000-00000000c009"
 
@@ -221,7 +223,9 @@ extension PaiFixtures {
     }
 
     /// Answers a Todos request in fixture mode; nil for a path the corpus has no answer for.
-    public static func todosRoute(method: String, path: String, body: Data?) -> (status: Int, body: Data)? {
+    public static func todosRoute(
+        method: String, path: String, query: [URLQueryItem] = [], body: Data?
+    ) -> (status: Int, body: Data)? {
         guard path.hasPrefix("/api/todos/") else { return nil }
         let rest = String(path.dropFirst("/api/todos".count))
         let request = body.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any]
@@ -238,6 +242,9 @@ extension PaiFixtures {
             }
             return (200, todosJSON(["views": counts, "seq": 200]))
         case ("GET", "/events"): return (200, todosJSON(["events": [], "head": 200, "reset": false]))
+        case ("GET", "/upcoming"): return (200, todosJSON(todosUpcoming()))
+        case ("GET", "/logbook"): return (200, todosJSON(todosLogbook()))
+        case ("POST", "/search"): return (200, todosJSON(todosSearch(request?["q"] as? String ?? "")))
         case ("POST", "/query"):
             let q = request?["q"] as? String ?? ""
             if q.hasPrefix("list:") {
@@ -258,8 +265,20 @@ extension PaiFixtures {
             guard let todo = todosTodo(ref) else {
                 return (404, todosJSON(["error": "not_found", "message": "No todo '\(ref)' you can see.", "ref": ref]))
             }
-            let children = todosCorpus.filter { $0.parent == ref }.map(\.json)
-            return (200, todosJSON(["todo": todo.json, "children": children, "nudges": []]))
+            var children = todosCorpus.filter { $0.parent == ref }.map(\.json)
+            if ref == todosParent, query.contains(where: { $0.name == "closed" && $0.value == "1" }) {
+                var done = FixtureTodo(n: 15, title: "Passport", horizon: "week", parent: todosParent).json
+                done["status"] = "done"
+                done["completed_at"] = "2026-11-25T18:00:00.000001+00:00"
+                children.append(done)
+            }
+            return (
+                200,
+                todosJSON([
+                    "todo": todo.json, "children": children, "nudges": ref == todosParent ? [todosNudge(for: ref)] : [],
+                    "history": todosHistory(for: todo),
+                ])
+            )
         }
         return nil
     }
@@ -330,6 +349,105 @@ extension PaiFixtures {
                 ["index": $0, "ok": true, "ref": null, "id": null, "error": null] as [String: Any]
             },
             "todos": [], "events": [], "replayed": false,
+        ]
+    }
+
+    static func todosNudge(for ref: String) -> [String: Any] {
+        [
+            "id": "0190f000-0000-7000-8000-00000000f101", "todo_id": ref, "kind": "before", "date": NSNull(),
+            "time": NSNull(), "basis": "when", "offset_minutes": 60, "fire_at": "2026-11-28T08:00:00.000001+00:00",
+            "state": "armed",
+        ]
+    }
+
+    static func todosHistory(for todo: FixtureTodo) -> [[String: Any]] {
+        func change(_ n: Int, _ summary: String, label: String, at: String) -> [String: Any] {
+            [
+                "id": String(format: "0190f000-0000-7000-8000-00000000f2%02d", n), "seq_first": 100 + n,
+                "seq_last": 100 + n,
+                "actor": ["principal": "user:0190f000-0000-7000-8000-00000000f001", "kind": "human", "label": label],
+                "source": n == 2 ? "ios" : "web", "session_id": NSNull(), "summary": summary, "op_count": 1,
+                "undo_of": NSNull(), "undone_by": NSNull(), "created_at": at, "events": NSNull(),
+            ]
+        }
+        return [
+            change(2, "Set T-\(todo.n)'s day", label: "Sam", at: "2026-11-25T09:00:00.000001+00:00"),
+            change(1, "Created T-\(todo.n) \(todo.title)", label: "Sam", at: "2026-11-20T09:00:00.000001+00:00"),
+        ]
+    }
+
+    /// The days ahead from the corpus: each open root by its day or deadline, a repeat's ghost,
+    /// the undated ones under Someday.
+    static func todosUpcoming() -> [String: Any] {
+        let roots = todosCorpus.filter { $0.parent == nil && $0.list != todosGroceriesList }
+        var days: [[String: Any]] = []
+        for offset in 1...14 {
+            let date = TodoWords.addDays(todosDay, offset)
+            let planned = roots.filter { $0.when == date }.map(\.id)
+            let due = roots.filter { $0.deadline == date }.map(\.id)
+            let ghosts: [[String: Any]] =
+                TodoWords.weekday(date) == 1 ? [["todo_id": todosCorpus[13].id, "date": date]] : []
+            days.append(["date": date, "todos": planned, "deadlines": due, "ghosts": ghosts])
+        }
+        let undated = roots.filter { $0.when == nil && $0.deadline == nil }.prefix(3).map(\.id)
+        return [
+            "days": days, "later": [], "someday": Array(undated),
+            "todos": Dictionary(uniqueKeysWithValues: roots.map { ($0.id, $0.json) }), "seq": 200,
+        ]
+    }
+
+    /// Completions of the last days, closed copies of corpus todos.
+    static func todosLogbook() -> [String: Any] {
+        let picks: [(Int, String, String)] = [
+            (40, "Send the parcel back", "2026-11-26"), (41, "Pay the electricity bill", "2026-11-26"),
+            (42, "Water the plants", "2026-11-25"), (43, "Buy birthday candles", "2026-11-24"),
+        ]
+        var todos: [String: Any] = [:]
+        var days: [String: [[String: Any]]] = [:]
+        for (n, title, day) in picks {
+            var row = FixtureTodo(n: n, title: title, horizon: "week").json
+            row["status"] = n == 43 ? "dropped" : "done"
+            row["completed_at"] = "\(day)T16:00:00.000001+00:00"
+            todos[row["id"] as? String ?? ""] = row
+            days[day, default: []].append([
+                "completion_id": String(format: "0190f000-0000-7000-8000-00000000f3%02d", n),
+                "todo_id": row["id"] ?? "",
+                "kind": n == 43 ? "dropped" : "done", "at": "\(day)T16:00:00.000001+00:00", "by_label": "Sam",
+            ])
+        }
+        let ordered = days.keys.sorted(by: >).map { ["date": $0, "entries": days[$0] ?? []] as [String: Any] }
+        return ["days": ordered, "todos": todos, "next_cursor": NSNull()]
+    }
+
+    /// The search box's answer: corpus todos whose title holds a typed word, the word marked.
+    static func todosSearch(_ q: String) -> [String: Any] {
+        let words = q.lowercased().split(separator: " ").map(String.init).filter { !$0.contains(":") }
+        let hits = todosCorpus.filter { todo in
+            !words.isEmpty && words.allSatisfy { todo.title.lowercased().contains($0) }
+        }.map { todo -> [String: Any] in
+            var parts: [[String: Any]] = []
+            var rest = Substring(todo.title)
+            if let word = words.first, let range = rest.range(of: word, options: .caseInsensitive) {
+                parts.append(["t": String(rest[..<range.lowerBound]), "m": false])
+                parts.append(["t": String(rest[range]), "m": true])
+                rest = rest[range.upperBound...]
+            }
+            parts.append(["t": String(rest), "m": false])
+            return ["todo": todo.json, "title_parts": parts, "snippet": NSNull(), "breadcrumb": []]
+        }
+        let tags = (todosMe()["tags"] as? [[String: Any]] ?? []).filter { tag in
+            words.contains { (tag["name"] as? String ?? "").contains($0) }
+        }
+        return [
+            "query": [
+                "raw": q, "normalized": q, "structured": false, "tokens": [], "issues": [], "pending": NSNull(),
+                "corrections": [], "defaults": [],
+            ],
+            "top": NSNull(), "todos": hits, "fewer": [],
+            "counts": ["open": hits.count, "closed": 0, "deleted": 0, "capped": false],
+            "tags": tags.map { ["tag": $0, "parts": [["t": $0["name"] ?? "", "m": true]]] }, "views": [], "lists": [],
+            "offers": [["kind": "create", "label": "Add \u{201C}\(q)\u{201D} as a todo", "q": q]],
+            "next_cursor": NSNull(), "seq": 200, "took_ms": 4, "partial": false,
         ]
     }
 }
