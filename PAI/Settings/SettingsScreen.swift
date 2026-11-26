@@ -21,11 +21,11 @@ struct SettingsScreen: View {
                     .accessibilityIdentifier("sign-out")
             }
         }
-        .navigationDestination(for: SettingsCategory.self) { SettingsCategoryScreen(category: $0) }
         .navigationDestination(item: $fixtureCategory) { SettingsCategoryScreen(category: $0) }
         .paiListBackground()
         .navigationTitle("Settings")
         .task { await openFixtureCategory() }
+        .task { await tapFixtureRow() }
         .accessibilityIdentifier("settings-screen")
         .fixtureFact(
             "settingsCategories",
@@ -39,7 +39,11 @@ struct SettingsScreen: View {
         if !categories.isEmpty {
             Section(title) {
                 ForEach(categories) { category in
-                    NavigationLink(value: category) {
+                    // A destination link, not a value link: the stack's path is a typed array of
+                    // routes, so a link carrying any other value highlights and pushes nothing.
+                    NavigationLink {
+                        SettingsCategoryScreen(category: category)
+                    } label: {
                         HStack(spacing: 12) {
                             CategoryIcon(category: category)
                             Text(category.title)
@@ -61,6 +65,16 @@ struct SettingsScreen: View {
         category.value(
             theme: settings.theme, sleepWindow: environment.sleepMode.window,
             openAlerts: settings.alerts.alerts?.count)
+    }
+
+    /// `-PaiFixtureTapSettingsRow <page>`: activates that row through the accessibility tree, the
+    /// same path a tap takes, so a row that highlights without opening its page shows up as a
+    /// list on screen. Does nothing in a Release build.
+    private func tapFixtureRow() async {
+        #if DEBUG
+            guard PaiFixtureLaunch.isEnabled(), let name = PaiFixtureLaunch.requestedSettingsRowTap() else { return }
+            await FixtureTap.activate(identifier: "settings-open-\(name)")
+        #endif
     }
 
     private func openFixtureCategory() async {
