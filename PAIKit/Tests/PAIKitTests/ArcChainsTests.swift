@@ -168,6 +168,66 @@ final class ArcChainsTests: XCTestCase {
         XCTAssertEqual(columns(timeline)[0][0].waiterLine, "1 waits for this")
     }
 
+    // MARK: - Checkpoint
+
+    private func row(_ id: Int, b: Int, s: ArcRowStatus, o: Double) -> ArcRow {
+        ArcRow(id: id, i: "row", src: "U", diff: 1, s: s, o: o, k: .regular, b: b, g: nil, n: nil, r: nil, v: nil)
+    }
+
+    /// A not-started leader after the open segment waits for the checkpoint; an unmet
+    /// prerequisite's line wins; a started one and one in the open segment say nothing.
+    func test_notStartedLeaderBehindTheOpenSegment_waitsForTheCheckpoint() {
+        let timeline = build([
+            leader(1, "Open work", s: .inProgress, o: 1),
+            leader(8, "Pending in the open segment", o: 1.5),
+            marker(2, o: 2),
+            leader(3, "Plain", o: 3),
+            leader(4, "Has a prerequisite", o: 4, w: [1]),
+            leader(5, "Running", s: .inProgress, o: 5),
+            marker(6, o: 6),
+            leader(7, "Two gates away", o: 7),
+        ])
+
+        let open = columns(timeline, segment: 0).flatMap { $0 }
+        let second = columns(timeline, segment: 1).flatMap { $0 }
+        let third = columns(timeline, segment: 2).flatMap { $0 }
+
+        XCTAssertNil(open.first { $0.block.id == 8 }?.waitsForLine)
+        XCTAssertEqual(second.first { $0.block.id == 3 }?.waitsForLine, "⏳ waits for the checkpoint")
+        XCTAssertEqual(second.first { $0.block.id == 4 }?.waitsForLine, "⏳ waits for #1 Open work")
+        XCTAssertNil(second.first { $0.block.id == 5 }?.waitsForLine)
+        XCTAssertEqual(third.first?.waitsForLine, "⏳ waits for the checkpoint")
+        XCTAssertTrue(second.first { $0.block.id == 3 }?.isWaiting ?? false)
+    }
+
+    /// The open segment is the first with any unresolved row, not only an unresolved leader: a
+    /// finished leader with an open row keeps its segment open.
+    func test_openSegment_countsRowsAndLooseRows() {
+        let timeline = build([
+            leader(1, "Done leader", s: .done, o: 1),
+            row(11, b: 1, s: .pending, o: 1.1),
+            marker(2, o: 2),
+            leader(3, "Next", o: 3),
+        ])
+        XCTAssertEqual(ArcChains.openSegmentIndex(in: timeline), 0)
+
+        let loose = build([
+            leader(1, "Done leader", s: .done, o: 1),
+            ArcRow(
+                id: 12, i: "x", src: "U", diff: 1, s: .pending, o: 1.2, k: .regular, b: nil, g: nil, n: nil, r: nil,
+                v: nil),
+            marker(2, o: 2),
+            leader(3, "Next", o: 3),
+        ])
+        XCTAssertEqual(ArcChains.openSegmentIndex(in: loose), 0)
+
+        let settled = build([
+            leader(1, "Done", s: .done, o: 1), marker(2, o: 2), leader(3, "Also", s: .cancelled, o: 3),
+        ])
+        XCTAssertNil(ArcChains.openSegmentIndex(in: settled))
+        XCTAssertNil(columns(settled, segment: 1).flatMap { $0 }.first?.waitsForLine)
+    }
+
     // MARK: - Same agent
 
     func test_plannedLeaderThatFollows_readsSameAgentAs() {

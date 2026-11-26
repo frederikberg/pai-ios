@@ -9,7 +9,8 @@ public struct ArcChainEntry: Sendable, Equatable, Identifiable {
     public let depth: Int
     /// "3 wait for this" ("1 waits for this") — on a block other blocks of its segment wait for.
     public let waiterLine: String?
-    /// "⏳ waits for #33 <sentence>" — on a block not started yet, for its first unmet prerequisite.
+    /// "⏳ waits for #33 <sentence>" — on a block not started yet, for its first unmet prerequisite;
+    /// "⏳ waits for the checkpoint" when it has none but its segment lies after the open one.
     public let waitsForLine: String?
     /// "also waits for #25" — one per further unmet prerequisite.
     public let alsoLines: [String]
@@ -31,13 +32,17 @@ public struct ArcChainEntry: Sendable, Equatable, Identifiable {
 /// Derives the "waits for" chains of one segment from the leaders' `w` lists.
 ///
 /// A block hangs under the first prerequisite in its `w` that sits in the same segment, so a chain
-/// stays inside one segment; a prerequisite in an earlier segment is already behind a checkpoint
-/// and draws nothing. A block with no such prerequisite starts a column of its own. Columns and
-/// the waiters inside them keep the segment's block order.
+/// stays inside one segment. A prerequisite in an earlier segment places nothing, but while it is
+/// unmet it still prints the waits-for line. A not-started block with no unmet prerequisite in a
+/// segment after the open one reads "⏳ waits for the checkpoint". A block with no in-segment
+/// prerequisite starts a column of its own. Columns and the waiters inside them keep the
+/// segment's block order.
 public enum ArcChains {
 
     /// One column per root block, each flattened depth-first (a prerequisite, then its waiters).
     public static func columns(for segment: ArcTimelineSegment, in timeline: ArcTimeline) -> [[ArcChainEntry]] {
+        let open = openSegmentIndex(in: timeline)
+        let behindCheckpoint = open.map { segment.index > $0 } ?? false
         var byID: [Int: ArcTimelineBlock] = [:]
         for candidate in timeline.segments {
             for block in candidate.blocks { byID[block.id] = block }
@@ -77,7 +82,9 @@ public enum ArcChains {
 
         func flatten(_ block: ArcTimelineBlock, depth: Int, into column: inout [ArcChainEntry]) {
             column.append(
-                entry(for: block, depth: depth, waiters: waiterCount[block.id] ?? 0, blocks: byID))
+                entry(
+                    for: block, depth: depth, waiters: waiterCount[block.id] ?? 0, blocks: byID,
+                    behindCheckpoint: behindCheckpoint))
             for child in children[block.id] ?? [] { flatten(child, depth: depth + 1, into: &column) }
         }
         return roots.map { root in
@@ -88,7 +95,8 @@ public enum ArcChains {
     }
 
     private static func entry(
-        for block: ArcTimelineBlock, depth: Int, waiters: Int, blocks: [Int: ArcTimelineBlock]
+        for block: ArcTimelineBlock, depth: Int, waiters: Int, blocks: [Int: ArcTimelineBlock],
+        behindCheckpoint: Bool
     ) -> ArcChainEntry {
         // Only a block that has not started waits; each prerequisite whose leader is neither
         // Done nor Cancelled is still unmet.
@@ -107,10 +115,24 @@ public enum ArcChains {
         if let first = unmet.first {
             waitsFor = "⏳ waits for #\(first.id)"
             if let sentence = first.leader?.i, !sentence.isEmpty { waitsFor? += " \(sentence)" }
+        } else if behindCheckpoint && block.leader?.s == .pending {
+            waitsFor = "⏳ waits for the checkpoint"
         }
         return ArcChainEntry(
             block: block, depth: depth,
             waiterLine: waiters > 0 ? "\(waiters) \(waiters == 1 ? "waits" : "wait") for this" : nil,
             waitsForLine: waitsFor, alsoLines: unmet.dropFirst().map { "also waits for #\($0.id)" })
+    }
+
+    /// The open segment: the earliest one holding a non-marker row that is neither Done nor
+    /// Cancelled. `nil` when everything is resolved.
+    public static func openSegmentIndex(in timeline: ArcTimeline) -> Int? {
+        func unresolved(_ row: ArcRow) -> Bool { row.s != .done && row.s != .cancelled }
+        return timeline.segments.first { segment in
+            segment.looseRows.contains(where: unresolved)
+                || segment.blocks.contains { block in
+                    block.leader.map(unresolved) ?? false || block.rows.contains(where: unresolved)
+                }
+        }?.index
     }
 }
