@@ -616,11 +616,14 @@ public struct MeReview: Decodable, Sendable, Equatable {
     }
 }
 
-// MARK: Todoist
+// MARK: Tasks
 
-/// One open task of the person's Todoist Today list.
+/// One open task of the person's Today list.
 public struct MeTaskOpen: Decodable, Sendable, Equatable {
     public let id: String
+    /// Where the task opens in the store the list comes from; nil when it has no page for it, and
+    /// from a server that does not send it.
+    public let url: String?
     /// Markdown links already reduced to their text.
     public let title: String
     /// The person's own Today order, from 0.
@@ -634,10 +637,11 @@ public struct MeTaskOpen: Decodable, Sendable, Equatable {
     public let overdueDays: Int
 
     public init(
-        id: String, title: String, position: Int = 0, labels: [String] = [], dueTime: String? = nil,
-        deadline: String? = nil, overdueDays: Int = 0
+        id: String, url: String? = nil, title: String, position: Int = 0, labels: [String] = [],
+        dueTime: String? = nil, deadline: String? = nil, overdueDays: Int = 0
     ) {
         self.id = id
+        self.url = url
         self.title = title
         self.position = position
         self.labels = labels
@@ -647,7 +651,7 @@ public struct MeTaskOpen: Decodable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, position, labels, deadline
+        case id, url, title, position, labels, deadline
         case dueTime = "due_time"
         case overdueDays = "overdue_days"
     }
@@ -655,6 +659,7 @@ public struct MeTaskOpen: Decodable, Sendable, Equatable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
+        url = try? container.decodeIfPresent(String.self, forKey: .url)
         title = (try? container.decodeIfPresent(String.self, forKey: .title)) ?? ""
         position = container.decodeLenientInt(forKey: .position) ?? 0
         labels = (try? container.decodeIfPresent([String].self, forKey: .labels)) ?? []
@@ -721,12 +726,17 @@ public struct MeTaskDone: Decodable, Sendable, Equatable {
     }
 }
 
-/// `GET /api/me/tasks`: one Berlin day of the person's Todoist list, read-only. `unavailable`
-/// still carries the stored rows, as of `asOf`.
+/// `GET /api/me/tasks`: one Berlin day of the person's task list, read-only. `unavailable` still
+/// carries the stored rows, as of `asOf`.
 public struct MeTasks: Decodable, Sendable, Equatable {
     public let date: String
     public let status: MeSourceStatus
-    /// When the rows were read from Todoist; nil when never.
+    /// Which task store the list comes from (`todoist`, `todos`); a server that does not send it
+    /// answers from Todoist.
+    public let source: String
+    /// Where that store's Today opens; nil from a server that does not send it.
+    public let todayUrl: String?
+    /// When the rows were read from the source; nil when never.
     public let asOf: String?
     public let open: [MeTaskOpen]
     /// Newest first.
@@ -735,11 +745,13 @@ public struct MeTasks: Decodable, Sendable, Equatable {
     public let moved: Int
 
     public init(
-        date: String, status: MeSourceStatus = .ok, asOf: String? = nil, open: [MeTaskOpen] = [],
-        done: [MeTaskDone] = [], moved: Int = 0
+        date: String, status: MeSourceStatus = .ok, source: String = "todoist", todayUrl: String? = nil,
+        asOf: String? = nil, open: [MeTaskOpen] = [], done: [MeTaskDone] = [], moved: Int = 0
     ) {
         self.date = date
         self.status = status
+        self.source = source
+        self.todayUrl = todayUrl
         self.asOf = asOf
         self.open = open
         self.done = done
@@ -747,7 +759,8 @@ public struct MeTasks: Decodable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case date, status, open, done, moved
+        case date, status, source, open, done, moved
+        case todayUrl = "today_url"
         case asOf = "as_of"
     }
 
@@ -755,11 +768,16 @@ public struct MeTasks: Decodable, Sendable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         date = try container.decode(String.self, forKey: .date)
         status = (try? container.decodeIfPresent(MeSourceStatus.self, forKey: .status)) ?? .unavailable
+        source = (try? container.decodeIfPresent(String.self, forKey: .source)) ?? "todoist"
+        todayUrl = try? container.decodeIfPresent(String.self, forKey: .todayUrl)
         asOf = try? container.decodeIfPresent(String.self, forKey: .asOf)
         open = (try? container.decodeIfPresent([MeTaskOpen].self, forKey: .open)) ?? []
         done = (try? container.decodeIfPresent([MeTaskDone].self, forKey: .done)) ?? []
         moved = container.decodeLenientInt(forKey: .moved) ?? 0
     }
+
+    /// The store's name as the card says it.
+    public var sourceName: String { source == "todos" ? "Todos" : "Todoist" }
 
     /// Whether the answer is worth a card: a source that is not configured has nothing to show.
     public var isConfigured: Bool {

@@ -155,10 +155,14 @@ struct CreateSessionView: View {
                 store.selectNoMemory(persisted.noMemory == true)
                 startsCallOnSend = resumed?.startsCall ?? false
             } else {
-                drafts.selectModel(nil)
                 // Like the model, a creation starts ordinary: a switch left on would silently
-                // delete the next session on close.
-                if persisted.noMemory == true { drafts.selectNoMemory(false) }
+                // delete the next session on close. A default of this screen's, never written:
+                // another device's choice for the same draft stays on the server.
+                drafts.applyDefaults {
+                    $0.model = nil
+                    $0.thinking = nil
+                    if $0.noMemory == true { $0.noMemory = false }
+                }
             }
             // The point of this screen is the text field — true whether it was reached by tapping
             // "+" or by a home-screen shortcut built to land here ready to type. The camera quick

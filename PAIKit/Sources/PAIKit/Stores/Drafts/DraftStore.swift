@@ -93,6 +93,18 @@ public final class DraftStore {
     /// response may put the chip back. Only ever used to hide rows.
     private var withheldAttachmentIds: [String: Set<String>] = [:]
 
+    /// The fields this device changed per key that no write has carried to the server yet. A key
+    /// with none has nothing to write, so a flush of it sends nothing, and a newer row is merged
+    /// field by field around the ones it has (``syncFromServer()``). Never persisted: a restored
+    /// entry is no claim on anything, as above.
+    private var unwrittenFields: [String: Set<DraftField>] = [:]
+    /// Whether a draft listing has answered since this store was made. Until one has, nothing here
+    /// knows what the server holds, and an entry written from that state can replace another
+    /// device's text or choices with this one's empty or stale copy; such writes wait in
+    /// `awaitingListing` and go out once the listing has been merged.
+    var hasListed = false
+    private var awaitingListing: Set<String> = []
+
     private enum PendingOp: Equatable { case write, delete }
 
     public init(
@@ -131,10 +143,11 @@ public final class DraftStore {
     /// text too, through this exact same setter: there is only one owner of the field, whichever
     /// is currently writing to it, never two competing representations.
     public func setDraftText(key: String, text: String) {
-        var entry = draft(for: key)
+        let before = draft(for: key)
+        var entry = before
         entry.text = text
         drafts[key] = entry
-        scheduleFlush(key)
+        scheduleFlush(key, since: before)
     }
 
     /// The composer's "Restore earlier version" action — writes `previousText` back as the
@@ -165,7 +178,8 @@ public final class DraftStore {
     /// `selectWorkingDir` from the other side — or a relaunch restores the directory and with it
     /// the custom session the type pill said it was not.
     public func selectSessionType(_ id: String?) {
-        var entry = draft(for: DraftKey.newSession)
+        let before = draft(for: DraftKey.newSession)
+        var entry = before
         // The API sessions name their models by wire id (each kind from its own catalogue) and the
         // others by alias.
         let apiTypes: Set<String?> = [
@@ -178,21 +192,23 @@ public final class DraftStore {
         entry.sessionType = id
         if id != "custom" { entry.workingDir = nil }
         drafts[DraftKey.newSession] = entry
-        scheduleFlush(DraftKey.newSession)
+        scheduleFlush(DraftKey.newSession, since: before)
     }
 
     /// A chosen directory is what makes a session custom, so the two always move together: a
     /// real path stamps `sessionType = "custom"`, and clearing the path clears the type with it.
     public func selectWorkingDir(_ path: String?) {
-        var entry = draft(for: DraftKey.newSession)
+        let before = draft(for: DraftKey.newSession)
+        var entry = before
         entry.workingDir = path
         entry.sessionType = path != nil ? "custom" : nil
         drafts[DraftKey.newSession] = entry
-        scheduleFlush(DraftKey.newSession)
+        scheduleFlush(DraftKey.newSession, since: before)
     }
 
     public func selectModel(_ id: String?) {
-        var entry = draft(for: DraftKey.newSession)
+        let before = draft(for: DraftKey.newSession)
+        var entry = before
         entry.model = id
         // The set of thinking levels a model accepts is a property of that model
         // (`GET /api/session-models`), so a level chosen for the previous one is not necessarily
@@ -200,22 +216,46 @@ public final class DraftStore {
         // reject.
         entry.thinking = nil
         drafts[DraftKey.newSession] = entry
-        scheduleFlush(DraftKey.newSession)
+        scheduleFlush(DraftKey.newSession, since: before)
     }
 
     public func selectThinking(_ id: String?) {
-        var entry = draft(for: DraftKey.newSession)
+        let before = draft(for: DraftKey.newSession)
+        var entry = before
         entry.thinking = id
         drafts[DraftKey.newSession] = entry
-        scheduleFlush(DraftKey.newSession)
+        scheduleFlush(DraftKey.newSession, since: before)
     }
 
     /// Independent of the model and thinking choices: switching either leaves it alone.
     public func selectNoMemory(_ on: Bool) {
-        var entry = draft(for: DraftKey.newSession)
+        let before = draft(for: DraftKey.newSession)
+        var entry = before
         entry.noMemory = on
         drafts[DraftKey.newSession] = entry
-        scheduleFlush(DraftKey.newSession)
+        scheduleFlush(DraftKey.newSession, since: before)
+    }
+
+    /// A value the app fills in by itself (every opening of the new-session screen resetting the
+    /// model and the no-memory switch), as opposed to the `select…` setters, which are the person's
+    /// choice. Changed and used locally, never an edit: nothing is written for it, any unwritten
+    /// change of those fields is dropped, and a newer row replaces it like anything else unchanged.
+    public func applyDefaults(key: String = DraftKey.newSession, _ change: (inout DraftEntry) -> Void) {
+        let before = draft(for: key)
+        var entry = before
+        change(&entry)
+        guard entry != before else { return }
+        drafts[key] = entry
+        let touched = DraftField.changed(from: before, to: entry)
+        guard var unwritten = unwrittenFields[key] else { return }
+        unwritten.subtract(touched)
+        unwrittenFields[key] = unwritten.isEmpty ? nil : unwritten
+        if unwritten.isEmpty {
+            pendingDebounce[key]?.cancel()
+            pendingDebounce[key] = nil
+            retryAttempt[key] = nil
+            awaitingListing.remove(key)
+        }
     }
 
     // MARK: - Attachments
@@ -294,6 +334,8 @@ public final class DraftStore {
         entry.text = ""
         entry.attachments = []
         drafts[key] = entry
+        unwrittenFields[key] = nil
+        awaitingListing.remove(key)
         localRevision[key, default: 0] += 1
         retryAttempt[key] = nil
         diagnosticsLog?.log(.info, .drafts, "clear key=\(key)")
@@ -303,8 +345,11 @@ public final class DraftStore {
 
     // MARK: - Flush (debounced write)
 
-    private func scheduleFlush(_ key: String) {
+    private func scheduleFlush(_ key: String, since before: DraftEntry) {
         guard !DraftKey.isLocal(key) else { return }
+        let changed = DraftField.changed(from: before, to: draft(for: key))
+        guard !changed.isEmpty else { return }
+        unwrittenFields[key, default: []].formUnion(changed)
         localRevision[key, default: 0] += 1
         retryAttempt[key] = nil
         pendingDebounce[key]?.cancel()
@@ -322,8 +367,8 @@ public final class DraftStore {
     public static let retryBaseSeconds: TimeInterval = 2
     public static let retryMaxSeconds: TimeInterval = 30
 
-    /// Writes the current value of a draft to the server right now, waiting for it (and any op
-    /// already in flight ahead of it) to fully land. Public because the composer must call this
+    /// Writes a draft's unwritten changes to the server right now, waiting for it (and any op
+    /// already in flight ahead of it) to fully land; an entry with none sends nothing. Public because the composer must call this
     /// directly — not through the debounce — when it is about to disappear, so leaving a session
     /// cannot strand an edit inside the debounce window.
     public func flush(key: String) async {
@@ -380,7 +425,14 @@ public final class DraftStore {
     }
 
     private func performWrite(key: String, log: VoiceDiagnosticsLog?) async {
-        guard let entry = drafts[key] else { return }
+        // Nothing unwritten: the entry holds what the server last said, or something older, and
+        // writing it back only ever replaces newer text with it.
+        guard let entry = drafts[key], unwrittenFields[key]?.isEmpty == false else { return }
+        guard hasListed else {
+            awaitingListing.insert(key)
+            return
+        }
+        let revisionAtWrite = localRevision[key]
         do {
             let result = try await api.putDraft(
                 key: key, text: entry.text, deviceId: deviceId, sessionType: entry.sessionType,
@@ -391,6 +443,9 @@ public final class DraftStore {
             current.knownVersion = result.version
             current.previousText = result.previousText
             drafts[key] = current
+            // Carried, unless something changed while it was in the air; which fields that touched
+            // is not known apart, so the record is kept whole then.
+            if localRevision[key] == revisionAtWrite { unwrittenFields[key] = nil }
             retryAttempt[key] = nil
             log?.log(.info, .drafts, "flush key=\(key) chars=\(entry.text.count) version=\(result.version) done")
         } catch {
@@ -443,23 +498,48 @@ public final class DraftStore {
             // `localRevision` against the snapshot taken before the request left is what catches
             // "changed while the request was in flight" even once the write that caused it has
             // itself already finished.
+            let unwritten = unwrittenFields[row.key] ?? []
             let isClean =
-                pendingDebounce[row.key] == nil && currentOp[row.key] == nil
+                unwritten.isEmpty && pendingDebounce[row.key] == nil && currentOp[row.key] == nil
                 && localRevision[row.key] == revisionsAtRequest[row.key]
             var entry = drafts[row.key] ?? .empty
             var changed = false
             // `row.version <= knownVersion` is ignored regardless of content — this is the rule
             // that replaces comparing `updated_at` for inequality, and it is what makes a response
             // that predates this device's own flush harmless however it is ordered on arrival.
-            if isClean, row.version > (entry.knownVersion ?? -1) {
-                entry.text = row.text
-                entry.sessionType = row.sessionType
-                entry.workingDir = row.workingDir
-                entry.model = row.model
-                entry.thinking = row.thinking
-                entry.noMemory = row.noMemory
-                entry.knownVersion = row.version
-                changed = true
+            if row.version > (entry.knownVersion ?? -1) {
+                var adopted = entry
+                adopted.text = row.text
+                adopted.sessionType = row.sessionType
+                adopted.workingDir = row.workingDir
+                adopted.model = row.model
+                adopted.thinking = row.thinking
+                adopted.noMemory = row.noMemory
+                adopted.knownVersion = row.version
+                if isClean {
+                    entry = adopted
+                    changed = true
+                } else if currentOp[row.key] == nil, !unwritten.isEmpty {
+                    // Merged field by field: what this device changed stays, everything else is
+                    // the row's, so an untouched field never carries a stale value back over a
+                    // newer one. An emptied text is no edit worth keeping over text this device
+                    // has not seen.
+                    let kept = unwritten.filter { !($0 == .text && entry.text.isEmpty && !row.text.isEmpty) }
+                    var merged = adopted
+                    for field in kept { field.copy(from: entry, into: &merged) }
+                    let differing = kept.filter { !$0.same(merged, adopted) }
+                    entry = merged
+                    changed = true
+                    if differing.isEmpty {
+                        unwrittenFields[row.key] = nil
+                        pendingDebounce[row.key]?.cancel()
+                        pendingDebounce[row.key] = nil
+                        retryAttempt[row.key] = nil
+                        awaitingListing.remove(row.key)
+                    } else {
+                        unwrittenFields[row.key] = differing
+                    }
+                }
             }
             // Attachments are a separate resource with set semantics, adopted always and
             // independently of the text-ordering rule above — they already have the right model
@@ -488,6 +568,10 @@ public final class DraftStore {
             }
             serverAttachmentsObserved?(row.key, Set(row.attachments.map(\.id)), requestedAt)
         }
+        hasListed = true
+        let waiting = awaitingListing
+        awaitingListing = []
+        for key in waiting { Task { await self.requestOp(key, .write) } }
     }
 
     /// After a successful send has cleared this draft server-side, records the version that clear

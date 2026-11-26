@@ -27,8 +27,8 @@ private struct GroupCaption: View {
     }
 }
 
-/// The Todoist card of Today, read-only: appointments that are fixed, what is left, what was
-/// ticked. A row opens Todoist; nothing here changes a task.
+/// The Today card of the task list, read-only: appointments that are fixed, what is left, what was
+/// ticked. A row opens the store the list comes from; nothing here changes a task.
 struct MeTodayCardView: View {
     let card: MeTodayCard
     let isRefreshing: Bool
@@ -100,20 +100,25 @@ struct MeTodayCardView: View {
             }
             .buttonStyle(.plain)
             .disabled(isRefreshing)
-            .accessibilityLabel("Refresh tasks")
+            .accessibilityLabel(refreshLabel)
             .accessibilityIdentifier("me-tasks-refresh")
-            Button {
-                open(MeTodoistLink.today)
-            } label: {
-                Text("Open Todoist ↗")
-                    .font(.system(size: 13))
-                    .foregroundStyle(PaiPalette.primary400)
-                    .contentShape(Rectangle())
+            if let today = card.todayUrl {
+                Button {
+                    openURL(today)
+                } label: {
+                    Text(openLabel)
+                        .font(.system(size: 13))
+                        .foregroundStyle(PaiPalette.primary400)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("me-tasks-open-source")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("me-tasks-open-todoist")
         }
     }
+
+    private var refreshLabel: String { "Refresh from " + card.sourceName }
+    private var openLabel: String { "Open " + card.sourceName + " ↗" }
 
     private func rowFrame<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         content()
@@ -138,19 +143,28 @@ struct MeTodayCardView: View {
         }
     }
 
+    @ViewBuilder
     private func openRow(_ row: MeTodayCard.Open) -> some View {
-        Button {
-            open(MeTodoistLink.task(id: row.id))
-        } label: {
-            rowFrame {
-                HStack(spacing: 10) {
-                    Circle().stroke(PaiPalette.surface500, lineWidth: 1.5).frame(width: 15, height: 15)
-                    titleWithSuffix(row.title, row.suffix)
-                }
-                .contentShape(Rectangle())
+        if let url = row.url {
+            Button {
+                openURL(url)
+            } label: {
+                openRowBody(row)
             }
+            .buttonStyle(.plain)
+        } else {
+            openRowBody(row)
         }
-        .buttonStyle(.plain)
+    }
+
+    private func openRowBody(_ row: MeTodayCard.Open) -> some View {
+        rowFrame {
+            HStack(spacing: 10) {
+                Circle().stroke(PaiPalette.surface500, lineWidth: 1.5).frame(width: 15, height: 15)
+                titleWithSuffix(row.title, row.suffix)
+            }
+            .contentShape(Rectangle())
+        }
     }
 
     private func doneRow(_ row: MeTodayCard.Done) -> some View {
@@ -197,14 +211,6 @@ struct MeTodayCardView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-        }
-    }
-
-    /// Opens the Todoist app, or its web page when the app is not installed.
-    private func open(_ link: MeTodoistLink) {
-        guard let app = URL(string: link.app), let web = URL(string: link.web) else { return }
-        openURL(app) { accepted in
-            if !accepted { openURL(web) }
         }
     }
 }

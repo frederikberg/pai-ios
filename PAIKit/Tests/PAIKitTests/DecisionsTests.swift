@@ -371,7 +371,7 @@ final class DecisionsTests: XCTestCase {
         ]
         let store = makeStore(api)
         await store.refresh()
-        let drafts = DraftStore(api: QuietDraftsApi())
+        let drafts = listedDraftStore(api: QuietDraftsApi())
         drafts.setDraftText(key: "s1", text: "Some thoughts first.  \n")
         store.pick("yes", for: decision(1, title: "Merge the migration."))
         store.setPick("no,\n  later ", for: decision(2, title: "Rename"))
@@ -393,7 +393,7 @@ final class DecisionsTests: XCTestCase {
         api.reads = [OpenDecisionsResponse(decisions: [decision(1), decision(2)])]
         let store = makeStore(api)
         await store.refresh()
-        let drafts = DraftStore(api: QuietDraftsApi())
+        let drafts = listedDraftStore(api: QuietDraftsApi())
         let focusBefore = drafts.composerFocusNonce
 
         XCTAssertFalse(store.addPicksToMessage(sessionId: "s1", drafts: drafts))

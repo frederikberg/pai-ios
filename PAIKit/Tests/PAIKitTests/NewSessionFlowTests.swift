@@ -140,7 +140,7 @@ final class NewSessionFlowTests: XCTestCase {
         let outbox = OutboxStore(api: api, storage: OutboxInMemoryStorage(), scheduler: BriefScheduler())
         let listApi = FakeSessionListApi()
         let sessions = SessionListStore(api: listApi)
-        let drafts = DraftStore(api: SilentDraftsApi())
+        let drafts = listedDraftStore(api: SilentDraftsApi())
         let handoff = NewSessionHandoff()
         outbox.installHandover(drafts: drafts, sessions: sessions, handoff: handoff)
         return Harness(
@@ -236,7 +236,7 @@ final class NewSessionFlowTests: XCTestCase {
     func testUploadedAttachmentsSurviveASendThatHasToBeRetried() async {
         let h = makeHarness()
         let draftsApi = DeleteRecordingDraftsApi()
-        let drafts = DraftStore(api: draftsApi)
+        let drafts = listedDraftStore(api: draftsApi)
         h.outbox.installHandover(drafts: drafts, sessions: h.sessions, handoff: h.handoff)
         h.api.failuresRemaining = 2
         drafts.setDraftText(key: DraftKey.newSession, text: "look at these")

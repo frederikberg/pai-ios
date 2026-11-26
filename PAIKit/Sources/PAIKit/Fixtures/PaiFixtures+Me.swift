@@ -289,18 +289,22 @@ extension PaiFixtures {
         return meJSON(day)
     }
 
+    /// Where the fixture's task store lives, as the server would name it.
+    private static let meTodosBase = "https://pai.example.invalid/apps/todos"
+
     private static func meTaskRow(
         _ id: String, _ title: String, position: Int, due: String? = nil,
-        deadline: String? = nil, overdue: Int = 0
+        deadline: String? = nil, overdue: Int = 0, linked: Bool = true
     ) -> [String: Any] {
         [
-            "id": id, "title": title, "position": position, "labels": [String](),
+            "id": id, "url": linked ? "\(meTodosBase)/t/\(position + 1)" : NSNull(), "title": title,
+            "position": position, "labels": [String](),
             "due_time": due ?? NSNull(), "deadline": deadline ?? NSNull(), "overdue_days": overdue,
         ]
     }
 
-    /// `GET /api/me/tasks`: today's open list and ticked tasks, or a stored past day. `empty` is a
-    /// Todoist that is not connected and `tasksDown` one the server could not reach.
+    /// `GET /api/me/tasks`: today's open list and ticked tasks, or a stored past day, from Todos.
+    /// `empty` is a task store that is not connected and `tasksDown` one the server could not reach.
     public static func meTasks(state: String?, date: String?, now: Date = Date()) -> Data {
         let presenter = MePresenter()
         let todayKey = presenter.dayKey(now)
@@ -327,7 +331,7 @@ extension PaiFixtures {
                 meTaskRow("t3", "Book the dentist", position: 2, due: "17:00"),
                 meTaskRow("t4", "Reply to the landlord", position: 3, deadline: inTwoDays),
                 meTaskRow("t5", "Water the plants", position: 4, overdue: 2),
-                meTaskRow("t6", "Plan the weekend", position: 5),
+                meTaskRow("t6", "Plan the weekend", position: 5, linked: false),
             ] : []
         func done(_ id: String, _ title: String, _ hour: Int, _ minute: Int) -> [String: Any] {
             [
@@ -355,7 +359,8 @@ extension PaiFixtures {
         }
         return meJSON(
             [
-                "date": key, "status": state == "tasksDown" ? "unavailable" : "ok",
+                "date": key, "status": state == "tasksDown" ? "unavailable" : "ok", "source": "todos",
+                "today_url": meTodosBase,
                 "as_of": AlarmTime.wireString(now.addingTimeInterval(isToday ? -120 : 0)), "open": open,
                 "done": rows, "moved": 0,
             ] as [String: Any])

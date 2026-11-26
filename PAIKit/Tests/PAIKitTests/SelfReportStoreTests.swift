@@ -55,7 +55,7 @@ private struct NoDraftRoutes: DraftsFetching {
 final class SelfReportStoreTests: XCTestCase {
     private func store(_ api: FakeSelfReportApi, _ storage: SettingsInMemoryKeyValueStore) -> SelfReportStore {
         // The words live in the draft store, which shares the storage like the app's does.
-        let drafts = DraftStore(api: NoDraftRoutes(), localPersistence: storage)
+        let drafts = listedDraftStore(api: NoDraftRoutes(), localPersistence: storage)
         return SelfReportStore(api: api, storage: storage, drafts: drafts, makeId: { "id-1" })
     }
 
@@ -119,7 +119,7 @@ final class SelfReportStoreTests: XCTestCase {
         XCTAssertEqual(second.draft, SelfReportDraft(text: "typed", feel: "good", isPrivate: true))
 
         // Text written the way a dictation take writes it shows up as the draft's words.
-        let drafts = DraftStore(api: NoDraftRoutes(), localPersistence: storage)
+        let drafts = listedDraftStore(api: NoDraftRoutes(), localPersistence: storage)
         drafts.setDraftText(key: SelfReportStore.dictationKey, text: "stt-rec: spoken")
         let third = SelfReportStore(api: api, storage: storage, drafts: drafts)
         XCTAssertEqual(third.draft.text, "stt-rec: spoken")

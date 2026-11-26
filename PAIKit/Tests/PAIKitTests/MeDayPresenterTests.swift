@@ -191,13 +191,6 @@ final class MeDayPresenterTests: XCTestCase {
         XCTAssertNil(presenter.sourcesLine(overview: failed, tasks: down, todayFinal: false, now: now))
     }
 
-    func testTodoistLinksOpenTheAppAndFallBackToTheWebPage() {
-        XCTAssertEqual(MeTodoistLink.today.app, "todoist://today")
-        let link = MeTodoistLink.task(id: "abc 123")
-        XCTAssertEqual(link.app, "todoist://task?id=abc%20123")
-        XCTAssertEqual(link.web, "https://app.todoist.com/app/task/abc%20123")
-    }
-
     // MARK: Grid
 
     func testTheNightBarSitsBetweenBedAndWakeOnTheTwentyOneToElevenAxis() throws {
@@ -339,6 +332,40 @@ final class MeDayPresenterTests: XCTestCase {
         XCTAssertEqual(tasks.open.first?.overdueDays, 2)
         XCTAssertEqual(tasks.done.first?.kind, .unrecognized("bundle"))
         XCTAssertEqual(tasks.moved, 1)
+    }
+
+    /// A server that names its task store: the card says that name everywhere and links where the
+    /// answer says, and a row without an address is no link. One that names none answers from
+    /// Todoist and offers no link it was not given.
+    func testTheTodayCardNamesAndLinksTheStoreTheAnswerNames() throws {
+        let now = date("2026-11-24T13:00:00+00:00")
+        let todos = try JSONDecoder().decode(
+            MeTasks.self,
+            from: Data(
+                #"""
+                {"date": "2026-11-24", "status": "unavailable", "source": "todos",
+                 "today_url": "https://pai.example.invalid/apps/todos", "as_of": "2026-11-24T10:31:00+00:00",
+                 "open": [{"id": "a", "url": "https://pai.example.invalid/apps/todos/t/7", "title": "A"},
+                          {"id": "b", "url": null, "title": "B"}],
+                 "done": [], "moved": 0}
+                """#.utf8))
+        let card = try XCTUnwrap(presenter.todayCard(tasks: todos, events: [], now: now, todayKey: day))
+        XCTAssertEqual(card.sourceName, "Todos")
+        XCTAssertEqual(card.todayUrl?.absoluteString, "https://pai.example.invalid/apps/todos")
+        XCTAssertEqual(card.open.map { $0.url?.absoluteString }, ["https://pai.example.invalid/apps/todos/t/7", nil])
+        XCTAssertTrue(card.footer?.hasPrefix("Todos unreachable") == true)
+
+        let older = try JSONDecoder().decode(
+            MeTasks.self,
+            from: Data(
+                #"""
+                {"date": "2026-11-24", "status": "ok", "as_of": null,
+                 "open": [{"id": "a", "title": "A"}], "done": [], "moved": 0}
+                """#.utf8))
+        let olderCard = try XCTUnwrap(presenter.todayCard(tasks: older, events: [], now: now, todayKey: day))
+        XCTAssertEqual(olderCard.sourceName, "Todoist")
+        XCTAssertNil(olderCard.todayUrl)
+        XCTAssertNil(olderCard.open.first?.url)
     }
 
     func testTheFixtureCorpusCarriesTheNewShapes() throws {
