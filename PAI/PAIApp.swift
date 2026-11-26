@@ -196,6 +196,14 @@ struct PAIApp: App {
                 }
             }
 
+            // What the location launch path set up: the permission, whether the geofences are
+            // wanted, and how many regions iOS holds for the app.
+            router.register("GET", "/location") { _ in
+                DispatchQueue.main.sync {
+                    MainActor.assumeIsolated { .encoding(LocationReporter.shared.debugFacts) }
+                }
+            }
+
             // The notes cache and what waits to sync: what the offline screenshots assert on, and
             // the one way to read the cache's size and pending edits after a build reaches a
             // phone. Every route calls the store methods the screens call.

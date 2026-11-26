@@ -1,20 +1,17 @@
 import Foundation
 
-/// The geofence monitor as ``PlaceMonitorController`` drives it; the app wraps Core Location's
-/// `CLMonitor` in it.
+/// The geofence monitor as ``PlaceMonitorController`` drives it; the app implements it with the
+/// location manager's region monitoring.
 public protocol PlaceMonitor: Sendable {
     var identifiers: [String] { get async }
     func add(_ place: MonitoredPlace) async
     func remove(_ identifier: String) async
 }
 
-/// Keeps one named geofence monitor for the life of the process and makes its conditions follow
-/// whether place monitoring is wanted.
-///
-/// Core Location allows one open monitor per name in a process, and a second `CLMonitor.init` for
-/// the same name ends in an uncaught assertion that kills the app. So turning monitoring off and on
-/// again never opens another one: the first open, finished or still in flight, is shared by every
-/// caller and kept, and turning off only removes its conditions.
+/// Keeps one geofence monitor for the life of the process and makes its regions follow whether
+/// place monitoring is wanted. Turning monitoring off and on again never opens another one: the
+/// first open, finished or still in flight, is shared by every caller and kept, and turning off
+/// only removes its regions.
 @MainActor
 public final class PlaceMonitorController {
     /// Whether the places should be watched. Set synchronously by the caller, so a later

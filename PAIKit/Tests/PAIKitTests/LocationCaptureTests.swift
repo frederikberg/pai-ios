@@ -215,6 +215,29 @@ final class LocationCaptureTests: XCTestCase {
         XCTAssertEqual(PlaceMonitorPlan.radius(of: MonitoredPlace(id: "a", lat: 0, lon: 0, radiusM: 400)), 400)
     }
 
+    func testAPlaceBecomesARegionAtItsWatchedRadius() {
+        let region = PlaceRegion.make(
+            for: MonitoredPlace(id: "a", lat: 50.7, lon: 6.1, radiusM: 100), maximumRadius: 2000)
+        XCTAssertEqual(region, PlaceRegion(identifier: "a", latitude: 50.7, longitude: 6.1, radius: 150))
+    }
+
+    func testARegionWiderThanTheManagerAllowsIsCutToItsMaximum() {
+        let region = PlaceRegion.make(for: MonitoredPlace(id: "a", lat: 0, lon: 0, radiusM: 5000), maximumRadius: 1000)
+        XCTAssertEqual(region?.radius, 1000)
+    }
+
+    func testAPlaceTheManagerCannotWatchIsNoRegion() {
+        XCTAssertNil(PlaceRegion.make(for: MonitoredPlace(id: "", lat: 0, lon: 0, radiusM: 200), maximumRadius: 1000))
+        XCTAssertNil(PlaceRegion.make(for: MonitoredPlace(id: "a", lat: 91, lon: 0, radiusM: 200), maximumRadius: 1000))
+        XCTAssertNil(
+            PlaceRegion.make(for: MonitoredPlace(id: "a", lat: 0, lon: -181, radiusM: 200), maximumRadius: 1000))
+        XCTAssertNil(
+            PlaceRegion.make(for: MonitoredPlace(id: "a", lat: .nan, lon: 0, radiusM: 200), maximumRadius: 1000))
+        XCTAssertNil(
+            PlaceRegion.make(for: MonitoredPlace(id: "a", lat: 0, lon: 0, radiusM: 200), maximumRadius: -1),
+            "region monitoring unavailable")
+    }
+
     // MARK: Store
 
     @MainActor

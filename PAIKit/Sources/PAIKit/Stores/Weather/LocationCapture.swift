@@ -87,3 +87,25 @@ public enum PlaceMonitorPlan {
 
     public static func radius(of place: MonitoredPlace) -> Int { max(place.radiusM, minimumRadiusMeters) }
 }
+
+/// A place as the circular region the location manager is asked to watch.
+public struct PlaceRegion: Equatable, Sendable {
+    public let identifier: String
+    public let latitude: Double
+    public let longitude: Double
+    public let radius: Double
+
+    /// The region for `place`, or nil when it is not one the location manager can watch: an empty
+    /// id, a coordinate off the globe, or region monitoring unavailable (`maximumRadius` is the
+    /// manager's `maximumRegionMonitoringDistance`, negative then). A circle wider than the
+    /// manager allows is cut to its maximum rather than refused.
+    public static func make(for place: MonitoredPlace, maximumRadius: Double) -> PlaceRegion? {
+        guard !place.id.isEmpty,
+            place.lat.isFinite, (-90.0...90.0).contains(place.lat),
+            place.lon.isFinite, (-180.0...180.0).contains(place.lon),
+            maximumRadius.isFinite, maximumRadius > 0
+        else { return nil }
+        let radius = min(Double(PlaceMonitorPlan.radius(of: place)), maximumRadius)
+        return PlaceRegion(identifier: place.id, latitude: place.lat, longitude: place.lon, radius: radius)
+    }
+}
