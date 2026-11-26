@@ -443,6 +443,7 @@ private struct ArcFlowBlockCard: View {
     private var rowCountText: String {
         var text = "\(block.done)/\(block.total) rows done"
         if block.cancelled > 0 { text += " · \(block.cancelled) cancelled" }
+        if let waiters = entry.waiterLine { text += " · \(waiters)" }
         return text
     }
 
@@ -461,13 +462,13 @@ private struct ArcFlowBlockCard: View {
 
             Button(action: onOpenDetail) {
                 VStack(alignment: .leading, spacing: 2) {
-                    if let label = block.agentLabel ?? entry.sameAgentLine {
+                    if let label = block.agentLabel {
                         Text(label)
                             .font(PaiTypography.caption.font)
                             .foregroundStyle(PaiPalette.Semantic.textFaint)
                             .lineLimit(1)
                     }
-                    Text(block.leader?.i ?? "Block \(block.id)")
+                    Text("#\(block.id) \(block.leader?.i ?? "Block \(block.id)")")
                         .font(PaiTypography.bodyEmphasized.font)
                         .foregroundStyle(PaiPalette.Semantic.textPrimary)
                         .lineLimit(3)
@@ -476,11 +477,6 @@ private struct ArcFlowBlockCard: View {
                     Text(rowCountText)
                         .font(PaiTypography.caption.font)
                         .foregroundStyle(PaiPalette.Semantic.textMuted)
-                    if let line = entry.waiterLine {
-                        Text(line)
-                            .font(PaiTypography.caption.font)
-                            .foregroundStyle(PaiPalette.Semantic.textMuted)
-                    }
                     if let line = entry.waitsForLine {
                         Text(line)
                             .font(PaiTypography.captionEmphasized.font)
