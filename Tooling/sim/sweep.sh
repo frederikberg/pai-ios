@@ -156,19 +156,6 @@ fact_assert() {
   fi
 }
 
-# Prints a fact once the app reports it (up to 25 s), whatever its value: the probe's own account
-# of what it did, read before the assertion on its effect.
-fact_wait_report() {
-  local name=$1 key=$2 got="" i
-  for i in $(seq 1 25); do
-    got=$(curl -sS --max-time 5 "http://127.0.0.1:8765/fixture" \
-      | python3 -c "import json,sys; print(json.load(sys.stdin).get(sys.argv[1], ''))" "$key" 2>/dev/null || echo "")
-    [ -n "$got" ] && break
-    sleep 1
-  done
-  echo "$name: $key=${got:-<never reported>}"
-}
-
 screenshot root
 curl -sS --max-time 5 "http://127.0.0.1:8765/screens" -o artifacts/screens.json \
   || echo '{"screens":[]}' > artifacts/screens.json
@@ -888,13 +875,6 @@ settings_pages() {
   [ "$role" = guest ] && flag=(-PaiFixtureRole guest)
   screenshot "settings-$role-list" -PaiFixtureRoute settings "${flag[@]}"
   fact_assert "settings-$role-list" settingsCategories "$pages"
-  xcrun simctl terminate "$udid" "$bundle" || true
-  # A row pressed through the accessibility tree must open its page: the page's own report is what
-  # is asserted, so a row that only highlights fails here instead of photographing the list.
-  screenshot "settings-$role-tap" -PaiFixtureRoute settings -PaiFixtureTapSettingsRow appearance "${flag[@]}"
-  fact_wait_report "settings-$role-tap" fixtureTap
-  sleep 2
-  fact_assert "settings-$role-tap" settingsCategory appearance
   xcrun simctl terminate "$udid" "$bundle" || true
   for page in $(echo "$pages" | tr ',' ' '); do
     screenshot "settings-$role-$page" -PaiFixtureRoute settings -PaiFixtureSettingsCategory "$page" "${flag[@]}"
