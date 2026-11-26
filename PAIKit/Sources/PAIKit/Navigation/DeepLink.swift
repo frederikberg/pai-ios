@@ -38,6 +38,8 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     /// quick action open. It is presented over whatever the app shows, so ``routes`` (empty) is
     /// never applied for it; `RootView` presents the sheet instead.
     case newTodo
+    /// Todos' home.
+    case todos
 
     /// The routes this link lands on. Whole paths rather than single routes: a deep link arrives
     /// knowing nothing about what the app was showing, so it replaces the stack, and a note with
@@ -55,6 +57,7 @@ public enum DeepLink: Equatable, Sendable, Hashable {
         case .alarm: return [.alarm]
         case .weather: return [.weather]
         case .newTodo: return []
+        case .todos: return [.todos]
         }
     }
 
@@ -69,7 +72,7 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     public var dismissesOverlays: Bool {
         switch self {
         case .quickActions, .alarm, .newTodo: return true
-        case .session, .note, .notesList, .createSession, .notification, .browser, .weather: return false
+        case .session, .note, .notesList, .createSession, .notification, .browser, .weather, .todos: return false
         }
     }
 }
@@ -167,6 +170,9 @@ extension DeepLink {
         case "newtodo":
             guard segments.count == 1 else { return nil }
             return .newTodo
+        case "todos":
+            guard segments.count == 1 else { return nil }
+            return .todos
         case "browser":
             guard segments.count <= 2 else { return nil }
             guard segments.count == 2 else { return .browser(name: nil) }
@@ -228,6 +234,7 @@ extension DeepLink {
             }
             if segments.count == 2, segments[1] == "alarm" { return .alarm(id: nil) }
             if segments.count == 2, segments[1] == "weather" { return .weather }
+            if segments.count == 2, segments[1] == "todos" { return .todos }
             if segments.count == 2, segments[1] == "notes" { return .notesList }
             guard segments.count >= 3, segments[1] == "notes", let noteID = id(at: 2) else { return nil }
             guard segments.count == 3 || segments[3] == "preview" else { return nil }
@@ -257,6 +264,7 @@ extension DeepLink {
         case .alarm: return URL(string: "pai://alarm")
         case .weather: return URL(string: "pai://weather")
         case .newTodo: return URL(string: "pai://newtodo")
+        case .todos: return URL(string: "pai://todos")
         }
     }
 

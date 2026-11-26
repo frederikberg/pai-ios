@@ -46,6 +46,9 @@ public protocol TodosBackend: Sendable {
     func todosApply(_ change: TodosChangeRequest, source: TodosSource) async throws -> TodosApplyResult
     func todosParse(text: String, list: String?, source: TodosSource) async throws -> TodosParseAnswer
     func todosEvents(after: Int) async throws -> TodosEventsAnswer
+    func todosRunView(id: String, cursor: String?) async throws -> TodosQueryAnswer
+    func todosViewCounts() async throws -> TodosViewCountsAnswer
+    func todosDetail(ref: String) async throws -> TodosDetailAnswer
 }
 
 extension PaiApiClient: TodosBackend {
@@ -81,6 +84,28 @@ extension PaiApiClient: TodosBackend {
         try await todosSend(
             "GET", "/events",
             query: [URLQueryItem(name: "after", value: String(after)), URLQueryItem(name: "wait", value: "0")])
+    }
+
+    public func todosRunView(id: String, cursor: String?) async throws -> TodosQueryAnswer {
+        try await todosSend(
+            "GET", "/views/\(Self.escapedSegment(id))/run",
+            query: cursor.map { [URLQueryItem(name: "cursor", value: $0)] } ?? [])
+    }
+
+    public func todosViewCounts() async throws -> TodosViewCountsAnswer {
+        try await todosSend("GET", "/views/counts")
+    }
+
+    /// The todo with its open children, body left out.
+    public func todosDetail(ref: String) async throws -> TodosDetailAnswer {
+        try await todosSend(
+            "GET", "/todos/\(Self.escapedSegment(ref))",
+            query: [URLQueryItem(name: "children", value: "1"), URLQueryItem(name: "body", value: "0")])
+    }
+
+    private static func escapedSegment(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_.~:")))
+            ?? value
     }
 
     private func todosSend<T: Decodable>(

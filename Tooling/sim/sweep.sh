@@ -22,7 +22,7 @@ new-session-landing notes-filtering notifications-filter scheduler-task-push set
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
 watch-keys alarm-facts alarm-sheet weather-states location-settings location-launch watch-key-create watch-key-revoke-ask watch-key-revoke
 camera-import-result me-screens session-filters new-session-usage quick-actions settings-owner settings-guest sleep-mode
-reminders-feed reminders-scheduler me-where"
+reminders-feed reminders-scheduler me-where todos-screens"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
@@ -549,6 +549,32 @@ if want notifications-filter; then
   xcrun simctl terminate "$udid" "$bundle" || true
   screenshot notifications-not-scheduled -PaiFixtureRoute notifications -PaiFixtureNotificationSource exclude
   xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want todos-screens; then
+  # The Todos home with the desk in each of its three states, a view, a list, the checklist of a
+  # shared list, a todo opened on its subtasks, the add sheet with the parser's chips, and Browse,
+  # each light and dark. The fixture's desk has five cards under one section.
+  todos_screen() {
+    name=$1 facts=$2
+    shift 2
+    for look in light dark; do
+      xcrun simctl ui "$udid" appearance "$look"
+      screenshot "todos-$name-$look" "$@"
+      for fact in $facts; do fact_assert "todos-$name-$look" "${fact%%=*}" "${fact#*=}"; done
+      xcrun simctl terminate "$udid" "$bundle" || true
+    done
+  }
+  todos_screen home-split "todosPage=Today todosDeskMode=split todosDeskCards=5" -PaiFixtureRoute todos
+  todos_screen home-bar "todosDeskMode=bar" -PaiFixtureRoute todos -PaiFixtureTodosDesk bar
+  todos_screen home-desk "todosDeskMode=desk" -PaiFixtureRoute todos -PaiFixtureTodosDesk desk
+  todos_screen view "todosPage=Home todosDeskMode=bar" -PaiFixtureRoute todosView
+  todos_screen list "todosPage=Personal todosDeskMode=bar" -PaiFixtureRoute todosList
+  todos_screen groceries "todosPage=Groceries" -PaiFixtureRoute todosGroceries
+  todos_screen checklist "todosPage=Personal" -PaiFixtureRoute todosList -PaiFixtureTodosExpand
+  todos_screen add "todosPage=Today" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps tomorrow #errand p1"
+  todos_screen browse "todosBrowse=7,1,3" -PaiFixtureRoute todosBrowse
+  xcrun simctl ui "$udid" appearance dark
 fi
 
 if want reminders-feed; then

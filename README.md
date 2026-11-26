@@ -112,6 +112,8 @@ The app remembers every file it added, by name and size, in its own storage: add
 
 The todos live in PAI Cloud's Todos. The app holds the engine for them (`PAIKit/Sources/PAIKit/Stores/Todos/`): the open todos, the lists and the desk are kept on disk, so a cold start without a network still has them, and every change (add, tick, untick, the desk) is queued on disk and sent in order under its own change id, so a resend after a lost answer is a replay and never a second todo. Without a network a change waits; with an expired sign-in the whole queue waits for the next one; a change the server refuses is dropped with a toast, and the words of a refused add are kept.
 
+Todos is an app of its own in the Apps list (and `pai://todos`). It opens on the first favourite view, usually Today, with the desk above it. The desk has three states: a bar with its count and first card, the desk over the list, or the desk alone. Today opens with the desk over the list and every other page with the bar, and each remembers its own state. Views, lists and tags open as pages from "Views and lists", with the same colours, symbols and counts as the web app. A row ticks from its circle or a swipe left, goes on the desk with a swipe right, and opens its subtasks from the chevron. The round button adds a todo with the page's defaults. Every one of these is a change in the queue, so it works without a connection too.
+
 A todo can be added without opening the app:
 
 - **Add Todo**, an App Intent with a text parameter, from Siri ("Add a todo in PAI"), Shortcuts or the Action button through a shortcut. It answers whether the todo was added or waits on the phone.

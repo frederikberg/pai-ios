@@ -58,6 +58,8 @@ public struct Capabilities: Sendable, Equatable {
 
     /// The Weather app and the location it is answered for: person routes, open to a guest.
     public var canOpenWeather: Bool { isPerson }
+    /// Todos: every person, guests too (`/api/todos` is open to them).
+    public var canOpenTodos: Bool { isPerson }
 
     /// The settings that belong to a person (their registry values, their sign-ins and devices):
     /// the owner and a guest have them.

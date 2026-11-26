@@ -52,6 +52,22 @@ public final class TodosStore {
     /// The last write of the queue to disk failed: what is queued now exists only in memory.
     public private(set) var unsaved = false
 
+    /// What each page (a view or a list) last read, by `TodoPage.key`: the ids and groups the
+    /// server returned. Views are evaluated on the server only; a page asks again on `readTick`.
+    public private(set) var results: [String: TodoPageResult] = [:]
+    /// A page's last read failed: why, by key. Kept beside the result it could not replace.
+    public private(set) var resultErrors: [String: String] = [:]
+    /// The open children of the todos whose children were read, by rank.
+    public private(set) var childIds: [String: [String]] = [:]
+    /// The number beside each view (`GET /views/counts`), by view id; absent for a view of days.
+    public private(set) var viewCounts: [String: Int] = [:]
+    /// Counts up whenever what a page shows may have changed: a change the server took, or a read
+    /// that found news. Pages ask again when it moves.
+    public private(set) var readTick = 0
+    /// Todos created on a page and applied, drawn there until a read of that page at or after
+    /// their last event holds them, so a new row does not blink out between the answer and the read.
+    @ObservationIgnored private var heldCreates: [(todoId: String, page: String, seq: Int)] = []
+
     /// Told the reason, and the words a person typed or spoke into it, when the server refuses a
     /// change nobody is waiting on (`settled`). A door that waits tells its own verdict.
     public var onRefusal: (@MainActor (TodosRefusal, _ words: String?) -> Void)?
@@ -126,6 +142,9 @@ public final class TodosStore {
         cursor = max(cache?.me?.seq ?? 0, cache?.today?.seq ?? 0)
         queue = storage.loadQueue()
         refused = storage.loadRefused()
+        results = cache?.results ?? [:]
+        childIds = cache?.children ?? [:]
+        viewCounts = cache?.viewCounts ?? [:]
         recompute()
     }
 
@@ -179,16 +198,18 @@ public final class TodosStore {
     /// Queue a todo from words typed or spoken, read by the server's capture parser (dates, tags,
     /// `/List`, `*` for the desk). `parsed` is the parser's answer for exactly `text` when one is
     /// at hand (the add sheet asks while typing); otherwise the words are read when the change goes
-    /// out. Returns the change's id.
+    /// out. `place` is the page it was typed on: its view's defaults and its list apply as on the
+    /// web. Returns the change's id.
     @discardableResult
     public func capture(
-        text: String, list: String? = nil, links: [TodoLinkSpec] = [], parsed: TodosParseAnswer? = nil,
-        source: TodosSource = .ios
+        text: String, place: TodoCreatePlace = .anywhere, links: [TodoLinkSpec] = [],
+        parsed: TodosParseAnswer? = nil, source: TodosSource = .ios
     ) -> String {
         let (words, body) = Self.split(text)
         let capture = TodosCapture(
-            text: words, body: body, todoId: makeId(), list: list, links: links, day: currentDay())
-        let ops = parsed.map { [Self.createOp(capture, from: $0)] } ?? []
+            text: words, body: body, todoId: makeId(), list: place.listId, place: place, links: links,
+            day: currentDay())
+        let ops = parsed.map { [createOp(capture, from: $0)] } ?? []
         return enqueue(
             TodosQueuedChange(
                 changeId: makeId(), summary: nil, ops: ops, capture: capture, source: source.rawValue,
@@ -446,11 +467,11 @@ public final class TodosStore {
         _ capture: TodosCapture, of change: TodosQueuedChange, backend: any TodosBackend
     ) async -> TodoOp? {
         let spokenOn = capture.day ?? IsoTimestamp.date(from: change.queuedAt).flatMap(personsDay(of:))
-        guard let spokenOn, spokenOn == currentDay() else { return Self.plainCreateOp(capture) }
+        guard let spokenOn, spokenOn == currentDay() else { return plainCreateOp(capture) }
         do {
             let answer = try await backend.todosParse(
                 text: capture.text, list: capture.list, source: TodosSource(rawValue: change.source) ?? .ios)
-            return Self.createOp(capture, from: answer)
+            return createOp(capture, from: answer)
         } catch {
             switch TodosFailure.of(error) {
             case .retry:
@@ -460,7 +481,7 @@ public final class TodosStore {
                 waitForSignIn()
                 return nil
             case .refused, .serverError:
-                return Self.plainCreateOp(capture)
+                return plainCreateOp(capture)
             }
         }
     }
@@ -468,18 +489,35 @@ public final class TodosStore {
     /// The parser's `todo.create` for a capture: its fields as the server read them, the
     /// capture's own id, the capture's list when the words named none, and its links. A line the
     /// parser read entirely as fields keeps the words as its title.
-    static func createOp(_ capture: TodosCapture, from answer: TodosParseAnswer) -> TodoOp {
-        var op = answer.createOp.withoutEmptyFields().setting("op", .string("todo.create"))
-            .setting("id", .string(capture.todoId))
-        if answer.title.trimmingCharacters(in: .whitespaces).isEmpty { op = op.setting("title", .string(capture.text)) }
-        if op.string("list") == nil, let list = capture.list { op = op.setting("list", .string(list)) }
-        if op.string("body") == nil, let body = capture.body { op = op.setting("body", .string(body)) }
-        op = op.setting("created_at", .null).withoutEmptyFields()
-        return capture.links.isEmpty ? op : op.setting("links", .array(capture.links.map(\.json)))
+    func createOp(_ capture: TodosCapture, from answer: TodosParseAnswer) -> TodoOp {
+        Self.createOp(capture, from: answer, today: currentDay())
     }
 
-    static func plainCreateOp(_ capture: TodosCapture) -> TodoOp {
-        .create(id: capture.todoId, title: capture.text, body: capture.body, list: capture.list, links: capture.links)
+    func plainCreateOp(_ capture: TodosCapture) -> TodoOp {
+        Self.plainCreateOp(capture, today: currentDay())
+    }
+
+    /// The parser's reading laid over the place it was typed in (`TodoCreate`), with the
+    /// capture's own id, its body and its links. A line the parser read entirely as fields keeps
+    /// the words as its title.
+    static func createOp(_ capture: TodosCapture, from answer: TodosParseAnswer, today: String?) -> TodoOp {
+        var typed = TodoCreate.typed(from: answer)
+        if answer.title.trimmingCharacters(in: .whitespaces).isEmpty { typed["title"] = .string(capture.text) }
+        return finish(
+            TodoCreate.op(
+                id: capture.todoId, title: capture.text, place: capture.createPlace, today: today, typed: typed),
+            capture)
+    }
+
+    static func plainCreateOp(_ capture: TodosCapture, today: String?) -> TodoOp {
+        finish(
+            TodoCreate.op(id: capture.todoId, title: capture.text, place: capture.createPlace, today: today), capture)
+    }
+
+    private static func finish(_ op: TodoOp, _ capture: TodosCapture) -> TodoOp {
+        var op = op
+        if op.string("body") == nil, let body = capture.body { op = op.setting("body", .string(body)) }
+        return capture.links.isEmpty ? op : op.setting("links", .array(capture.links.map(\.json)))
     }
 
     private func waitForNetwork() {
@@ -531,7 +569,13 @@ public final class TodosStore {
             if head.ops.contains(where: Self.touchesDesk) {
                 settling.append((head, result.change?.seqLast ?? Int.max))
             }
+            if let page = head.capture?.place?.page {
+                for op in head.ops where op.name == "todo.create" {
+                    if let id = op.string("id") { heldCreates.append((id, page, result.change?.seqLast ?? Int.max)) }
+                }
+            }
         }
+        readTick += 1
         remove(head)
         let told = isAwaited(head.changeId)
         settle(head.changeId, .applied(result))
@@ -617,6 +661,8 @@ public final class TodosStore {
             recompute()
             scheduleCacheWrite()
             complete = true
+            readTick += 1
+            await refreshViewCounts()
         } catch {
             note(error)
         }
@@ -639,6 +685,7 @@ public final class TodosStore {
             // The cursor moves past the events only once what they name was read again, so a
             // read that failed is asked for again by the next catch-up.
             var read = true
+            if !effect.todoIds.isEmpty || effect.refreshMe { readTick += 1 }
             if !effect.todoIds.isEmpty {
                 read = await refresh()
             } else if effect.refreshMe {
@@ -730,7 +777,7 @@ public final class TodosStore {
             page = answer.nextCursor
             pages += 1
         } while page != nil && pages < Self.openPagesMax
-        let keep = Set(serverDesk.compactMap(\.todoId)).union(dueIds)
+        let keep = Set(serverDesk.compactMap(\.todoId)).union(dueIds).union(pageTodoIds())
         var next: [String: Todo] = [:]
         for todo in base.values where todo.updatedSeq > readAt || keep.contains(todo.id) { next[todo.id] = todo }
         base = next
@@ -748,7 +795,7 @@ public final class TodosStore {
     }
 
     private func cacheSnapshot() -> TodosCache {
-        TodosCache(me: me, today: lastToday, todos: base)
+        TodosCache(me: me, today: lastToday, todos: base, results: results, children: childIds, viewCounts: viewCounts)
     }
 
     private func recompute() {
@@ -767,6 +814,115 @@ public final class TodosStore {
     private func personsDay(of instant: Date) -> String? {
         guard let prefs = me?.prefs else { return nil }
         return TodosOverlay.dayOf(instant, timezone: prefs.timezone, rollover: prefs.dayRollover)
+    }
+
+    // MARK: - Pages
+
+    /// Read a page's first page of rows again; the answer replaces what the page held unless an
+    /// answer from later already did.
+    public func loadPage(_ page: TodoPage) async {
+        guard let backend else { return }
+        do {
+            let answer = try await fetch(page, cursor: nil, backend: backend)
+            merge(answer.todos)
+            if let held = results[page.key], held.seq > answer.seq { return }
+            results[page.key] = TodoPageResult(
+                groups: TodoPageResult.groups(of: answer), total: answer.total, nextCursor: answer.nextCursor,
+                seq: answer.seq)
+            resultErrors[page.key] = nil
+            heldCreates.removeAll { $0.page == page.key && $0.seq <= answer.seq }
+            scheduleCacheWrite()
+        } catch {
+            resultErrors[page.key] = Self.readFailure(error)
+            note(error)
+        }
+    }
+
+    /// The next rows of a page that has more.
+    public func loadMore(_ page: TodoPage) async {
+        guard let backend, let held = results[page.key], let cursor = held.nextCursor else { return }
+        do {
+            let answer = try await fetch(page, cursor: cursor, backend: backend)
+            merge(answer.todos)
+            results[page.key] = held.appending(TodoPageResult.groups(of: answer), nextCursor: answer.nextCursor)
+            scheduleCacheWrite()
+        } catch {
+            note(error)
+        }
+    }
+
+    private func fetch(_ page: TodoPage, cursor: String?, backend: any TodosBackend) async throws -> TodosQueryAnswer {
+        switch page {
+        case .view(let id): return try await backend.todosRunView(id: id, cursor: cursor)
+        case .list(let id):
+            return try await backend.todosQuery(
+                TodosQueryRequest(q: "list:\(id)", group: "none", tree: "fold", cursor: cursor, activeScope: true))
+        case .tag(let name):
+            let quoted = name.contains(where: \.isWhitespace) ? "\"\(name)\"" : name
+            return try await backend.todosQuery(
+                TodosQueryRequest(q: "tag:\(quoted)", group: "none", tree: "fold", cursor: cursor, activeScope: true))
+        }
+    }
+
+    /// Read a todo's open children, for a row opened to show them.
+    public func loadChildren(of todoId: String) async {
+        guard let backend else { return }
+        do {
+            let answer = try await backend.todosDetail(ref: todoId)
+            let children = answer.children ?? []
+            merge([answer.todo] + children)
+            childIds[todoId] = children.map(\.id)
+            scheduleCacheWrite()
+        } catch {
+            note(error)
+        }
+    }
+
+    /// The numbers beside the views.
+    public func refreshViewCounts() async {
+        guard let backend, me?.prefs != nil else { return }
+        do {
+            let answer = try await backend.todosViewCounts()
+            var counts: [String: Int] = [:]
+            for view in answer.views { if let count = view.count { counts[view.id] = count } }
+            viewCounts = counts
+            scheduleCacheWrite()
+        } catch {
+            note(error)
+        }
+    }
+
+    /// The todos made on `page` that its last read does not hold yet: queued ones and applied
+    /// ones waiting for the next read, newest first, the way a new root goes first.
+    public func pendingRows(on page: TodoPage) -> [String] {
+        var ids: [String] = []
+        for change in queue.reversed() where change.capture?.place?.page == page.key {
+            if let id = change.ops.first(where: { $0.name == "todo.create" })?.string("id") ?? change.capture?.todoId {
+                ids.append(id)
+            }
+        }
+        for held in heldCreates.reversed() where held.page == page.key && !ids.contains(held.todoId) {
+            ids.append(held.todoId)
+        }
+        let shown = Set(results[page.key]?.groups.flatMap(\.ids) ?? [])
+        return ids.filter { !shown.contains($0) }
+    }
+
+    private func pageTodoIds() -> Set<String> {
+        var ids = Set(results.values.flatMap { $0.groups.flatMap(\.ids) })
+        for (parent, children) in childIds {
+            ids.insert(parent)
+            ids.formUnion(children)
+        }
+        return ids
+    }
+
+    static func readFailure(_ error: Error) -> String {
+        switch TodosFailure.of(error) {
+        case .retry: return "No connection: showing what this iPhone last read."
+        case .signedOut: return "Signed out: showing what this iPhone last read."
+        case .refused(let refusal), .serverError(let refusal): return refusal.message
+        }
     }
 
     // MARK: - Reading what is held

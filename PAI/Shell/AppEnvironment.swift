@@ -33,6 +33,9 @@ final class AppEnvironment {
     /// send.
     let todos: TodosStore
 
+    /// The state of the desk above Todos' pages, per page kind, kept on the phone.
+    let todoDeskModes: TodoDeskModes
+
     /// Set when the backend refused the stored token, so the shell can offer a way back that is
     /// distinct from first launch.
     private(set) var lastAuthFailure: String?
@@ -186,6 +189,7 @@ final class AppEnvironment {
         self.sleepMode = Self.makeSleepMode(defaults)
         self.quickActions = Self.makeQuickActions(defaults)
         self.todos = Self.makeTodos()
+        self.todoDeskModes = TodoDeskModes(storage: Self.persistentFilterStorage(defaults))
         self.router = Router(gate: .needsConfiguration)
         router.sleepMode = sleepMode
         sleepMode.onSleepBegan = { [weak self] in Task { @MainActor in self?.sleepBegan() } }

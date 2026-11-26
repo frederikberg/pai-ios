@@ -561,10 +561,12 @@ public struct TodosQueryRequest: Encodable, Equatable, Sendable {
     public var tree: String?
     public var limit: Int
     public var cursor: String?
+    /// Leave `scope` out, so the person's active saved scope narrows the answer as it does a page.
+    public var activeScope: Bool
 
     public init(
         q: String, scope: String? = nil, group: String? = nil, tree: String? = nil, limit: Int = 500,
-        cursor: String? = nil
+        cursor: String? = nil, activeScope: Bool = false
     ) {
         self.q = q
         self.scope = scope
@@ -572,6 +574,7 @@ public struct TodosQueryRequest: Encodable, Equatable, Sendable {
         self.tree = tree
         self.limit = limit
         self.cursor = cursor
+        self.activeScope = activeScope
     }
 
     enum CodingKeys: String, CodingKey { case q, scope, group, tree, limit, cursor }
@@ -579,12 +582,31 @@ public struct TodosQueryRequest: Encodable, Equatable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(q, forKey: .q)
-        try container.encode(scope, forKey: .scope)
+        if !activeScope { try container.encode(scope, forKey: .scope) }
         try container.encodeIfPresent(group, forKey: .group)
         try container.encodeIfPresent(tree, forKey: .tree)
         try container.encode(limit, forKey: .limit)
         try container.encodeIfPresent(cursor, forKey: .cursor)
     }
+}
+
+/// `GET /views/counts`: the number beside each view, under the active scope. Nil for a view of
+/// days (Upcoming, the Logbook) and one whose query no longer reads.
+public struct TodosViewCountsAnswer: Codable, Equatable, Sendable {
+    public struct Count: Codable, Equatable, Sendable {
+        public let id: String
+        public let count: Int?
+    }
+
+    public let views: [Count]
+    public let seq: Int
+}
+
+/// `GET /todos/{ref}`: the todo, the caller's nudges on it, and its open children when asked.
+public struct TodosDetailAnswer: Codable, Equatable, Sendable {
+    public let todo: Todo
+    public let children: [Todo]?
+    public let nudges: [PaiJSONValue]
 }
 
 public struct TodosEventsAnswer: Codable, Equatable, Sendable {
