@@ -19,12 +19,12 @@ final class LocationPermission {
 }
 
 /// The Apple-only half of location reporting: permissions, the location manager, visits, the
-/// geofence monitor, and a place name from the geocoder. Everything that decides whether and what
+/// geofences, and a place name from the geocoder. Everything that decides whether and what
 /// to send is ``LocationReportStore``.
 ///
 /// Created at launch, because a significant location change, a visit or a geofence crossing
 /// relaunches a terminated app into the background and the new event reaches only a location
-/// manager (or a monitor) that already exists. Only the phone the person chose records, and it
+/// manager that already exists. Only the phone the person chose records, and it
 /// prefers what costs the least battery: significant-change monitoring (cell and Wi-Fi, about
 /// 500 m and not more than every 5 minutes), visits (arrival and departure from the motion
 /// coprocessor) and region monitoring of the owner's named places, plus one fix each time the app
@@ -36,7 +36,6 @@ final class LocationReporter: NSObject, CLLocationManagerDelegate {
     private static let monitoringKey = "locationMonitoring"
     private static let historyKey = "locationKeepsHistory"
     private static let askedAlwaysKey = "locationAskedForAlways"
-    private static let monitorName = "pai-places"
     /// What waits for the store when an event relaunches the app before it exists.
     private static let pendingLimit = 50
 
@@ -47,17 +46,21 @@ final class LocationReporter: NSObject, CLLocationManagerDelegate {
     }
 
     let permission = LocationPermission(access: .undetermined)
-    private let manager = CLLocationManager()
+    private let manager: CLLocationManager
+    private let regions: RegionPlaceMonitor
+    private let places: PlaceMonitorController
     private let defaults = UserDefaults.standard
-    private lazy var places = PlaceMonitorController { [weak self] in
-        await Self.openMonitor { [weak self] event in self?.handle(event) }
-    }
     private var serviceSession: CLServiceSession?
     private var pending: [Pending] = []
 
     private var store: LocationReportStore? { AppEnvironment.shared.connection?.location }
 
     private override init() {
+        let manager = CLLocationManager()
+        let regions = RegionPlaceMonitor(manager: manager)
+        self.manager = manager
+        self.regions = regions
+        places = PlaceMonitorController { regions }
         super.init()
         permission.access = Self.access(for: manager.authorizationStatus)
         manager.delegate = self
@@ -140,9 +143,13 @@ final class LocationReporter: NSObject, CLLocationManagerDelegate {
         manager.stopMonitoringSignificantLocationChanges()
     }
 
-    /// Visits and the geofence monitor. The monitor is a named object whose conditions iOS keeps
-    /// across launches; opening it by name and reading its events is what a relaunch needs. It is
-    /// opened once per process (``PlaceMonitorController``), never again after a stop.
+    /// Visits and the geofences. iOS keeps monitored regions across launches and delivers their
+    /// crossings to this manager's delegate, so a relaunch needs nothing but the manager.
+    ///
+    /// The geofences are the location manager's region monitoring, not `CLMonitor`:
+    /// `CLMonitor.init` raises an uncaught Objective-C assertion in some states of the phone, even
+    /// on the first and only open in a process, and Swift cannot catch it: the app dies at launch.
+    /// Region monitoring reports every refusal through the delegate instead.
     private func startHistoryMonitoring() {
         defaults.set(true, forKey: Self.historyKey)
         manager.startMonitoringVisits()
@@ -157,34 +164,29 @@ final class LocationReporter: NSObject, CLLocationManagerDelegate {
         serviceSession?.invalidate()
         serviceSession = nil
         places.isActive = false
+        // iOS keeps regions across launches, so ones from an earlier process go too, not only
+        // those this process added.
+        regions.removeAll()
         Task { await self.places.converge(places: [], versionChanged: false) }
     }
 
-    /// Opens the named monitor and reads its events for the rest of the process. If the sequence
-    /// ends, events stop until the next launch: opening the name again would trap.
-    private static func openMonitor(onEvent: @escaping @MainActor @Sendable (CLMonitor.Event) -> Void) async
-        -> any PlaceMonitor
-    {
-        let monitor = await CLMonitor(monitorName)
-        Task { @MainActor in
-            do {
-                for try await event in await monitor.events { onEvent(event) }
-            } catch {}
-        }
-        return CoreLocationPlaceMonitor(monitor: monitor)
-    }
-
-    private func handle(_ event: CLMonitor.Event) {
-        let entered: Bool
-        switch event.state {
-        case .satisfied: entered = true
-        case .unsatisfied: entered = false
-        default: return
-        }
-        deliver(.region(placeId: event.identifier, entered: entered, at: event.date))
+    private func regionCrossed(_ placeId: String, entered: Bool, at date: Date) {
+        deliver(.region(placeId: placeId, entered: entered, at: date))
         // The crossing says where the edge is, not where the person is; one fresh fix follows it.
         manager.requestLocation()
     }
+
+    #if DEBUG
+        /// What the debug bridge's `/location` reports.
+        var debugFacts: [String: String] {
+            [
+                "access": "\(permission.access)",
+                "placesActive": "\(places.isActive)",
+                "regions": "\(manager.monitoredRegions.count)",
+                "keepsHistory": "\(defaults.bool(forKey: Self.historyKey))",
+            ]
+        }
+    #endif
 
     // MARK: Delivery
 
@@ -251,31 +253,63 @@ final class LocationReporter: NSObject, CLLocationManagerDelegate {
         Task { @MainActor in self.deliver(.visit(sample)) }
     }
 
+    nonisolated func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+        let placeId = region.identifier
+        let date = Date()
+        Task { @MainActor in self.regionCrossed(placeId, entered: true, at: date) }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+        let placeId = region.identifier
+        let date = Date()
+        Task { @MainActor in self.regionCrossed(placeId, entered: false, at: date) }
+    }
+
+    /// A region iOS refuses (too many, monitoring unavailable, no permission) goes unwatched; its
+    /// crossings never arrive, and nothing else changes.
+    nonisolated func locationManager(
+        _ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error
+    ) {}
+
     /// `requestLocation()` requires the delegate to implement this; a failed one-shot fix is
     /// retried by the next foreground or significant change.
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {}
 }
 
-/// Core Location's monitor as ``PlaceMonitor``: a place is a circle of its radius, never smaller
-/// than iOS reliably detects.
-private final class CoreLocationPlaceMonitor: PlaceMonitor {
-    let monitor: CLMonitor
+/// The location manager's region monitoring as ``PlaceMonitor``: a place is a circle of its
+/// radius, never smaller than iOS reliably detects. The regions are the app's, kept by iOS across
+/// launches, so ``identifiers`` includes those an earlier process added.
+@MainActor
+private final class RegionPlaceMonitor: PlaceMonitor {
+    private let manager: CLLocationManager
 
-    init(monitor: CLMonitor) {
-        self.monitor = monitor
+    init(manager: CLLocationManager) {
+        self.manager = manager
     }
 
     var identifiers: [String] {
-        get async { await monitor.identifiers }
+        get async { manager.monitoredRegions.map(\.identifier) }
     }
 
     func add(_ place: MonitoredPlace) async {
-        let center = CLLocationCoordinate2D(latitude: place.lat, longitude: place.lon)
-        let radius = CLLocationDistance(PlaceMonitorPlan.radius(of: place))
-        await monitor.add(CLMonitor.CircularGeographicCondition(center: center, radius: radius), identifier: place.id)
+        guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self),
+            let spec = PlaceRegion.make(for: place, maximumRadius: manager.maximumRegionMonitoringDistance)
+        else { return }
+        let center = CLLocationCoordinate2D(latitude: spec.latitude, longitude: spec.longitude)
+        guard CLLocationCoordinate2DIsValid(center) else { return }
+        let region = CLCircularRegion(center: center, radius: spec.radius, identifier: spec.identifier)
+        region.notifyOnEntry = true
+        region.notifyOnExit = true
+        manager.startMonitoring(for: region)
     }
 
     func remove(_ identifier: String) async {
-        await monitor.remove(identifier)
+        for region in manager.monitoredRegions where region.identifier == identifier {
+            manager.stopMonitoring(for: region)
+        }
+    }
+
+    func removeAll() {
+        for region in manager.monitoredRegions { manager.stopMonitoring(for: region) }
     }
 }

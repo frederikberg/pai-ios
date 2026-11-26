@@ -20,7 +20,7 @@ set -o pipefail
 SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscreen-pdf secret-prompt compact-chip mailverdict person-settings playback playback-voice
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
-watch-keys alarm-facts alarm-sheet weather-states location-settings watch-key-create watch-key-revoke-ask watch-key-revoke
+watch-keys alarm-facts alarm-sheet weather-states location-settings location-launch watch-key-create watch-key-revoke-ask watch-key-revoke
 camera-import-result me-screens session-filters new-session-usage quick-actions settings-owner settings-guest sleep-mode
 reminders-feed reminders-scheduler me-where"
 
@@ -452,6 +452,33 @@ if want location-settings; then
   # The Location section in Settings, below the fold.
   screenshot location-settings -PaiFixtureRoute settings -PaiFixtureSettingsCategory location -PaiFixtureScrollTo location
   xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want location-launch; then
+  # A launch in the state a phone recording history relaunches in: Always access, significant
+  # changes and place monitoring persisted on. The app must still answer well after launch; what
+  # the bridge reports about the geofences is printed, not asserted, because the fixture's settings
+  # decide whether this iPhone records at all. A simulator has no real geofencing, so this proves
+  # the launch path runs to completion, not that a crossing arrives.
+  xcrun simctl terminate "$udid" "$bundle" || true
+  xcrun simctl privacy "$udid" grant location-always "$bundle" || true
+  xcrun simctl location "$udid" set 37.3349,-122.0090 || true
+  xcrun simctl spawn "$udid" defaults write "$bundle" locationMonitoring -bool YES
+  xcrun simctl spawn "$udid" defaults write "$bundle" locationKeepsHistory -bool YES
+  screenshot location-launch
+  sleep 10
+  if curl -sS --max-time 5 "http://127.0.0.1:8765/location" -o artifacts/location-launch.json; then
+    cat artifacts/location-launch.json
+    echo
+  else
+    echo "::error::location-launch: the app stopped answering after a launch with place monitoring on"
+    fail=1
+  fi
+  curl -sS --max-time 5 "http://127.0.0.1:8765/crash" -o artifacts/location-launch-crash.json || true
+  xcrun simctl terminate "$udid" "$bundle" || true
+  xcrun simctl spawn "$udid" defaults delete "$bundle" locationKeepsHistory || true
+  xcrun simctl spawn "$udid" defaults delete "$bundle" locationMonitoring || true
+  xcrun simctl privacy "$udid" reset location "$bundle" || true
 fi
 
 if want playback; then

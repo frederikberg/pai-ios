@@ -2,8 +2,7 @@ import XCTest
 
 @testable import PAIKit
 
-/// Stands in for Core Location's monitor, counting opens: a second open of the same name is what
-/// kills the app on the phone. Opening takes a moment, as the real one does, so callers overlap it.
+/// Stands in for the app's monitor, counting opens. Opening takes a moment, so callers overlap it.
 @MainActor
 private final class FakeMonitors {
     private(set) var opens = 0
