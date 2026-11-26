@@ -140,6 +140,7 @@ struct ArcSpecView: View {
                         ForEach(timeline.segments) { segment in
                             ArcFlowSegmentView(
                                 segment: segment,
+                                columns: ArcChains.columns(for: segment, in: timeline),
                                 isLast: segment.index == timeline.segments.count - 1,
                                 onOpenBlock: { detailTarget = .block($0) },
                                 onOpenBadge: { openBadge(for: $0, store: store) },
@@ -278,6 +279,9 @@ enum ArcCardID: Hashable {
 /// merely re-gated.
 private struct ArcFlowSegmentView: View {
     let segment: ArcTimelineSegment
+    /// The segment's blocks grouped into "waits for" chains: one column per block nobody in the
+    /// segment makes wait, its waiters stacked and indented under it.
+    let columns: [[ArcChainEntry]]
     /// Whether this is the final segment in the timeline — gates the bottom connector, which
     /// otherwise has no next marker to lead into.
     let isLast: Bool
@@ -304,12 +308,17 @@ private struct ArcFlowSegmentView: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 14) {
-                        ForEach(segment.blocks) { block in
-                            ArcFlowBlockCard(
-                                block: block, onOpenDetail: { onOpenBlock(block) },
-                                onOpenBadge: { onOpenBadge(block) }
-                            )
-                            .id(ArcCardID.block(block.id))
+                        ForEach(columns.indices, id: \.self) { column in
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(columns[column]) { entry in
+                                    ArcFlowBlockCard(
+                                        entry: entry, onOpenDetail: { onOpenBlock(entry.block) },
+                                        onOpenBadge: { onOpenBadge(entry.block) }
+                                    )
+                                    .padding(.leading, CGFloat(min(entry.depth, 3)) * 16)
+                                    .id(ArcCardID.block(entry.block.id))
+                                }
+                            }
                         }
                         if !segment.looseRows.isEmpty {
                             ArcUnassignedFlowCard(rows: segment.looseRows) {
@@ -421,10 +430,11 @@ private struct ArcMarkerBar: View {
 /// leads). The tile opens the block's subagent transcript (falling back to the detail sheet when
 /// there is no agent to look up); the rest opens the detail sheet.
 private struct ArcFlowBlockCard: View {
-    let block: ArcTimelineBlock
+    let entry: ArcChainEntry
     let onOpenDetail: () -> Void
     let onOpenBadge: () -> Void
 
+    private var block: ArcTimelineBlock { entry.block }
     private var meta: ArcStateMeta { ArcStateStyle.meta(for: block.badge) }
 
     /// `{done}/{total} rows done`, always — a leader-only block (`total == 0`) reads as `0/0
@@ -451,7 +461,7 @@ private struct ArcFlowBlockCard: View {
 
             Button(action: onOpenDetail) {
                 VStack(alignment: .leading, spacing: 2) {
-                    if let label = block.agentLabel {
+                    if let label = block.agentLabel ?? entry.sameAgentLine {
                         Text(label)
                             .font(PaiTypography.caption.font)
                             .foregroundStyle(PaiPalette.Semantic.textFaint)
@@ -466,6 +476,21 @@ private struct ArcFlowBlockCard: View {
                     Text(rowCountText)
                         .font(PaiTypography.caption.font)
                         .foregroundStyle(PaiPalette.Semantic.textMuted)
+                    if let line = entry.waiterLine {
+                        Text(line)
+                            .font(PaiTypography.caption.font)
+                            .foregroundStyle(PaiPalette.Semantic.textMuted)
+                    }
+                    if let line = entry.waitsForLine {
+                        Text(line)
+                            .font(PaiTypography.captionEmphasized.font)
+                            .foregroundStyle(PaiPalette.Semantic.warningText)
+                    }
+                    ForEach(entry.alsoLines, id: \.self) { line in
+                        Text(line)
+                            .font(PaiTypography.caption.font)
+                            .foregroundStyle(PaiPalette.Semantic.textFaint)
+                    }
                     // Read at render, not on a timer: the 15 s refresh redraws the card and the
                     // minute granularity keeps it truthful in between.
                     let timeLines = ArcBlockTimes.lines(leader: block.leader, state: block.badge, now: Date())
@@ -484,9 +509,13 @@ private struct ArcFlowBlockCard: View {
         .buttonStyle(.plain)
         .frame(minWidth: 200, maxWidth: 280, alignment: .leading)
         .background(meta.cardBackgroundColor, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(meta.cardBorderColor, lineWidth: 1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12).strokeBorder(
+                meta.cardBorderColor,
+                style: StrokeStyle(lineWidth: 1, dash: entry.isWaiting ? [4, 3] : []))
+        )
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .opacity(block.badge == .cancelled ? 0.6 : 1)
+        .opacity(block.badge == .cancelled || entry.isWaiting ? 0.6 : 1)
         .accessibilityIdentifier("arc-block-\(block.id)")
     }
 }

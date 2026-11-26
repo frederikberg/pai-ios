@@ -87,9 +87,12 @@ public struct ArcLeaderAgent: Codable, Sendable, Equatable {
     public let returnedAt: String?
     public let startedAt: String?
     public let endedAt: String?
+    /// A planned leader's "same agent as block N": set only until the block starts, when the
+    /// server replaces it with block N's own agent fields.
+    public let follows: Int?
 
     enum CodingKeys: String, CodingKey {
-        case type, model, name
+        case type, model, name, follows
         case agentId = "agent_id"
         case returnedAt = "returned_at"
         case startedAt = "started_at"
@@ -98,7 +101,7 @@ public struct ArcLeaderAgent: Codable, Sendable, Equatable {
 
     public init(
         type: String?, model: String? = nil, name: String? = nil, agentId: String? = nil, returnedAt: String? = nil,
-        startedAt: String? = nil, endedAt: String? = nil
+        startedAt: String? = nil, endedAt: String? = nil, follows: Int? = nil
     ) {
         self.type = type
         self.model = model
@@ -107,6 +110,7 @@ public struct ArcLeaderAgent: Codable, Sendable, Equatable {
         self.returnedAt = returnedAt
         self.startedAt = startedAt
         self.endedAt = endedAt
+        self.follows = follows
     }
 }
 
@@ -133,10 +137,34 @@ public struct ArcRow: Codable, Sendable, Equatable, Identifiable {
     public let r: [String]?
     /// On a marker, the acceptance check; on any other row, free-form notes context.
     public let v: String?
+    /// Block ids this block waits for. Only a leader carries a non-empty list; a server that
+    /// predates the field omits it, which decodes as empty.
+    public let w: [Int]
+
+    enum CodingKeys: String, CodingKey {
+        case id, i, src, diff, s, o, k, b, g, n, r, v, w
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        i = try container.decodeIfPresent(String.self, forKey: .i)
+        src = try container.decodeIfPresent(String.self, forKey: .src)
+        diff = try container.decodeIfPresent(Int.self, forKey: .diff)
+        s = try container.decodeIfPresent(ArcRowStatus.self, forKey: .s)
+        o = try container.decodeIfPresent(Double.self, forKey: .o)
+        k = try container.decodeIfPresent(ArcRowKind.self, forKey: .k)
+        b = try container.decodeIfPresent(Int.self, forKey: .b)
+        g = try container.decodeIfPresent(ArcLeaderAgent.self, forKey: .g)
+        n = try container.decodeIfPresent([String: String].self, forKey: .n)
+        r = try container.decodeIfPresent([String].self, forKey: .r)
+        v = try container.decodeIfPresent(String.self, forKey: .v)
+        w = try container.decodeIfPresent([Int].self, forKey: .w) ?? []
+    }
 
     public init(
         id: Int, i: String?, src: String?, diff: Int?, s: ArcRowStatus?, o: Double?, k: ArcRowKind?,
-        b: Int?, g: ArcLeaderAgent?, n: [String: String]?, r: [String]?, v: String?
+        b: Int?, g: ArcLeaderAgent?, n: [String: String]?, r: [String]?, v: String?, w: [Int] = []
     ) {
         self.id = id
         self.i = i
@@ -150,6 +178,7 @@ public struct ArcRow: Codable, Sendable, Equatable, Identifiable {
         self.n = n
         self.r = r
         self.v = v
+        self.w = w
     }
 }
 
