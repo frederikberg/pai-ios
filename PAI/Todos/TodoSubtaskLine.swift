@@ -7,6 +7,8 @@ import SwiftUI
 struct TodoSubtaskLine: View {
     let parentId: String
     let today: String
+    /// Told a queued subtask to open once the server has it: the way into its fields.
+    var onAddAndOpen: (_ changeId: String, _ todoId: String) -> Void = { _, _ in }
 
     @Environment(AppEnvironment.self) private var environment
     @State private var draft = TodoCaptureDraft { text in
@@ -22,9 +24,19 @@ struct TodoSubtaskLine: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            TextField("Add a subtask", text: $draft.text)
-                .submitLabel(.done)
-                .onSubmit(add)
+            HStack {
+                TextField("Add a subtask", text: $draft.text)
+                    .submitLabel(.done)
+                    .onSubmit(add)
+                if draft.canAdd {
+                    Button(action: addAndOpen) {
+                        Image(systemName: "chevron.right.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(PaiPalette.primary500)
+                    .accessibilityLabel("Add and open its fields")
+                }
+            }
             if !chips.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
@@ -56,5 +68,11 @@ struct TodoSubtaskLine: View {
     private func add() {
         guard let taken = draft.take() else { return }
         store.capture(text: taken.text, place: .under(parent: parentId), parsed: taken.answer)
+    }
+
+    private func addAndOpen() {
+        guard let taken = draft.take() else { return }
+        let changeId = store.capture(text: taken.text, place: .under(parent: parentId), parsed: taken.answer)
+        if let todoId = store.createdTodoId(ofChange: changeId) { onAddAndOpen(changeId, todoId) }
     }
 }

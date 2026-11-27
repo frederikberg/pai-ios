@@ -59,6 +59,8 @@
         static let todosWhenFlag = "-PaiFixtureTodosWhen"
         static let todosTickFlag = "-PaiFixtureTodosTick"
         static let todosSubtaskFlag = "-PaiFixtureTodosSubtask"
+        static let todosSwitchFlag = "-PaiFixtureTodosSwitch"
+        static let todosSettingsFlag = "-PaiFixtureTodosSettings"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -283,6 +285,18 @@
         /// scrolled into view.
         public static func requestedTodosSubtask(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: todosSubtaskFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureTodosSwitch <query>`: a Todos page opens its switcher with this typed.
+        public static func requestedTodosSwitch(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: todosSwitchFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureTodosSettings <section>`: a Todos page opens Todos' settings, at the
+        /// section named (`general`, `nudges`, `lists`, `tags`, `views`), or the section list for
+        /// `all`.
+        public static func requestedTodosSettings(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: todosSettingsFlag, in: arguments)
         }
 
         /// `-PaiFixtureMe <state>`: which of `PaiFixtures.meStates` the Me routes answer. Absent is the full one.

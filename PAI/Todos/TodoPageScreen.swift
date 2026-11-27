@@ -17,6 +17,9 @@ struct TodoPageScreen: View {
     @State private var addMode: TodoAddMode = .line
     @State private var ticks = 0
     @State private var opened: TodoSheetTarget?
+    @State private var switching = false
+    @State private var switchQuery: String?
+    @State private var showsSettings = false
 
     private var store: TodosStore { environment.todos }
 
@@ -122,7 +125,20 @@ struct TodoPageScreen: View {
                 }
                 .accessibilityLabel("Views and lists")
             }
+            // The top right: go anywhere in Todos by typing its name.
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    switching = true
+                } label: {
+                    Image(systemName: "text.magnifyingglass")
+                }
+                .accessibilityLabel("Go to a view, list or tag")
+            }
         }
+        .sheet(isPresented: $switching) {
+            TodoSwitcherSheet(onPick: go, initialQuery: switchQuery ?? "")
+        }
+        .navigationDestination(isPresented: $showsSettings) { TodoSettingsScreen() }
         .sheet(isPresented: $adding) {
             TodoAddSheet(
                 todos: store,
@@ -282,6 +298,11 @@ struct TodoPageScreen: View {
         return nil
     }
 
+    /// A pick in the switcher: its page, or Todos' settings.
+    private func go(_ page: TodoPage?) {
+        if let page { environment.router.push(.todosPage(page)) } else { showsSettings = true }
+    }
+
     private func startAdding(_ mode: TodoAddMode, text: String? = nil) {
         addText = text
         addMode = mode
@@ -393,6 +414,11 @@ struct TodoPageScreen: View {
             if PaiFixtureLaunch.opensTodosSheet() { open(PaiFixtures.todosParent) }
             if let text = PaiFixtureLaunch.requestedTodosAdd() { startAdding(.line, text: text) }
             if let text = PaiFixtureLaunch.requestedTodosDescribe() { startAdding(.describe, text: text) }
+            if let query = PaiFixtureLaunch.requestedTodosSwitch() {
+                switchQuery = query
+                switching = true
+            }
+            if PaiFixtureLaunch.requestedTodosSettings() != nil { showsSettings = true }
         #endif
     }
 }
@@ -401,6 +427,7 @@ struct TodoPageScreen: View {
 struct TodoBrowseScreen: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var showTags = false
+    @State private var showsSettings = false
 
     private var browse: TodoBrowse {
         TodoBrowse.make(me: environment.todos.me, viewCounts: environment.todos.viewCounts)
@@ -419,7 +446,15 @@ struct TodoBrowseScreen: View {
                     section("Tags", browse.tags)
                 }
             }
+            Section {
+                Button {
+                    showsSettings = true
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+            }
         }
+        .navigationDestination(isPresented: $showsSettings) { TodoSettingsScreen() }
         .navigationTitle("Views and lists")
         .navigationBarTitleDisplayMode(.inline)
         .task { await environment.todos.refreshViewCounts() }

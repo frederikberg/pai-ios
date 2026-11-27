@@ -556,8 +556,9 @@ if want todos-screens; then
   # shared list, a todo opened on its subtasks, the add sheet with the parser's chips and Today's
   # day, the same with "no date", the add sheet describing in plain words, Browse, a todo's
   # sheet with its rendered description, its When screen with a default nudge, its subtask line
-  # read with chips, the toast with Undo after a tick, Upcoming, the Logbook, search, and the desk
-  # being arranged, each light and dark.
+  # read with chips, the toast with Undo after a tick, the switcher with a typed name, Todos'
+  # settings and four of its sections, Upcoming, the Logbook, search, and the desk being arranged,
+  # each light and dark.
   # The fixture's desk has five cards under one section. The add sheets open with their words
   # typed and the keyboard down, so the words and their chips are what is photographed; the
   # keyboard's first-use tip is marked seen for any sheet that does raise it.
@@ -587,6 +588,12 @@ if want todos-screens; then
   todos_screen browse "todosBrowse=7,1,3" -PaiFixtureRoute todosBrowse
   todos_screen sheet "todosSheet=T-9 todosDescriptionBlocks=3" -PaiFixtureRoute todosList -PaiFixtureTodosOpen
   todos_screen subtask-add "todosSheet=T-9 todosSubtaskChips=2 todosSubtaskHorizon=Next" -PaiFixtureRoute todosList -PaiFixtureTodosOpen -PaiFixtureTodosSubtask "Pack the charger p1 #travel"
+  todos_screen switcher "todosSwitcherFirst=Groceries" -PaiFixtureRoute todos -PaiFixtureTodosSwitch Groc
+  todos_screen settings "todosSettings=all" -PaiFixtureRoute todos -PaiFixtureTodosSettings all
+  todos_screen settings-general "todosSettings=general todosSettingsZone=Europe/Berlin" -PaiFixtureRoute todos -PaiFixtureTodosSettings general
+  todos_screen settings-nudges "todosSettings=nudges todosSettingsNudges=2" -PaiFixtureRoute todos -PaiFixtureTodosSettings nudges
+  todos_screen settings-lists "todosSettings=lists todosSettingsLists=3" -PaiFixtureRoute todos -PaiFixtureTodosSettings lists
+  todos_screen settings-tags "todosSettings=tags todosSettingsTags=8" -PaiFixtureRoute todos -PaiFixtureTodosSettings tags
   todos_screen tick-undo "todosUndoToast=shown" -PaiFixtureRoute todos -PaiFixtureTodosTick
   todos_screen upcoming "todosPage=Upcoming" -PaiFixtureRoute todosUpcoming
   todos_screen logbook "todosPage=Logbook todosDayRows=7" -PaiFixtureRoute todosLogbook

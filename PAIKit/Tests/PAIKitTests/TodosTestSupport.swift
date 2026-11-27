@@ -392,6 +392,11 @@ actor FakeTodosServer: TodosBackend {
         return try TodosWireSamples.decode(TodosComposeAnswer.self, "compose")
     }
 
+    func todosPeople() async throws -> TodosPeopleAnswer {
+        try reach()
+        return TodosPeopleAnswer(people: [])
+    }
+
     private(set) var searched: [TodosSearchRequest] = []
 
     func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer {
