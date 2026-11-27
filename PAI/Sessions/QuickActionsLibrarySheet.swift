@@ -13,8 +13,10 @@ struct QuickActionsLibrarySheet: View {
     let capabilities: Capabilities
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppEnvironment.self) private var environment
     @State private var editingShortcut: QuickActionShortcut?
     @State private var addingShortcut = false
+    @State private var addingTodosPage = false
     @State private var confirmingReset = false
 
     private var librarySummary: String {
@@ -44,8 +46,15 @@ struct QuickActionsLibrarySheet: View {
             .fixtureFact("quickActionsLibrary", librarySummary)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Add Shortcut", systemImage: "plus") { addingShortcut = true }
-                        .accessibilityIdentifier("quick-library-add")
+                    Menu {
+                        Button("Add Shortcut", systemImage: "arrow.up.forward.app") { addingShortcut = true }
+                        if capabilities.canOpenTodos {
+                            Button("Add a Todos view or list", systemImage: "checklist") { addingTodosPage = true }
+                        }
+                    } label: {
+                        Label("Add", systemImage: "plus")
+                    }
+                    .accessibilityIdentifier("quick-library-add")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -63,6 +72,9 @@ struct QuickActionsLibrarySheet: View {
                     shortcut: shortcut,
                     onSave: { store.updateShortcut($0) },
                     onDelete: { store.deleteShortcut(shortcut.id) })
+            }
+            .sheet(isPresented: $addingTodosPage) {
+                TodosPagePickerSheet(browse: todosBrowse) { store.addTodosPage($0) }
             }
             .sheet(isPresented: $addingShortcut) {
                 ShortcutEditSheet(
@@ -96,7 +108,11 @@ struct QuickActionsLibrarySheet: View {
             }
             .onDelete { offsets in
                 for offset in offsets {
-                    if case .shortcut(let id) = items[offset] { store.deleteShortcut(id) }
+                    switch items[offset] {
+                    case .shortcut(let id): store.deleteShortcut(id)
+                    case .todosPage(let key): store.deleteTodosPage(key)
+                    case .action, .more: break
+                    }
                 }
             }
         } header: {
@@ -106,9 +122,16 @@ struct QuickActionsLibrarySheet: View {
         }
     }
 
+    /// Shortcuts and Todos page tiles are the person's own and can be deleted; built-in actions only hidden.
     private func isShortcut(_ item: QuickActionItem) -> Bool {
-        if case .shortcut = item { return true }
-        return false
+        switch item {
+        case .shortcut, .todosPage: true
+        case .action, .more: false
+        }
+    }
+
+    private var todosBrowse: TodoBrowse {
+        TodoBrowse.make(me: environment.todos.me, viewCounts: [:])
     }
 
     @ViewBuilder
@@ -126,6 +149,10 @@ struct QuickActionsLibrarySheet: View {
                 rowLabel(
                     title: shortcut.title, subtitle: shortcut.subtitle, systemImage: "arrow.up.forward.app", item: item)
             }
+        case .todosPage(let key):
+            rowLabel(
+                title: TodoPage(key: key).flatMap { todosBrowse.entry(for: $0)?.title } ?? "Todos view",
+                subtitle: "Opens this Todos page", systemImage: "checklist", item: item)
         case .more:
             rowLabel(
                 title: "More", subtitle: "The tile that opens More", systemImage: "ellipsis.circle.fill", item: item)
@@ -245,6 +272,44 @@ struct ShortcutEditSheet: View {
                     }
                     .disabled(draft.url == nil)
                     .accessibilityIdentifier("shortcut-edit-save")
+                }
+            }
+        }
+    }
+}
+
+/// Picks the Todos view or list a new tile opens.
+struct TodosPagePickerSheet: View {
+    let browse: TodoBrowse
+    let onPick: (TodoPage) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                section("Views", browse.favourites + browse.moreViews)
+                section("Lists", browse.lists)
+            }
+            .navigationTitle("Todos view or list")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            }
+        }
+    }
+
+    private func section(_ title: String, _ entries: [TodoBrowse.Entry]) -> some View {
+        Section(title) {
+            ForEach(entries) { entry in
+                Button {
+                    if let page = entry.page { onPick(page) }
+                    dismiss()
+                } label: {
+                    HStack(spacing: 10) {
+                        TodoIdentityIcon(identity: entry.identity)
+                        Text(entry.title).foregroundStyle(PaiPalette.Semantic.textStrong)
+                    }
                 }
             }
         }

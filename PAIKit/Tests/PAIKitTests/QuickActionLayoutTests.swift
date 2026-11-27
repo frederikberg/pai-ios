@@ -49,11 +49,50 @@ final class QuickActionLayoutTests: XCTestCase {
         let json = """
             {"grid":["home","retiredAction","shortcut:\(shortcut.id.uuidString)","shortcut:\(UUID().uuidString)"],
              "more":["more","home","newNote"],
-             "shortcuts":[{"id":"\(shortcut.id.uuidString)","name":"x","urlString":"todoist://today"}]}
+             "shortcuts":[{"id":"\(shortcut.id.uuidString)","name":"x","urlString":"todoist://today"}],
+             "seen":\(String(data: try JSONEncoder().encode(QuickAction.allCases.map(\.rawValue)), encoding: .utf8)!)}
             """
         let decoded = try JSONDecoder().decode(QuickActionArrangement.self, from: Data(json.utf8))
         XCTAssertEqual(decoded.grid, [.action(.home), .shortcut(shortcut.id), .more])
         XCTAssertEqual(decoded.more, [.action(.newNote)], "a duplicate and the More tile leave More")
+    }
+
+    /// An action an arrangement has never seen arrives in More, where it is found; one it has
+    /// seen and the person hid stays hidden, also after the arrangement is stored again.
+    func testANewActionArrivesInMoreAndAHiddenOneStaysHidden() throws {
+        let stored = #"{"grid":["home","more"],"more":["notes"],"shortcuts":[]}"#
+        let older = try JSONDecoder().decode(QuickActionArrangement.self, from: Data(stored.utf8))
+        XCTAssertEqual(
+            older.more,
+            [
+                .action(.notes), .action(.todos), .action(.newTodo), .action(.searchTodos), .action(.todosSwitcher),
+                .action(.todosDesk),
+            ])
+        XCTAssertEqual(older.placement(of: .action(.alarm)), .hidden, "an action it knew stays where it was")
+
+        var hiding = older
+        hiding.more.removeAll { $0 == .action(.todosDesk) }
+        let again = try JSONDecoder().decode(QuickActionArrangement.self, from: JSONEncoder().encode(hiding))
+        XCTAssertEqual(again.placement(of: .action(.todosDesk)), .hidden)
+        XCTAssertEqual(again.more, hiding.more)
+    }
+
+    /// A Todos page tile round-trips by its page, is in the library, and goes with its page.
+    func testATodosPageTileLivesWithItsPage() throws {
+        let item = QuickActionItem.todosPage("list:L1")
+        XCTAssertEqual(QuickActionItem(id: item.id), item)
+        XCTAssertNil(QuickActionItem(id: "todos-page:nothing"))
+        let store = QuickActionsStore(storage: nil)
+        store.addTodosPage(.list("L1"))
+        store.addTodosPage(.list("L1"))
+        XCTAssertEqual(store.grid.filter { $0 == item }.count, 1)
+        XCTAssertTrue(store.arrangement.library.contains(item))
+        let restored = try JSONDecoder().decode(
+            QuickActionArrangement.self, from: JSONEncoder().encode(store.arrangement))
+        XCTAssertTrue(restored.grid.contains(item))
+        store.deleteTodosPage("list:L1")
+        XCTAssertFalse(store.grid.contains(item))
+        XCTAssertFalse(store.arrangement.library.contains(item))
     }
 
     // MARK: Night
@@ -137,7 +176,11 @@ final class QuickActionsStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.grid.last, .action(.fastCall))
         XCTAssertTrue(reloaded.grid.contains(.more), "the More tile cannot be hidden")
         XCTAssertEqual(
-            ids(reloaded.more), ["canteen", "scheduler", "decisions", "usage", "cameraImport", "findNote"])
+            ids(reloaded.more),
+            [
+                "canteen", "scheduler", "decisions", "usage", "cameraImport", "todos", "newTodo", "searchTodos",
+                "todosSwitcher", "todosDesk", "findNote",
+            ])
         XCTAssertEqual(ids(reloaded.hidden), ["fastSession"])
         XCTAssertEqual(reloaded.items(in: .more), reloaded.more)
     }

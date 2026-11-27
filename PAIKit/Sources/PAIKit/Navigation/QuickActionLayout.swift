@@ -24,6 +24,16 @@ public enum QuickAction: String, CaseIterable, Sendable {
     case decisions
     case usage
     case cameraImport
+    case todos
+    case newTodo
+    case searchTodos
+    case todosSwitcher
+    case todosDesk
+
+    /// Actions added after the arrangement learnt to record which actions it has seen: an
+    /// arrangement stored before them knows none of them, and they arrive in its More list
+    /// instead of hidden.
+    static let unrecordedAtFirst: Set<QuickAction> = [.todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk]
 
     /// The Apps list entry an action opens, for the actions that only open an app. Its title,
     /// icon, who may open it and whether sleep mode puts it away all come from that entry.
@@ -56,6 +66,11 @@ public enum QuickAction: String, CaseIterable, Sendable {
         case .fastSession, .fastCall: "Fast"
         case .findNote: "Find note"
         case .newNote: "New note"
+        case .todos: "Todos"
+        case .newTodo: "New todo"
+        case .searchTodos: "Search todos"
+        case .todosSwitcher: "Go to"
+        case .todosDesk: "Desk"
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport:
             appEntry?.title ?? rawValue
         }
@@ -72,6 +87,11 @@ public enum QuickAction: String, CaseIterable, Sendable {
         case .ultrafastCamera: "Ultra-fast"
         case .findNote: "Filter"
         case .newNote: "Write"
+        case .todos: "Open"
+        case .newTodo: "Add"
+        case .searchTodos: "Find"
+        case .todosSwitcher: "View or list"
+        case .todosDesk: "In full"
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport: "Open"
         }
     }
@@ -90,6 +110,11 @@ public enum QuickAction: String, CaseIterable, Sendable {
         case .fastCall: "phone.badge.waveform.fill"
         case .findNote: "magnifyingglass"
         case .newNote: "square.and.pencil"
+        case .todos: "checklist"
+        case .newTodo: "plus.circle.fill"
+        case .searchTodos: "text.magnifyingglass"
+        case .todosSwitcher: "arrow.right.circle.fill"
+        case .todosDesk: "pin.fill"
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport:
             appEntry?.systemImage ?? "app"
         }
@@ -103,7 +128,7 @@ public enum QuickAction: String, CaseIterable, Sendable {
             .mailverdict:
             true
         case .selfReport, .me, .computer, .findNote, .newNote, .notes, .alarm, .weather, .canteen, .scheduler,
-            .decisions, .usage, .cameraImport:
+            .decisions, .usage, .cameraImport, .todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk:
             false
         }
     }
@@ -117,7 +142,7 @@ public enum QuickAction: String, CaseIterable, Sendable {
         case .computer, .home, .ultrafast, .homeCall, .ultrafastCamera, .ultrafastCall, .fastSession, .fastCall,
             .mailverdict:
             true
-        case .selfReport, .me, .findNote, .newNote:
+        case .selfReport, .me, .findNote, .newNote, .todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk:
             false
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport:
             appEntry?.isNightBlocked ?? false
@@ -130,6 +155,7 @@ public enum QuickAction: String, CaseIterable, Sendable {
         switch self {
         case .selfReport, .me: capabilities.canOpenMe
         case .findNote, .newNote: capabilities.canOpenNotes
+        case .todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk: capabilities.canOpenTodos
         default: appEntry.map { $0.isAvailable(capabilities) } ?? true
         }
     }
@@ -191,6 +217,8 @@ public struct QuickActionShortcut: Codable, Equatable, Sendable, Identifiable {
 public enum QuickActionItem: Hashable, Sendable {
     case action(QuickAction)
     case shortcut(UUID)
+    /// One Todos view or list, chosen when the tile was added: its `TodoPage.key`.
+    case todosPage(String)
     /// The tile that opens the More list. Always on the grid, drawn only while More holds something.
     case more
 
@@ -199,6 +227,7 @@ public enum QuickActionItem: Hashable, Sendable {
         switch self {
         case .action(let action): action.rawValue
         case .shortcut(let id): "shortcut:\(id.uuidString)"
+        case .todosPage(let key): "todos-page:\(key)"
         case .more: "more"
         }
     }
@@ -208,6 +237,8 @@ public enum QuickActionItem: Hashable, Sendable {
             self = .more
         } else if id.hasPrefix("shortcut:"), let uuid = UUID(uuidString: String(id.dropFirst("shortcut:".count))) {
             self = .shortcut(uuid)
+        } else if id.hasPrefix("todos-page:"), TodoPage(key: String(id.dropFirst("todos-page:".count))) != nil {
+            self = .todosPage(String(id.dropFirst("todos-page:".count)))
         } else if let action = QuickAction(rawValue: id) {
             self = .action(action)
         } else {
@@ -250,11 +281,17 @@ public struct QuickActionArrangement: Equatable, Sendable, Codable {
     public var grid: [QuickActionItem]
     public var more: [QuickActionItem]
     public var shortcuts: [QuickActionShortcut]
+    /// The Todos views and lists the user added as tiles, by `TodoPage.key`, in the order added.
+    public var todosPages: [String]
 
-    public init(grid: [QuickActionItem], more: [QuickActionItem], shortcuts: [QuickActionShortcut] = []) {
+    public init(
+        grid: [QuickActionItem], more: [QuickActionItem], shortcuts: [QuickActionShortcut] = [],
+        todosPages: [String] = []
+    ) {
         self.grid = grid
         self.more = more
         self.shortcuts = shortcuts
+        self.todosPages = todosPages
         normalize()
     }
 
@@ -270,7 +307,8 @@ public struct QuickActionArrangement: Equatable, Sendable, Codable {
         ],
         more: [
             .action(.fastSession), .action(.fastCall), .action(.canteen), .action(.scheduler),
-            .action(.decisions), .action(.usage), .action(.cameraImport),
+            .action(.decisions), .action(.usage), .action(.cameraImport), .action(.todos), .action(.newTodo),
+            .action(.searchTodos), .action(.todosSwitcher), .action(.todosDesk),
         ]
     )
 
@@ -278,6 +316,7 @@ public struct QuickActionArrangement: Equatable, Sendable, Codable {
     /// they were made. The More tile is not an item of the library.
     public var library: [QuickActionItem] {
         QuickAction.allCases.map(QuickActionItem.action) + shortcuts.map { .shortcut($0.id) }
+            + todosPages.map(QuickActionItem.todosPage)
     }
 
     public var hidden: [QuickActionItem] {
@@ -299,9 +338,12 @@ public struct QuickActionArrangement: Equatable, Sendable, Codable {
     /// only there. What a stored arrangement from another build of the app comes back through.
     mutating func normalize() {
         let known = Set(shortcuts.map(\.id))
+        todosPages = todosPages.reduce(into: []) { if !$0.contains($1) { $0.append($1) } }
+        let pages = Set(todosPages)
         var seen = Set<QuickActionItem>()
         func keep(_ item: QuickActionItem) -> Bool {
             if case .shortcut(let id) = item, !known.contains(id) { return false }
+            if case .todosPage(let key) = item, !pages.contains(key) { return false }
             return seen.insert(item).inserted
         }
         grid = grid.filter(keep)
@@ -309,16 +351,26 @@ public struct QuickActionArrangement: Equatable, Sendable, Codable {
         if !grid.contains(.more) { grid.append(.more) }
     }
 
-    private enum CodingKeys: String, CodingKey { case grid, more, shortcuts }
+    private enum CodingKeys: String, CodingKey { case grid, more, shortcuts, todosPages, seen }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         // Stored as ids, and an id this build does not know (an action that was removed) is
         // dropped rather than failing the whole arrangement.
         let grid = try container.decode([String].self, forKey: .grid).compactMap(QuickActionItem.init(id:))
-        let more = try container.decode([String].self, forKey: .more).compactMap(QuickActionItem.init(id:))
+        var more = try container.decode([String].self, forKey: .more).compactMap(QuickActionItem.init(id:))
         let shortcuts = try container.decode([QuickActionShortcut].self, forKey: .shortcuts)
-        self.init(grid: grid, more: more, shortcuts: shortcuts)
+        let pages = try container.decodeIfPresent([String].self, forKey: .todosPages) ?? []
+        // An action the stored arrangement never saw arrives in More, where it is found; one it
+        // saw and the person left off both lists stays hidden.
+        let seen =
+            try container.decodeIfPresent([String].self, forKey: .seen).map { Set($0.compactMap(QuickAction.init)) }
+            ?? Set(QuickAction.allCases).subtracting(QuickAction.unrecordedAtFirst)
+        for action in QuickAction.allCases where !seen.contains(action) {
+            let item = QuickActionItem.action(action)
+            if !grid.contains(item) && !more.contains(item) { more.append(item) }
+        }
+        self.init(grid: grid, more: more, shortcuts: shortcuts, todosPages: pages)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -326,6 +378,8 @@ public struct QuickActionArrangement: Equatable, Sendable, Codable {
         try container.encode(grid.map(\.id), forKey: .grid)
         try container.encode(more.map(\.id), forKey: .more)
         try container.encode(shortcuts, forKey: .shortcuts)
+        try container.encode(todosPages, forKey: .todosPages)
+        try container.encode(QuickAction.allCases.map(\.rawValue), forKey: .seen)
     }
 }
 

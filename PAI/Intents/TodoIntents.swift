@@ -82,3 +82,111 @@ struct AddTodoIntentError: Swift.Error, CustomLocalizedStringResourceConvertible
 
     var localizedStringResource: LocalizedStringResource { LocalizedStringResource(stringLiteral: message) }
 }
+
+/// A Todos view or list, as the Shortcuts app picks it: by name, stored by id, so a shortcut keeps
+/// opening the right one after a rename.
+struct TodosPageEntity: AppEntity, Identifiable, Hashable {
+    /// The page's `TodoPage.key`: `view:<id>` or `list:<id>`.
+    let id: String
+    let name: String
+    let kind: String
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation { "Todos View" }
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(name)", subtitle: "\(kind)")
+    }
+
+    static var defaultQuery: TodosPageEntityQuery { TodosPageEntityQuery() }
+}
+
+/// The views and lists Shortcuts offers: what the phone holds, else what the server answers.
+/// Every failure is an empty list, which reads as nothing set up yet rather than a broken shortcut.
+struct TodosPageEntityQuery: EntityQuery, EntityStringQuery {
+    func entities(for identifiers: [String]) async throws -> [TodosPageEntity] {
+        let wanted = Set(identifiers)
+        return await all().filter { wanted.contains($0.id) }
+    }
+
+    func entities(matching string: String) async throws -> [TodosPageEntity] {
+        let needle = string.lowercased()
+        guard !needle.isEmpty else { return await all() }
+        return await all().filter { $0.name.lowercased().contains(needle) }
+    }
+
+    func suggestedEntities() async throws -> [TodosPageEntity] { await all() }
+
+    private func all() async -> [TodosPageEntity] {
+        var me = await MainActor.run { AppEnvironment.shared.todos.me }
+        if me == nil, let client = await AppEnvironment.standaloneClient() {
+            me = try? await client.todosMe()
+        }
+        return TodoBrowse.places(me).map { TodosPageEntity(id: $0.page.key, name: $0.title, kind: $0.kind) }
+    }
+}
+
+/// Open Todos where it was last on this phone.
+struct OpenTodosIntent: AppIntent {
+    static var title: LocalizedStringResource { "Open Todos" }
+    static var description: IntentDescription {
+        IntentDescription("Open Todos in PAI on the view it was on last.")
+    }
+    static var openAppWhenRun: Bool { true }
+
+    init() {}
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        TodosEntry.open(AppEnvironment.shared)
+        return .result()
+    }
+}
+
+/// Open Todos on one view or list, picked once when the shortcut is made.
+struct OpenTodosViewIntent: AppIntent {
+    static var title: LocalizedStringResource { "Open Todos View" }
+    static var description: IntentDescription {
+        IntentDescription("Open a view or a list in Todos in PAI.")
+    }
+    static var openAppWhenRun: Bool { true }
+
+    @Parameter(title: "View or list")
+    var page: TodosPageEntity
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Open \(\.$page) in Todos")
+    }
+
+    init() {}
+
+    init(page: TodosPageEntity) {
+        self.page = page
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        if let target = TodoPage(key: page.id) {
+            TodosEntry.open(target)
+        } else {
+            TodosEntry.open(AppEnvironment.shared)
+        }
+        return .result()
+    }
+}
+
+/// Open the Desk in full, over the view Todos was on last.
+struct OpenTodosDeskIntent: AppIntent {
+    static var title: LocalizedStringResource { "Open the Desk" }
+    static var description: IntentDescription {
+        IntentDescription("Open the Desk of Todos in PAI at full height.")
+    }
+    static var openAppWhenRun: Bool { true }
+
+    init() {}
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        TodosEntry.openDesk(AppEnvironment.shared)
+        return .result()
+    }
+}

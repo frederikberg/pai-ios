@@ -201,7 +201,7 @@ jobs:
           done
 
           # The app's own intents, which Siri and Shortcuts find only in its metadata.
-          for intent in AddTodoIntent DescribeTodoIntent; do
+          for intent in AddTodoIntent DescribeTodoIntent OpenTodosIntent OpenTodosViewIntent OpenTodosDeskIntent; do
             grep -rqs "$intent" "$app/Metadata.appintents" \
               || { echo "::error::$intent is missing from the app Metadata.appintents"; fail=1; }
           done

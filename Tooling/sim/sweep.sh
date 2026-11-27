@@ -295,7 +295,7 @@ if want quick-actions; then
   # fifteen tiles by three example shortcuts (top, then scrolled to its end), the Actions Library
   # opened by the fixture flag (top, then scrolled to Hidden), and the add-shortcut sheet over it.
   grid="selfReport,me,more,computer,home,ultrafast,mailverdict,homeCall,ultrafastCamera,findNote,newNote,ultrafastCall,notes,alarm,weather"
-  more="fastSession,fastCall,canteen,scheduler,decisions,usage,cameraImport"
+  more="fastSession,fastCall,canteen,scheduler,decisions,usage,cameraImport,todos,newTodo,searchTodos,todosSwitcher,todosDesk"
   screenshot quick-actions-grid -PaiFixtureRoute quickActions
   fact_assert quick-actions-grid quickActionsGrid "$grid"
   xcrun simctl terminate "$udid" "$bundle" || true
