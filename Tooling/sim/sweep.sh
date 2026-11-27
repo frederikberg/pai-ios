@@ -555,10 +555,12 @@ if want todos-screens; then
   # The Todos home with the desk in each of its three states, a view, a list, the checklist of a
   # shared list, a todo opened on its subtasks, the add sheet with the parser's chips and Today's
   # day, the same with "no date", the add sheet describing in plain words, Browse, a todo's
-  # sheet with its rendered description, its When screen with a default nudge, its subtask line
-  # read with chips, the toast with Undo after a tick, the switcher with a typed name, Todos'
+  # screen with its rendered description, its nudges with a default one, the sheet that adds a
+  # subtask read with chips, the toast with Undo after a tick, the switcher with a typed name, Todos'
   # settings and four of its sections, Upcoming, the Logbook, search, and the desk being arranged,
-  # each light and dark.
+  # each light and dark. The add sheet is also photographed with a picker where the keyboard
+  # sits (when, horizon, tags, the nudges inside when) and with a title long enough to be cut,
+  # and the todo's screen with a picker raised over it.
   # The fixture's desk has five cards under one section. The add sheets open with their words
   # typed and the keyboard down, so the words and their chips are what is photographed; the
   # keyboard's first-use tip is marked seen for any sheet that does raise it.
@@ -576,7 +578,7 @@ if want todos-screens; then
   }
   todos_screen home-split "todosPage=Today todosDeskMode=split todosDeskCards=5" -PaiFixtureRoute todos
   todos_screen home-bar "todosDeskMode=bar" -PaiFixtureRoute todos -PaiFixtureTodosDesk bar
-  todos_screen home-desk "todosDeskMode=desk" -PaiFixtureRoute todos -PaiFixtureTodosDesk desk
+  todos_screen home-desk "todosDeskMode=desk todosDeskAddHere=2" -PaiFixtureRoute todos -PaiFixtureTodosDesk desk
   todos_screen view "todosPage=Home todosDeskMode=bar" -PaiFixtureRoute todosView
   todos_screen list "todosPage=Personal todosDeskMode=bar" -PaiFixtureRoute todosList
   todos_screen groceries "todosPage=Groceries" -PaiFixtureRoute todosGroceries
@@ -584,10 +586,16 @@ if want todos-screens; then
   todos_screen add "todosPage=Today todosAddMode=line todosAddWords=5 todosAddDefaults=0 todosAddChips=3 todosAddHorizon=Next" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps tomorrow #errand p1"
   todos_screen add-no-date "todosAddMode=line todosAddDefaults=0 todosAddChips=1" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Read Dune no date"
   todos_screen describe "todosAddMode=describe todosAddWords=11" -PaiFixtureRoute todos -PaiFixtureTodosDescribe "Buy stamps tomorrow and then call the plumber about the boiler"
-  todos_screen sheet-nudges "todosSheet=T-9 todosDefaultNudges=1" -PaiFixtureRoute todosList -PaiFixtureTodosOpen -PaiFixtureTodosWhen
+  todos_screen add-when "todosAddPicker=when todosPicker=when todosAddChips=2" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps #errand p1" -PaiFixtureTodosPicker when
+  todos_screen add-horizon "todosAddPicker=horizon todosPicker=horizon" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps" -PaiFixtureTodosPicker horizon
+  todos_screen add-tags "todosAddPicker=tags todosPicker=tags" -PaiFixtureRoute todosView -PaiFixtureTodosAdd "Buy stamps" -PaiFixtureTodosPicker tags
+  todos_screen add-nudge "todosAddPicker=when todosPicker=nudge" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps tomorrow" -PaiFixtureTodosPicker nudge
+  todos_screen add-long "todosAddMode=line todosAddDimmed=1" -PaiFixtureRoute todos -PaiFixtureTodosAdd "$(printf 'Ask the landlord whether the bike cellar gets a second key %.0s' 1 2 3 4 5 6 7 8 9 10)"
+  todos_screen sheet-nudges "todosSheet=T-9 todosPicker=nudge todosDefaultNudges=1" -PaiFixtureRoute todosList -PaiFixtureTodosOpen -PaiFixtureTodosWhen
+  todos_screen sheet-when "todosSheet=T-9 todosPicker=when" -PaiFixtureRoute todosList -PaiFixtureTodosOpen -PaiFixtureTodosPicker when
   todos_screen browse "todosBrowse=7,1,3" -PaiFixtureRoute todosBrowse
-  todos_screen sheet "todosSheet=T-9 todosDescriptionBlocks=3" -PaiFixtureRoute todosList -PaiFixtureTodosOpen
-  todos_screen subtask-add "todosSheet=T-9 todosSubtaskChips=2 todosSubtaskHorizon=Next" -PaiFixtureRoute todosList -PaiFixtureTodosOpen -PaiFixtureTodosSubtask "Pack the charger p1 #travel"
+  todos_screen sheet "todosSheet=T-9 todosDescriptionBlocks=3 todosSubtasks=4 todosFiles=2" -PaiFixtureRoute todosList -PaiFixtureTodosOpen
+  todos_screen subtask-add "todosSheet=T-9 todosAddChips=2 todosAddHorizon=Next" -PaiFixtureRoute todosList -PaiFixtureTodosOpen -PaiFixtureTodosSubtask "Pack the charger p1 #travel"
   todos_screen switcher "todosSwitcherFirst=Groceries" -PaiFixtureRoute todos -PaiFixtureTodosSwitch Groc
   todos_screen settings "todosSettings=all" -PaiFixtureRoute todos -PaiFixtureTodosSettings all
   todos_screen settings-general "todosSettings=general todosSettingsZone=Europe/Berlin" -PaiFixtureRoute todos -PaiFixtureTodosSettings general

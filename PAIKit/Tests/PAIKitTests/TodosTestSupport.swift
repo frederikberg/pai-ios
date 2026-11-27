@@ -179,6 +179,18 @@ actor FakeTodosServer: TodosBackend {
                     }
                     stagedDesk.insert(item, at: at)
                 }
+            case "todo.body":
+                guard var row = staged[op.string("todo")!] else {
+                    throw try refusal("error-404-not-found", status: 404)
+                }
+                if let expected = op.string("if_body_hash"), expected != row.bodyHash {
+                    throw try refusal("error-409-conflict", status: 409)
+                }
+                row.body = op.string("set")
+                row.bodyHash = TodoBlobs.sha256Hex(Data((row.body ?? "").utf8))
+                row.updatedSeq = seq
+                staged[row.id] = row
+                touched[row.id] = row
             case "desk.divider":
                 stagedDesk.append(
                     TodoDeskItem(id: op.string("id")!, kind: .divider, todoId: nil, title: op.string("title")))
@@ -326,6 +338,16 @@ actor FakeTodosServer: TodosBackend {
     }
 
     /// A todo the server holds already, as if made on another device.
+    /// A description changed by someone else.
+    func overwriteBody(of id: String, _ body: String) throws {
+        guard var row = todos[id] else { throw try refusal("error-404-not-found", status: 404) }
+        seq += 1
+        row.body = body
+        row.bodyHash = TodoBlobs.sha256Hex(Data(body.utf8))
+        row.updatedSeq = seq
+        todos[id] = row
+    }
+
     func seed(id: String, title: String, parent: String? = nil) throws {
         var row = try template()
         number += 1

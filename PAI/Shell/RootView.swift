@@ -192,18 +192,15 @@ struct RootView: View {
                 // their own, so this is what stops each one falling through to pure black. See
                 // `paiScreenBackground()`'s own doc comment for why that step matters.
                 .paiScreenBackground()
-                .sheet(isPresented: $addingTodo) {
+                .fullScreenCover(isPresented: $addingTodo) {
                     TodoAddSheet(
                         todos: environment.todos,
                         draft: TodoCaptureDraft { [client = connection.apiClient] text in
                             try await client.todosParse(text: text, list: nil, source: .ios)
                         },
                         initialMode: addingMode,
-                        onAdded: { changeId in reportAddedTodo(changeId, toasts: connection.toasts) },
-                        onComposed: { composed in openComposedTodo(composed, toasts: connection.toasts) },
-                        onAddedToOpen: { changeId, todoId in
-                            openAddedTodo(changeId, todoId: todoId, toasts: connection.toasts)
-                        })
+                        onOpen: { todoId in openAddedTodo(todoId) },
+                        onComposed: { composed in openComposedTodo(composed, toasts: connection.toasts) })
                 }
                 .sheet(item: $openedTodo) { target in TodoSheetView(todoId: target.id) }
                 .environment(environment)
@@ -568,16 +565,12 @@ struct RootView: View {
         openedTodo = TodoSheetTarget(id: id)
     }
 
-    /// A todo added to be opened: once the server has it, its sheet opens.
-    private func openAddedTodo(_ changeId: String, todoId: String, toasts: ToastCenter) {
+    /// A todo opened from the add sheet's note, once that sheet has left: a sheet asked for
+    /// while another is still leaving is dropped.
+    private func openAddedTodo(_ todoId: String) {
         Task {
             try? await Task.sleep(for: .milliseconds(700))
-            switch await environment.todos.settled(changeId, timeout: 15) {
-            case .applied: openedTodo = TodoSheetTarget(id: todoId)
-            case .refused(let refusal): toasts.show("Not added: \(refusal.message)", kind: .error)
-            case .waiting:
-                toasts.show("Saved on this iPhone. It is added once there is a connection.", kind: .info)
-            }
+            openedTodo = TodoSheetTarget(id: todoId)
         }
     }
 
@@ -599,20 +592,6 @@ struct RootView: View {
                 toasts.show("Not added: \(refusal.message)", kind: .error)
             case .waiting:
                 toasts.show("Saved on this iPhone. It is added once there is a connection.", kind: .info)
-            }
-        }
-    }
-
-    /// Says how a todo from the add sheet went: added, refused, or kept on the phone until it can
-    /// go out. The store tells no refusal of its own for a change someone waits on.
-    private func reportAddedTodo(_ changeId: String, toasts: ToastCenter) {
-        Task {
-            let outcome = await environment.todos.outcome(of: changeId, timeout: 4)
-            switch outcome.settlement {
-            case .refused: toasts.show(outcome.message(keeper: .app), kind: .error)
-            case .applied, .waiting:
-                TodoUndoToast.show(
-                    outcome.message(keeper: .app), changeId: changeId, store: environment.todos, toasts: toasts)
             }
         }
     }

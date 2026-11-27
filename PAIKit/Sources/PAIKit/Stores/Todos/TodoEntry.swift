@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 /// How long a title may be and where a longer one is cut: the server's rule (pai-cloud
 /// `todos/titles.py`) by the same steps. The server does the cutting, at create and at every
@@ -118,44 +119,34 @@ public struct TodoAddDraft: Codable, Equatable, Sendable {
         nudges = try container.decodeIfPresent([PaiJSONValue].self, forKey: .nudges) ?? []
         desk = try container.decodeIfPresent(Bool.self, forKey: .desk)
     }
-
-    /// The draft without the pick a chip stands for (`when`, `deadline`, `repeat`, `horizon`,
-    /// `list`, `desk`, `tag:<name>`, `nudge:<id>`).
-    public func without(_ pick: String) -> TodoAddDraft {
-        var next = self
-        switch pick {
-        case "when":
-            next.when = nil
-            next.noDay = false
-            next.someday = nil
-        case "deadline":
-            next.deadline = nil
-            next.noDeadline = false
-        case "repeat": next.repeatRule = nil
-        case "horizon": next.horizon = nil
-        case "list": next.list = nil
-        case "desk": next.desk = nil
-        default:
-            if pick.hasPrefix("tag:") {
-                let name = pick.dropFirst(4).lowercased()
-                next.tags.removeAll { $0.lowercased() == name }
-            } else if pick.hasPrefix("nudge:") {
-                let id = String(pick.dropFirst(6))
-                next.nudges.removeAll { $0.objectValue?["id"]?.stringValue == id }
-            }
-        }
-        return next
-    }
 }
 
-extension PaiJSONValue {
-    fileprivate var objectValue: [String: PaiJSONValue]? {
-        if case .object(let fields) = self { return fields }
-        return nil
+extension TodoCreatePlace {
+    /// A subtask's place when its parent was opened from a view: under its parent, with that
+    /// view's defaults except the list and the parent, which are the parent's own (the web's
+    /// `subtaskDefaults`).
+    public static func under(parent: String, viewDefaults: TodoViewDefaults?) -> TodoCreatePlace {
+        TodoCreatePlace(
+            defaults: TodoViewDefaults(
+                tags: viewDefaults?.tags, horizon: viewDefaults?.horizon, list: nil, when: viewDefaults?.when,
+                desk: viewDefaults?.desk, parent: parent),
+            listId: nil)
     }
 }
 
 extension TodoCreate {
+    /// The `todo.create` a sheet would send right now, for showing what will be saved before it
+    /// is: the view's defaults, the line's reading over them, the pickers' choices over both.
+    public static func preview(
+        title: String, answer: TodosParseAnswer?, place: TodoCreatePlace, dismissed: Set<String>, picks: TodoAddDraft,
+        today: String?
+    ) -> TodoOp {
+        let op = Self.op(
+            id: "", title: title, place: place, today: today, typed: answer.map(Self.typed(from:)) ?? [:],
+            dismissed: cleared(dismissed, answer: answer))
+        return withDraft(op, picks)
+    }
+
     /// The `todo.create` a sheet sends: the line's op (its typed fields over the view's defaults)
     /// with the pickers' choices laid over it, the web's `withDraft`.
     public static func withDraft(_ op: TodoOp, _ draft: TodoAddDraft) -> TodoOp {
@@ -263,8 +254,7 @@ extension TodoFieldOps {
 
 extension TodoAddChip {
     /// Every chip of a sheet for a new todo: the view's defaults still standing (dashed, a tap
-    /// leaves one off), what the line typed, and what the pickers chose (`pickKey` set, a tap
-    /// takes the choice back). A picked field replaces the typed and the default chip of its
+    /// leaves one off), what the line typed, and what the pickers chose. A picked field replaces the typed and the default chip of its
     /// kind; tags add up.
     public static func all(
         place: TodoCreatePlace, dismissed: Set<String>, answer: TodosParseAnswer?, draft: TodoAddDraft, today: String,
@@ -287,43 +277,42 @@ extension TodoAddChip {
         var chips: [TodoAddChip] = []
         if let when = draft.when {
             let label = TodoDates.relativeDay(when.date, today: today) + (when.time.map { " \($0.prefix(5))" } ?? "")
-            chips.append(TodoAddChip(key: "pick:when", kind: "when", label: label, pickKey: "when"))
+            chips.append(TodoAddChip(key: "pick:when", kind: "when", label: label))
         } else if draft.noDay {
-            chips.append(TodoAddChip(key: "pick:when", kind: "clear", label: "No date", pickKey: "when"))
+            chips.append(TodoAddChip(key: "pick:when", kind: "clear", label: "No date"))
         } else if draft.someday == true {
-            chips.append(TodoAddChip(key: "pick:when", kind: "when", label: "Someday", pickKey: "when"))
+            chips.append(TodoAddChip(key: "pick:when", kind: "when", label: "Someday"))
         }
         if let deadline = draft.deadline {
             chips.append(
                 TodoAddChip(
                     key: "pick:deadline", kind: "deadline",
-                    label: "Deadline \(TodoDates.relativeDay(deadline.date, today: today))", pickKey: "deadline"))
+                    label: "Deadline \(TodoDates.relativeDay(deadline.date, today: today))"))
         }
         if let rule = draft.repeatRule {
             chips.append(
-                TodoAddChip(key: "pick:repeat", kind: "repeat", label: TodoWords.repeatRule(rule), pickKey: "repeat"))
+                TodoAddChip(key: "pick:repeat", kind: "repeat", label: TodoWords.repeatRule(rule)))
         }
         if let horizon = draft.horizon {
             let mark = TodoHorizonMark.of(horizon)
             chips.append(
                 TodoAddChip(
-                    key: "pick:horizon", kind: "horizon", label: mark.label, color: mark.color, pickKey: "horizon")
+                    key: "pick:horizon", kind: "horizon", label: mark.label, color: mark.color)
             )
         }
         for tag in draft.tags {
-            chips.append(TodoAddChip(key: "pick:tag:\(tag)", kind: "tag", label: tag, pickKey: "tag:\(tag)"))
+            chips.append(TodoAddChip(key: "pick:tag:\(tag)", kind: "tag", label: tag))
         }
         if let list = draft.list {
-            chips.append(TodoAddChip(key: "pick:list", kind: "list", label: listName(list) ?? "List", pickKey: "list"))
+            chips.append(TodoAddChip(key: "pick:list", kind: "list", label: listName(list) ?? "List"))
         }
         if draft.desk == true {
-            chips.append(TodoAddChip(key: "pick:desk", kind: "desk", label: "Desk", pickKey: "desk"))
+            chips.append(TodoAddChip(key: "pick:desk", kind: "desk", label: "Desk"))
         }
         for nudge in TodoEntryValues(create: TodoOp(fields: ["nudges": .array(draft.nudges)])).nudges {
             chips.append(
                 TodoAddChip(
-                    key: "pick:nudge:\(nudge.id)", kind: "nudge", label: TodoWords.nudgeShort(nudge),
-                    pickKey: "nudge:\(nudge.id)"))
+                    key: "pick:nudge:\(nudge.id)", kind: "nudge", label: TodoWords.nudgeShort(nudge)))
         }
         return chips
     }
@@ -470,5 +459,75 @@ extension TodosErrorBody {
         TodosErrorBody(
             error: error, message: message, field: nil, listId: nil, needs: nil, ref: nil, todo: nil, current: nil,
             since: nil, index: nil, op: nil, reason: nil, fields: nil)
+    }
+}
+
+/// A description being written: saved by itself a moment after typing stops and on leaving, one
+/// save after the other, each guarded by the hash the save before it was answered with, so the
+/// person's own earlier save is never mistaken for someone else's change.
+@Observable
+@MainActor
+public final class TodoBodySaver {
+    public enum Status: Equatable, Sendable {
+        case saved, unsaved, saving
+        /// Kept on the phone; it goes out once there is a connection.
+        case waiting
+        /// The server refused the save; the words stay in the editor.
+        case refused(String)
+    }
+
+    public let todoId: String
+    public var text: String { didSet { if text != oldValue, text != savedText { state = .unsaved } } }
+    public private(set) var state = Status.saved
+
+    @ObservationIgnored private var savedText: String
+    @ObservationIgnored private var hash: String
+    @ObservationIgnored private var running = false
+    @ObservationIgnored private var queued: String?
+    @ObservationIgnored private let store: TodosStore
+
+    /// How long typing pauses before the description saves itself.
+    public static let pauseSeconds: TimeInterval = 1.2
+
+    /// Nil while the todo's whole description has not been read: a row carries only its first line.
+    public init?(_ todo: Todo, store: TodosStore) {
+        guard let body = todo.body else { return nil }
+        todoId = todo.id
+        text = body
+        savedText = body
+        hash = todo.bodyHash
+        self.store = store
+    }
+
+    /// Saves what is typed, and again whatever was typed while that save was on its way.
+    /// `overwriting` drops the guard, for the person who chose their words over a change made
+    /// elsewhere.
+    public func save(overwriting: Bool = false) async {
+        guard !running else { return }
+        running = true
+        defer { running = false }
+        while text != savedText {
+            let sending = text
+            if let queued {
+                // Still on the phone: the newer words replace it, guarded as it was.
+                store.withdraw(changeId: queued)
+                self.queued = nil
+            }
+            state = .saving
+            let changeId = store.submit([TodoFieldOps.body(todoId, sending, ifBodyHash: overwriting ? nil : hash)])
+            switch await store.settled(changeId, timeout: 30) {
+            case .applied(let result):
+                savedText = sending
+                if let answered = result?.todos.first(where: { $0.id == todoId })?.bodyHash { hash = answered }
+                state = text == savedText ? .saved : .unsaved
+            case .waiting:
+                queued = changeId
+                state = .waiting
+                return
+            case .refused(let refusal):
+                state = .refused(refusal.message)
+                return
+            }
+        }
     }
 }

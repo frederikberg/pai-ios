@@ -130,34 +130,6 @@ final class TodosUndoTests: XCTestCase {
         XCTAssertEqual(TodosUndoOutcome.failed.message, "Could not undo; try again.")
     }
 
-    /// The description is saved once, guarded by the hash it was read with, whether Save or
-    /// leaving comes first; an unchanged or unread description sends nothing.
-    func testADescriptionEditIsSavedOnceWithTheHashItWasReadWith() async throws {
-        let template = try TodosWireSamples.decode(TodosQueryAnswer.self, "query-open").todos.first {
-            $0.parentId == nil
-        }!
-        var read = template
-        read.body = "First line"
-        read.bodyHash = String(repeating: "a", count: 64)
-
-        var unchanged = try XCTUnwrap(TodoBodyEdit(read))
-        XCTAssertNil(unchanged.take())
-
-        var edit = try XCTUnwrap(TodoBodyEdit(read))
-        edit.text = "First line\n- [ ] second"
-        let op = try XCTUnwrap(edit.take(), "Save")
-        XCTAssertEqual(op.name, "todo.body")
-        XCTAssertEqual(op.string("set"), "First line\n- [ ] second")
-        XCTAssertEqual(op.string("if_body_hash"), String(repeating: "a", count: 64))
-        XCTAssertNil(edit.take(), "leaving after Save sends nothing more")
-        edit.text += "\nthird"
-        XCTAssertEqual(edit.take()?.string("if_body_hash"), String(repeating: "a", count: 64))
-
-        var unread = template
-        unread.body = nil
-        XCTAssertNil(TodoBodyEdit(unread), "a row's first line is not the description")
-    }
-
     /// What the line names replaces the view's default in the todo made, so its chip goes; the
     /// chips shown are exactly the defaults the todo will carry.
     func testATypedFieldReplacesItsDefaultChip() async throws {

@@ -201,6 +201,45 @@ final class TodosEntryTests: XCTestCase {
         XCTAssertTrue(relaunched.queuedFiles(of: todoId).isEmpty)
     }
 
+    /// A description saved twice in a row keeps both saves: the second is guarded by what the
+    /// first was answered with, and words typed while a save is on its way go out after it.
+    func testADescriptionSavesItselfAgainAndAgain() async throws {
+        let server = FakeTodosServer()
+        let id = "11111111-0000-7000-8000-0000000000b1"
+        try await server.seed(id: id, title: "Pack for the trip")
+        let store = makeStore()
+        store.connect(server)
+        await store.refresh()
+        await store.loadSheet(id)
+        var todo = try XCTUnwrap(store.details[id]?.todo)
+        todo.body = todo.body ?? ""
+        let saver = try XCTUnwrap(TodoBodySaver(todo, store: store))
+        saver.text = "First thought"
+        await saver.save()
+        XCTAssertEqual(saver.state, .saved)
+        saver.text = "First thought, and a second"
+        await server.holdApply()
+        let second = Task { await saver.save() }
+        await server.waitForHeldApply()
+        saver.text = "First thought, a second and a third"
+        await server.releaseApply()
+        await second.value
+        XCTAssertEqual(saver.state, .saved)
+        let body = await server.todos[id]?.body
+        XCTAssertEqual(body, "First thought, a second and a third")
+
+        // Changed elsewhere meanwhile: the save is refused and the words stay.
+        try await server.overwriteBody(of: id, "Someone else's words")
+        saver.text = "Mine again"
+        await saver.save()
+        guard case .refused = saver.state else { return XCTFail("\(saver.state)") }
+        XCTAssertEqual(saver.text, "Mine again")
+        await saver.save(overwriting: true)
+        XCTAssertEqual(saver.state, .saved)
+        let kept = await server.todos[id]?.body
+        XCTAssertEqual(kept, "Mine again")
+    }
+
     /// Red once past, yellow on the day, blue within seven days, plain beyond; a time of today
     /// that has passed is past.
     func testADateIsColouredByHowNearItIs() async throws {

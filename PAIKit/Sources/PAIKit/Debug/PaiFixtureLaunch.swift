@@ -287,6 +287,12 @@
             value(for: todosSubtaskFlag, in: arguments)
         }
 
+        /// `-PaiFixtureTodosPicker when|nudge|deadline|tags|horizon|more`: the add sheet, or the
+        /// todo `-PaiFixtureTodosOpen` opens, shows this picker.
+        public static func requestedTodosPicker(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: "-PaiFixtureTodosPicker", in: arguments)
+        }
+
         /// `-PaiFixtureTodosSwitch <query>`: a Todos page opens its switcher with this typed.
         public static func requestedTodosSwitch(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: todosSwitchFlag, in: arguments)

@@ -31,6 +31,7 @@ extension PaiFixtures {
         var children = 0
         var desk = false
         var checklist: (Int, Int)?
+        var nudge = false
 
         var id: String { String(format: "0190f000-0000-7000-8000-00000000c%03d", n) }
 
@@ -53,7 +54,7 @@ extension PaiFixtures {
                     "kind": "human", "label": "Sam", "source": "web", "session_id": null,
                 ],
                 "updated_at": "2026-11-25T09:00:00.000001+00:00", "updated_seq": 100 + n, "version": 1, "asleep": false,
-                "in_band": when == todosDay, "on_desk": desk, "has_nudge": false, "context": null, "folded_ids": null,
+                "in_band": when == todosDay, "on_desk": desk, "has_nudge": nudge, "context": null, "folded_ids": null,
             ]
         }
     }
@@ -71,7 +72,9 @@ extension PaiFixtures {
         FixtureTodo(
             n: 7, title: "Sort the receipts for the tax return", horizon: "soon", tags: ["money", "paperwork"],
             preview: "The folder on the shelf.", when: todosDay),
-        FixtureTodo(n: 8, title: "Fix the bike light", horizon: "now", tags: ["errand"], when: "2026-11-27"),
+        FixtureTodo(
+            n: 8, title: "Fix the bike light", horizon: "now", tags: ["errand"], when: "2026-11-27",
+            deadline: "2026-11-24", nudge: true),
         FixtureTodo(
             n: 9, title: "Pack for the weekend trip", horizon: "week", tags: ["travel"], preview: "Leave on Friday.",
             when: "2026-11-28", children: 3),
@@ -81,7 +84,8 @@ extension PaiFixtures {
         FixtureTodo(
             n: 13, title: "Plan the garden beds for spring", tags: ["home/garden"], preview: "Sketch first, buy later.",
             checklist: (1, 4)),
-        FixtureTodo(n: 14, title: "Descale the kettle", horizon: "soon", tags: ["home", "kitchen"]),
+        FixtureTodo(
+            n: 14, title: "Descale the kettle", horizon: "soon", tags: ["home", "kitchen"], when: "2026-11-25"),
         FixtureTodo(n: 20, title: "Oat milk", list: todosGroceriesList),
         FixtureTodo(n: 21, title: "Rye bread", list: todosGroceriesList),
         FixtureTodo(n: 22, title: "Apples", list: todosGroceriesList),
@@ -412,6 +416,20 @@ extension PaiFixtures {
                 - Ask about the *late* check-in
                 """
             row["body_preview"] = "## Before the trip"
+            // Three open subtasks and one done, and two files.
+            row["children_total"] = 4
+            row["attachments"] = [
+                [
+                    "id": "0190f000-0000-7000-8000-00000000d001", "name": "hut-map.jpg", "content_type": "image/jpeg",
+                    "size": 1_240_000, "width": 1600, "height": 1200,
+                    "url": "/api/todos/attachments/0190f000-0000-7000-8000-00000000d001",
+                ],
+                [
+                    "id": "0190f000-0000-7000-8000-00000000d002", "name": "packing-list.pdf",
+                    "content_type": "application/pdf", "size": 84_000, "width": NSNull(), "height": NSNull(),
+                    "url": "/api/todos/attachments/0190f000-0000-7000-8000-00000000d002",
+                ],
+            ]
         } else {
             row["body"] = todo.preview
         }
