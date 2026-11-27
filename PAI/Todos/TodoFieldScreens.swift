@@ -49,25 +49,3 @@ struct TodoDayPickerScreen: View {
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 }
-
-/// A time of day as a date a wheel can show and back, read on a fixed clock so the phone's own
-/// zone never moves it.
-enum TodoClock {
-    private static var calendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        return calendar
-    }
-
-    static func date(_ text: String) -> Date {
-        let parts = text.split(separator: ":").compactMap { Int($0) }
-        guard parts.count >= 2 else { return Date() }
-        return calendar.date(from: DateComponents(year: 2000, month: 1, day: 1, hour: parts[0], minute: parts[1]))
-            ?? Date()
-    }
-
-    static func hhmm(_ date: Date) -> String {
-        let parts = calendar.dateComponents([.hour, .minute], from: date)
-        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
-    }
-}
