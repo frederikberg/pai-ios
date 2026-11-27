@@ -33,9 +33,11 @@ extension UIColor {
 }
 
 /// A todo's tick circle: its horizon's ring while open, a filled circle with a check once done.
+/// A dot in the ring's colour in its middle says the todo is on the person's desk.
 struct TodoTickCircle: View {
     let mark: TodoHorizonMark
     let done: Bool
+    var onDesk = false
     var size: CGFloat = 22
 
     var body: some View {
@@ -47,6 +49,7 @@ struct TodoTickCircle: View {
                     .foregroundStyle(.white)
             } else {
                 Circle().strokeBorder(mark.color.swatch, lineWidth: 2)
+                if onDesk { Circle().fill(mark.color.swatch).frame(width: size * 0.38, height: size * 0.38) }
             }
         }
         .frame(width: size, height: size)

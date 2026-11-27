@@ -1,9 +1,10 @@
 import PAIKit
 import SwiftUI
 
-/// One todo in a page or on the desk: its tick circle, the title with its date, and one quiet line
-/// of what else it carries. A subtask sits indented under its parent; a row with subtasks has a
-/// chevron that opens them.
+/// One todo in a page or on the desk: its tick circle (a dot in it while the todo is on the desk),
+/// the title, one quiet line of what else it carries, and on the right its day with its deadline
+/// under it, each in the colour of how near it is. A subtask sits indented under its parent; a row
+/// with subtasks has a chevron that opens them.
 struct TodoRowView: View {
     let model: TodoRowModel
     var depth = 0
@@ -20,14 +21,23 @@ struct TodoRowView: View {
         HStack(alignment: .top, spacing: 10) {
             chevron
             Button(action: onTick) {
-                TodoTickCircle(mark: model.horizon, done: model.done, size: compact ? 24 : 22)
+                TodoTickCircle(mark: model.horizon, done: model.done, onDesk: model.onDesk, size: compact ? 24 : 22)
                     .padding(.top, 1)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(model.done ? "Reopen" : "Done")
-            VStack(alignment: .leading, spacing: 3) {
-                titleLine
-                if !compact, hasMeta { metaLine }
+            .accessibilityValue(model.onDesk ? "On your desk" : "")
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(model.title)
+                        .font(.body)
+                        .foregroundStyle(titleColor)
+                        .strikethrough(model.done)
+                        .lineLimit(compact ? 1 : 2)
+                    if !compact, hasMeta { metaLine }
+                }
+                Spacer(minLength: 4)
+                dates
             }
             .contentShape(Rectangle())
             .onTapGesture { onOpen?() }
@@ -52,20 +62,27 @@ struct TodoRowView: View {
         }
     }
 
-    private var titleLine: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(model.title)
-                .font(.body)
-                .foregroundStyle(titleColor)
-                .strikethrough(model.done)
-                .lineLimit(compact ? 1 : 2)
-            Spacer(minLength: 4)
-            if let date = model.date {
-                Text(date.label)
-                    .font(.footnote)
-                    .foregroundStyle(Self.toneColor(date.tone))
-                    .lineLimit(1)
+    /// The day, and under it the deadline behind its own icon, so days line up down the page.
+    @ViewBuilder private var dates: some View {
+        if model.day != nil || model.deadline != nil {
+            VStack(alignment: .trailing, spacing: 3) {
+                if let day = model.day {
+                    Text(day.label).foregroundStyle(Self.lightColor(day.light))
+                }
+                if let deadline = model.deadline {
+                    HStack(spacing: 3) {
+                        Image(systemName: "target").imageScale(.small)
+                        Text(deadline.label)
+                    }
+                    .foregroundStyle(Self.lightColor(deadline.light))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Deadline \(deadline.label)")
+                }
             }
+            .font(.footnote)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.top, 2)
         }
     }
 
@@ -74,8 +91,8 @@ struct TodoRowView: View {
     }
 
     private var hasMeta: Bool {
-        model.preview != nil || model.checklist != nil || model.inside > 0 || !model.tags.isEmpty
-            || model.listName != nil || model.repeats
+        model.preview != nil || model.subtasks != nil || model.checklist != nil || !model.tags.isEmpty
+            || model.listName != nil || model.repeats || model.hasNudge
     }
 
     private var metaLine: some View {
@@ -83,14 +100,18 @@ struct TodoRowView: View {
             if let preview = model.preview {
                 Text(preview).lineLimit(1).truncationMode(.tail)
             }
+            if let subtasks = model.subtasks {
+                Text(subtasks).monospacedDigit().accessibilityLabel("\(subtasks) subtasks finished")
+            }
             if model.repeats {
-                Image(systemName: "repeat")
+                Image(systemName: "repeat").accessibilityLabel("Repeats")
+            }
+            if model.hasNudge {
+                Image(systemName: "bell").accessibilityLabel("Has a nudge")
             }
             if let checklist = model.checklist {
-                Text(checklist).monospacedDigit()
-            }
-            if model.inside > 0 {
-                Text("\(model.inside) inside")
+                Label(checklist, systemImage: "checklist").labelStyle(.titleAndIcon).monospacedDigit()
+                    .accessibilityLabel("\(checklist) boxes ticked")
             }
             ForEach(model.tags, id: \.name) { tag in
                 TodoTagChip(name: tag.name, color: tag.color)
@@ -113,12 +134,12 @@ struct TodoRowView: View {
         }
     }
 
-    static func toneColor(_ tone: TodoDates.Tone) -> Color {
-        switch tone {
-        case .neutral: PaiPalette.Semantic.textMuted
-        case .today: PaiPalette.primary500
-        case .soon: PaiPalette.Semantic.warningText
+    static func lightColor(_ light: TodoDates.Light) -> Color {
+        switch light {
         case .late: PaiPalette.Semantic.errorText
+        case .today: PaiPalette.Semantic.warningText
+        case .week: PaiPalette.primary500
+        case .later: PaiPalette.Semantic.textMuted
         }
     }
 }

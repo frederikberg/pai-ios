@@ -20,15 +20,21 @@ public struct TodosCapture: Codable, Equatable, Sendable {
     public let day: String?
     /// The place's defaults the person left off this todo (`TodoCreate.op`'s `dismissed`).
     public let dismissed: [String]
+    /// What the sheet's pickers chose, laid over the words' reading (`TodoCreate.withDraft`).
+    public let picks: TodoAddDraft?
+    /// Where on the desk the new todo goes (a `desk.add` position), for one added into a section.
+    public let deskPosition: PaiJSONValue?
 
     enum CodingKeys: String, CodingKey {
-        case text, body, list, place, links, day, dismissed
+        case text, body, list, place, links, day, dismissed, picks
         case todoId = "todo_id"
+        case deskPosition = "desk_position"
     }
 
     public init(
         text: String, body: String? = nil, todoId: String, list: String?, place: TodoCreatePlace? = nil,
-        links: [TodoLinkSpec], day: String?, dismissed: [String] = []
+        links: [TodoLinkSpec], day: String?, dismissed: [String] = [], picks: TodoAddDraft? = nil,
+        deskPosition: PaiJSONValue? = nil
     ) {
         self.text = text
         self.body = body
@@ -38,6 +44,8 @@ public struct TodosCapture: Codable, Equatable, Sendable {
         self.links = links
         self.day = day
         self.dismissed = dismissed
+        self.picks = picks
+        self.deskPosition = deskPosition
     }
 
     public init(from decoder: Decoder) throws {
@@ -50,6 +58,8 @@ public struct TodosCapture: Codable, Equatable, Sendable {
         links = try container.decodeIfPresent([TodoLinkSpec].self, forKey: .links) ?? []
         day = try container.decodeIfPresent(String.self, forKey: .day)
         dismissed = try container.decodeIfPresent([String].self, forKey: .dismissed) ?? []
+        picks = try container.decodeIfPresent(TodoAddDraft.self, forKey: .picks)
+        deskPosition = try container.decodeIfPresent(PaiJSONValue.self, forKey: .deskPosition)
     }
 }
 
@@ -74,12 +84,14 @@ public struct TodosQueuedChange: Codable, Equatable, Sendable, Identifiable {
     public let principal: String?
     /// ISO-8601, UTC.
     public let queuedAt: String
+    /// Files whose bytes go up (`PUT /blobs/<sha256>`) before the change that attaches them.
+    public var blobs: [TodosQueuedBlob]?
 
     public var id: String { changeId }
 
     public init(
         changeId: String, summary: String?, ops: [TodoOp], capture: TodosCapture? = nil, source: String,
-        principal: String?, queuedAt: String
+        principal: String?, queuedAt: String, blobs: [TodosQueuedBlob]? = nil
     ) {
         self.changeId = changeId
         self.summary = summary
@@ -88,12 +100,31 @@ public struct TodosQueuedChange: Codable, Equatable, Sendable, Identifiable {
         self.source = source
         self.principal = principal
         self.queuedAt = queuedAt
+        self.blobs = blobs
     }
 
     enum CodingKeys: String, CodingKey {
-        case summary, ops, capture, source, principal
+        case summary, ops, capture, source, principal, blobs
         case changeId = "change_id"
         case queuedAt = "queued_at"
+    }
+}
+
+/// A file waiting to be attached: its bytes are kept on the phone under their hash until the
+/// server has them and the change that names them is answered.
+public struct TodosQueuedBlob: Codable, Equatable, Sendable, Identifiable {
+    /// The attachment's own id, as its `attachment.add` names it.
+    public let id: String
+    public let todoId: String
+    public let sha256: String
+    public let name: String
+    public let contentType: String
+    public let size: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id, sha256, name, size
+        case todoId = "todo_id"
+        case contentType = "content_type"
     }
 }
 
@@ -163,6 +194,11 @@ public protocol TodosStorage: Sendable {
     func loadCache() -> TodosCache?
     /// Nil removes it.
     func saveCache(_ cache: TodosCache?)
+    /// A queued file's bytes, by their hash. False when they did not reach the disk.
+    @discardableResult
+    func saveBlob(_ data: Data, sha256: String) -> Bool
+    func loadBlob(sha256: String) -> Data?
+    func removeBlob(sha256: String)
 }
 
 /// `outbox.json` (`{"v": 1, "changes": [...]}`, the web's record) and `refused.json` under the
@@ -180,7 +216,7 @@ public struct FileTodosStorage: TodosStorage {
     public init(rootURL: URL, cacheDirectory: URL) {
         self.rootURL = rootURL
         self.cacheURL = cacheDirectory.appendingPathComponent("cache.json")
-        for directory in [rootURL, unreadableDirectory, cacheDirectory] {
+        for directory in [rootURL, unreadableDirectory, blobsDirectory, cacheDirectory] {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         }
     }
@@ -188,6 +224,27 @@ public struct FileTodosStorage: TodosStorage {
     private var outboxURL: URL { rootURL.appendingPathComponent("outbox.json") }
     private var refusedURL: URL { rootURL.appendingPathComponent("refused.json") }
     private var unreadableDirectory: URL { rootURL.appendingPathComponent("unreadable", isDirectory: true) }
+    private var blobsDirectory: URL { rootURL.appendingPathComponent("blobs", isDirectory: true) }
+
+    /// Nil for a name that is no hash, so nothing outside the folder can be named.
+    private func blobURL(_ sha256: String) -> URL? {
+        guard sha256.count == 64, sha256.allSatisfy(\.isHexDigit) else { return nil }
+        return blobsDirectory.appendingPathComponent(sha256)
+    }
+
+    @discardableResult
+    public func saveBlob(_ data: Data, sha256: String) -> Bool {
+        guard let url = blobURL(sha256) else { return false }
+        return (try? data.write(to: url, options: .atomic)) != nil
+    }
+
+    public func loadBlob(sha256: String) -> Data? {
+        blobURL(sha256).flatMap { try? Data(contentsOf: $0) }
+    }
+
+    public func removeBlob(sha256: String) {
+        if let url = blobURL(sha256) { try? fileManager.removeItem(at: url) }
+    }
 
     private struct Record: Codable {
         let v: Int
@@ -271,8 +328,17 @@ public final class InMemoryTodosStorage: TodosStorage, @unchecked Sendable {
     private var queue: [TodosQueuedChange] = []
     private var refused: [TodosRefusedChange] = []
     private var cache: TodosCache?
+    private var blobs: [String: Data] = [:]
 
     public init() {}
+
+    @discardableResult
+    public func saveBlob(_ data: Data, sha256: String) -> Bool {
+        lock.withLock { blobs[sha256] = data }
+        return true
+    }
+    public func loadBlob(sha256: String) -> Data? { lock.withLock { blobs[sha256] } }
+    public func removeBlob(sha256: String) { lock.withLock { blobs[sha256] = nil } }
 
     public func loadQueue() -> [TodosQueuedChange] { lock.withLock { queue } }
     @discardableResult

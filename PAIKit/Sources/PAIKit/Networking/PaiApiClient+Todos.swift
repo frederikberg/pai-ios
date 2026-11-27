@@ -60,6 +60,11 @@ public protocol TodosBackend: Sendable {
     func todosUndo(changeId: String, _ request: TodosUndoRequest) async throws -> TodosApplyResult
     /// The people the caller may share a list with.
     func todosPeople() async throws -> TodosPeopleAnswer
+    /// Stores a file's bytes under their hash (`PUT /blobs/<sha256>`), which an `attachment.add`
+    /// then names. Sending bytes the server already holds changes nothing.
+    func todosPutBlob(sha256: String, data: Data, contentType: String) async throws
+    /// An attachment's bytes.
+    func todosAttachment(id: String) async throws -> Data
 }
 
 extension PaiApiClient: TodosBackend {
@@ -146,6 +151,29 @@ extension PaiApiClient: TodosBackend {
 
     public func todosPeople() async throws -> TodosPeopleAnswer {
         try await todosSend("GET", "/people")
+    }
+
+    public func todosPutBlob(sha256: String, data: Data, contentType: String) async throws {
+        _ = try await todosRaw("PUT", "/blobs/\(Self.escapedSegment(sha256))", body: data, contentType: contentType)
+    }
+
+    public func todosAttachment(id: String) async throws -> Data {
+        try await todosRaw("GET", "/attachments/\(Self.escapedSegment(id))", body: nil, contentType: nil)
+    }
+
+    /// A Todos route whose body, sent or answered, is a file's bytes; refusals are read as on
+    /// every other Todos route.
+    private func todosRaw(_ method: String, _ path: String, body: Data?, contentType: String?) async throws -> Data {
+        var headers = ["X-Todos-Source": TodosSource.ios.rawValue]
+        if let contentType { headers["Content-Type"] = contentType }
+        let (data, _) = try await sendReadingRefusals(
+            path: Self.todosPrefix + path, method: method, body: body, headers: headers
+        ) { statusCode, data in
+            (try? JSONDecoder().decode(TodosErrorBody.self, from: data)).map {
+                TodosApiError(statusCode: statusCode, body: $0)
+            }
+        }
+        return data
     }
 
     private static func escapedSegment(_ value: String) -> String {

@@ -541,9 +541,12 @@ public struct TodosMeAnswer: Codable, Equatable, Sendable {
     public let views: [TodoView]
     public let tags: [TodoTag]
     public let seq: Int
+    /// How many phones and browsers this person's nudges go to; 0 means a nudge reaches nobody.
+    public let nudgeDevices: Int?
 
     enum CodingKeys: String, CodingKey {
         case principal, lists, prefs, views, tags, seq
+        case nudgeDevices = "nudge_devices"
         case userId = "user_id"
         case displayName = "display_name"
         case actorKind = "actor_kind"
@@ -679,11 +682,13 @@ public struct TodoNudge: Codable, Equatable, Sendable, Identifiable {
     public var origin: String?
     public var fireAt: String?
     public var state: TodoNudgeState
+    /// For a sent nudge: how many phones and browsers took it (0: it reached nobody).
+    public var delivered: Int?
 
     public init(
         id: String, todoId: String, kind: String, date: String? = nil, time: String? = nil, basis: String? = nil,
         offsetMinutes: Int? = nil, days: Int? = nil, origin: String? = nil, fireAt: String? = nil,
-        state: TodoNudgeState
+        state: TodoNudgeState, delivered: Int? = nil
     ) {
         self.id = id
         self.todoId = todoId
@@ -696,13 +701,14 @@ public struct TodoNudge: Codable, Equatable, Sendable, Identifiable {
         self.origin = origin
         self.fireAt = fireAt
         self.state = state
+        self.delivered = delivered
     }
 
     /// Made by the person's default nudges rather than added by hand.
     public var isDefault: Bool { origin == "default" }
 
     enum CodingKeys: String, CodingKey {
-        case id, kind, date, time, basis, days, origin, state
+        case id, kind, date, time, basis, days, origin, state, delivered
         case todoId = "todo_id"
         case offsetMinutes = "offset_minutes"
         case fireAt = "fire_at"

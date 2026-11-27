@@ -169,8 +169,25 @@ actor FakeTodosServer: TodosBackend {
                     throw try refusal("error-404-not-found", status: 404)
                 }
                 if !stagedDesk.contains(where: { $0.todoId == id }) {
-                    stagedDesk.append(TodoDeskItem(id: UUID().uuidString, kind: .todo, todoId: id, title: nil))
+                    let item = TodoDeskItem(id: UUID().uuidString, kind: .todo, todoId: id, title: nil)
+                    var at = stagedDesk.count
+                    if case .string("first") = op.fields["position"] { at = 0 }
+                    if let after = op.object("position")?.string("after"),
+                        let index = stagedDesk.firstIndex(where: { $0.id == after || $0.todoId == after })
+                    {
+                        at = index + 1
+                    }
+                    stagedDesk.insert(item, at: at)
                 }
+            case "desk.divider":
+                stagedDesk.append(
+                    TodoDeskItem(id: op.string("id")!, kind: .divider, todoId: nil, title: op.string("title")))
+            case "attachment.add":
+                guard staged[op.string("todo")!] != nil else { throw try refusal("error-404-not-found", status: 404) }
+                guard let blob = op.string("blob"), blobs[blob] != nil else {
+                    throw TodosApiError(statusCode: 422, body: .plain("blob", "No such file was uploaded."))
+                }
+                attached.append((todo: op.string("todo")!, blob: blob, name: op.string("name") ?? ""))
             case "desk.remove":
                 stagedDesk.removeAll { $0.todoId == op.string("item") || $0.id == op.string("item") }
             default:
@@ -259,7 +276,8 @@ actor FakeTodosServer: TodosBackend {
         guard let principal else { return sample }
         return TodosMeAnswer(
             principal: principal, userId: sample.userId, displayName: "Someone", actorKind: .human,
-            lists: sample.lists, prefs: sample.prefs, views: sample.views, tags: sample.tags, seq: sample.seq)
+            lists: sample.lists, prefs: sample.prefs, views: sample.views, tags: sample.tags, seq: sample.seq,
+            nudgeDevices: sample.nudgeDevices)
     }
 
     func todosToday() async throws -> TodosTodayAnswer {
@@ -397,6 +415,21 @@ actor FakeTodosServer: TodosBackend {
         return TodosPeopleAnswer(people: [])
     }
 
+    /// Bytes stored by hash; an `attachment.add` is taken only for a hash stored here, as the
+    /// server takes one only from an uploader of it.
+    private(set) var blobs: [String: Data] = [:]
+    private(set) var attached: [(todo: String, blob: String, name: String)] = []
+
+    func todosPutBlob(sha256: String, data: Data, contentType: String) async throws {
+        try reach()
+        blobs[sha256] = data
+    }
+
+    func todosAttachment(id: String) async throws -> Data {
+        try reach()
+        return Data()
+    }
+
     private(set) var searched: [TodosSearchRequest] = []
 
     func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer {
@@ -418,4 +451,7 @@ final class FailingQueueStorage: TodosStorage, @unchecked Sendable {
     func saveRefused(_ refused: [TodosRefusedChange]) { memory.saveRefused(refused) }
     func loadCache() -> TodosCache? { memory.loadCache() }
     func saveCache(_ cache: TodosCache?) { memory.saveCache(cache) }
+    func saveBlob(_ data: Data, sha256: String) -> Bool { memory.saveBlob(data, sha256: sha256) }
+    func loadBlob(sha256: String) -> Data? { memory.loadBlob(sha256: sha256) }
+    func removeBlob(sha256: String) { memory.removeBlob(sha256: sha256) }
 }

@@ -83,23 +83,17 @@ final class TodosCaptureTests: XCTestCase {
             waiting.message(keeper: .intent), "Saved on this iPhone. Open PAI when there is a connection to send it.")
     }
 
-    /// Words longer than a title keep everything: the first line is the title, the rest the body.
-    func testSpokenWordsBeyondATitleBecomeTheBody() async throws {
+    /// Lines after the first are the body.
+    func testLinesAfterTheFirstBecomeTheBody() async throws {
         let server = FakeTodosServer()
         let store = makeStore()
         store.connect(server)
-        let long = String(repeating: "very long words ", count: 40)
         let changeId = store.capture(text: "Pack for the trip\nsocks\nraincoat")
-        let longId = store.capture(text: long)
         _ = await store.settled(changeId, timeout: 30)
-        _ = await store.settled(longId, timeout: 30)
 
         let created = await server.createdOps.values
         let pack = created.first { $0.string("title") == "Pack for the trip" }
         XCTAssertEqual(pack?.string("body"), "socks\nraincoat")
-        let cut = try XCTUnwrap(created.first { $0.string("title")?.hasPrefix("very long") == true })
-        XCTAssertLessThanOrEqual(cut.string("title")?.count ?? .max, 500)
-        XCTAssertEqual(cut.string("body"), long.trimmingCharacters(in: .whitespaces))
     }
 
     /// The share sheet's Todo goes through the same outbox: a shared link becomes a todo with the

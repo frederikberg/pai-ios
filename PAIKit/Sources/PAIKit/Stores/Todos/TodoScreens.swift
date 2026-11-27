@@ -103,9 +103,9 @@ public enum TodoRows {
     }
 }
 
-/// What a row says about its todo, the web's `TodoRow` without the mouse: the title, one quiet
-/// line (the description's first line, the checklist, matches inside, the first tag and how many
-/// more, the list when the page holds several), and the date chip.
+/// What a row says about its todo: the title, one quiet line (the description's first line, how
+/// many subtasks are finished, the first tag and how many more, the list when the page holds
+/// several), its day and its deadline, and whether it is on the desk.
 public struct TodoRowModel: Equatable, Sendable {
     public struct Tag: Equatable, Sendable {
         public let name: String
@@ -114,33 +114,40 @@ public struct TodoRowModel: Equatable, Sendable {
 
     public let title: String
     public let preview: String?
+    /// Subtasks finished (done or dropped) out of all, for a todo that has any.
+    public let subtasks: String?
+    /// Task boxes ticked in the description out of all.
     public let checklist: String?
-    public let inside: Int
     public let tags: [Tag]
     public let moreTags: Int
     public let listName: String?
     public let listColor: TodoColor?
-    public let date: TodoDates.Chip?
+    public let day: TodoDates.Mark?
+    public let deadline: TodoDates.Mark?
     public let repeats: Bool
+    public let hasNudge: Bool
     public let done: Bool
+    public let onDesk: Bool
     public let horizon: TodoHorizonMark
 
     /// How many tags a row names before it counts the rest.
     public static let visibleTags = 1
 
+    /// `clock` is the person's time of day, by which a time of today counts as passed.
     public static func make(
-        _ todo: Todo, today: String?, leadDays: Int, tagColor: (String) -> TodoColor, list: TodoList?
+        _ todo: Todo, today: String?, clock: String? = nil, tagColor: (String) -> TodoColor, list: TodoList?
     ) -> TodoRowModel {
         let tags = todo.tags.prefix(visibleTags).map { Tag(name: $0, color: tagColor($0)) }
         return TodoRowModel(
             title: todo.title, preview: todo.bodyPreview.isEmpty ? nil : todo.bodyPreview,
-            checklist: todo.checklist.map { "\($0.done)/\($0.total)" }, inside: todo.foldedIds?.count ?? 0,
+            subtasks: todo.childrenTotal > 0 ? "\(todo.childrenTotal - todo.childrenOpen)/\(todo.childrenTotal)" : nil,
+            checklist: todo.checklist.map { "\($0.done)/\($0.total)" },
             tags: Array(tags), moreTags: max(0, todo.tags.count - visibleTags), listName: list?.name,
             listColor: list.map { TodoIdentity.of(list: $0).color },
-            date: today.flatMap {
-                TodoDates.chip(when: todo.when, deadline: todo.deadline, today: $0, leadDays: leadDays)
-            },
-            repeats: todo.repeat != nil, done: todo.status != .open, horizon: TodoHorizonMark.of(todo.horizon))
+            day: today.flatMap { TodoDates.dayMark(todo.when, today: $0, clock: clock) },
+            deadline: today.flatMap { TodoDates.deadlineMark(todo.deadline, today: $0) },
+            repeats: todo.repeat != nil, hasNudge: todo.hasNudge, done: todo.status != .open, onDesk: todo.onDesk,
+            horizon: TodoHorizonMark.of(todo.horizon))
     }
 }
 

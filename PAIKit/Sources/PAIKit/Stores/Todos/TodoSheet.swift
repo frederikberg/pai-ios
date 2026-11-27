@@ -403,11 +403,13 @@ public enum TodoWords {
     public enum StateTone: String, Sendable { case quiet, live, warn }
 
     /// What a nudge's state means to the person.
-    public static func nudgeState(_ state: TodoNudgeState, fireAt: String?) -> (label: String, tone: StateTone) {
+    public static func nudgeState(_ state: TodoNudgeState, fireAt: String?, delivered: Int? = nil) -> (
+        label: String, tone: StateTone
+    ) {
         switch state {
         case .armed: return (fireAt == nil ? "Waiting for a date" : "Waiting", .quiet)
         case .firing: return ("Sending", .live)
-        case .fired: return ("Sent", .live)
+        case .fired: return delivered == 0 ? ("Sent to no device", .warn) : ("Sent", .live)
         case .held: return ("Held for the morning", .warn)
         case .missed: return ("Missed", .warn)
         case .cancelled, .unrecognized: return ("Cancelled", .quiet)

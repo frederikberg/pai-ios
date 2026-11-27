@@ -138,26 +138,6 @@ final class TodosLookTests: XCTestCase {
         }
     }
 
-    /// A row's date chip says what the web's says: day-month, a weekday this week, 24 h.
-    func testADateChipReadsAsOnTheWeb() throws {
-        struct Dated: Decodable {
-            let when: TodoWhen?
-            let deadline: TodoDeadline?
-        }
-        let vectors = try vectors()
-        for case_ in vectors.dates {
-            let todo = try model(Dated.self, case_.todo)
-            let chip = TodosLookTests.chip(
-                TodoDates.chip(when: todo.when, deadline: todo.deadline, today: case_.today, leadDays: case_.lead))
-            let expected = case_.chip == .null ? nil : try model([String: String].self, case_.chip)
-            XCTAssertEqual(chip, expected, "\(case_.todo)")
-        }
-    }
-
-    private static func chip(_ chip: TodoDates.Chip?) -> [String: String]? {
-        chip.map { ["kind": $0.isDeadline ? "deadline" : "when", "label": $0.label, "tone": $0.tone.rawValue] }
-    }
-
     /// A todo made on a page gets the page's defaults overlaid by what was typed, field by field,
     /// as the web builds it.
     func testAPageDefaultsAndATypedLineMakeTheWebsOp() throws {

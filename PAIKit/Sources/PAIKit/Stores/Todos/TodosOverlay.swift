@@ -61,7 +61,7 @@ public enum TodosOverlay {
         case "todo.create": return op.string("id").map { [$0] } ?? []
         case "desk.remove", "desk.move": return op.string("item").map { [$0] } ?? []
         case "todo.update", "todo.body", "todo.complete", "todo.skip", "todo.reopen", "todo.delete", "todo.restore",
-            "todo.move", "todo.tag", "desk.add", "nudge.set":
+            "todo.move", "todo.tag", "desk.add", "nudge.set", "attachment.add":
             return op.string("todo").map { [$0] } ?? []
         default: return []
         }
