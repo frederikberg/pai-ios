@@ -185,7 +185,13 @@ private final class FakeNotesApi: NotesApiClient, @unchecked Sendable {
         return undeleteNoteResult ?? NoteFixture.detail(id: id, name: "Restored")
     }
 
-    func getNoteLinks(id: String) async throws -> NoteLinkGraph { getNoteLinksResult }
+    /// The body saved last when the link graph was asked for: what the server's graph is computed from.
+    private(set) var savedBodyAtLinkRead: [String?] = []
+
+    func getNoteLinks(id: String) async throws -> NoteLinkGraph {
+        savedBodyAtLinkRead.append(patchNoteBodies.last ?? nil)
+        return getNoteLinksResult
+    }
     func listNoteRevisions(id: String) async throws -> [NoteRevisionSummary] { [] }
     func getNoteRevision(noteId: String, revisionId: String) async throws -> NoteRevisionDetail {
         fatalError("not scripted")
@@ -623,6 +629,18 @@ final class NotesStoreTests: XCTestCase {
 
     /// A tick is an ordinary edit: the draft changes and the save goes out against the current
     /// hash like typing. A page drawn from an older body must not tick anything.
+    /// An attachment embedded a moment ago is in the links panel at once: the edit waiting for its
+    /// save goes out before the graph is read.
+    func testTheLinkGraphIsReadAfterThePendingEditIsSaved() async {
+        let api = FakeNotesApi()
+        api.getNoteResult = NoteFixture.detail(id: "n1", body: "Hello")
+        let store = NotesStore(api: api)
+        await store.loadNote(id: "n1")
+        store.edit(id: "n1", body: "Hello\n![[attachments/photo.png]]")
+        await store.loadLinkGraph(id: "n1")
+        XCTAssertEqual(api.savedBodyAtLinkRead, ["Hello\n![[attachments/photo.png]]"])
+    }
+
     func testTickingATaskBoxEditsTheBodyAndSavesItLikeTyping() async {
         let api = FakeNotesApi()
         let store = NotesStore(api: api)

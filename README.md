@@ -118,6 +118,8 @@ A todo can be added without opening the app:
 
 - **Add Todo**, an App Intent with a text parameter, from Siri ("Add a todo in PAI"), Shortcuts or the Action button through a shortcut. It answers whether the todo was added or waits on the phone.
 - **Describe Todo**, an App Intent that hands plain words to the server's model; without a network the words are queued as Add Todo would queue them.
+- **Open Todos** (the view it was on last), **Open Todos View** (a view or list picked in Shortcuts) and **Open the Desk** (the Desk in full), App Intents in the Shortcuts app; Open Todos is also a Siri phrase.
+- **Todos**, **New todo**, **Search todos**, **Go to** (the switcher), **Desk** and a tile for one chosen view or list, in the app's own Quick Actions.
 - **New todo**, a Control Center control, and **New todo** and **Describe todo** in the app icon's quick actions, opening the add sheet with the keyboard up.
 - **Todo** in the share sheet, for shared text or a link (attached to the todo).
 
