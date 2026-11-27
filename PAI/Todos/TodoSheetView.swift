@@ -536,12 +536,14 @@ struct TodoScreen: View {
 
     @ViewBuilder private func files(_ todo: Todo) -> some View {
         let queued = store.queuedFiles(of: todo.id)
+        // The todo as its screen last read it: a row from a list may be older than its files.
+        let attached = store.details[todo.id]?.todo.attachments ?? todo.attachments
         let adds = blocked == nil && todo.status != .deleted
-        if !todo.attachments.isEmpty || !queued.isEmpty || adds {
+        if !attached.isEmpty || !queued.isEmpty || adds {
             VStack(alignment: .leading, spacing: 6) {
-                sectionHeading("Files", count: String(todo.attachments.count + queued.count), add: nil)
+                sectionHeading("Files", count: String(attached.count + queued.count), add: nil)
                 VStack(spacing: 0) {
-                    ForEach(todo.attachments, id: \.id) { file in
+                    ForEach(attached, id: \.id) { file in
                         Button {
                             openFile(file)
                         } label: {
@@ -573,7 +575,7 @@ struct TodoScreen: View {
                 }
                 .background(RoundedRectangle(cornerRadius: 14).fill(PaiPalette.Semantic.panelBackground))
             }
-            .fixtureFact("todosFiles", String(todo.attachments.count))
+            .fixtureFact("todosFiles", String(attached.count))
         }
     }
 
