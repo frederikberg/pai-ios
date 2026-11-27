@@ -618,7 +618,7 @@ public struct MeReview: Decodable, Sendable, Equatable {
 
 // MARK: Tasks
 
-/// One open task of the person's Today list.
+/// One open task of the day's list: a root todo, never a subtask.
 public struct MeTaskOpen: Decodable, Sendable, Equatable {
     public let id: String
     /// Where the task opens in the store the list comes from; nil when it has no page for it, and
@@ -626,8 +626,13 @@ public struct MeTaskOpen: Decodable, Sendable, Equatable {
     public let url: String?
     /// Markdown links already reduced to their text.
     public let title: String
-    /// The person's own Today order, from 0.
+    /// The person's own order, from 0: the Desk first, then what is due by date and time.
     public let position: Int
+    /// On the person's Desk; false for a row its dates alone put on the list, and from a store
+    /// without a Desk.
+    public let desk: Bool
+    /// The Desk section the row sits in; nil outside any section and off the Desk.
+    public let section: String?
     public let labels: [String]
     /// `HH:MM` Berlin wall clock of a set time.
     public let dueTime: String?
@@ -637,13 +642,16 @@ public struct MeTaskOpen: Decodable, Sendable, Equatable {
     public let overdueDays: Int
 
     public init(
-        id: String, url: String? = nil, title: String, position: Int = 0, labels: [String] = [],
-        dueTime: String? = nil, deadline: String? = nil, overdueDays: Int = 0
+        id: String, url: String? = nil, title: String, position: Int = 0, desk: Bool = false,
+        section: String? = nil, labels: [String] = [], dueTime: String? = nil, deadline: String? = nil,
+        overdueDays: Int = 0
     ) {
         self.id = id
         self.url = url
         self.title = title
         self.position = position
+        self.desk = desk
+        self.section = section
         self.labels = labels
         self.dueTime = dueTime
         self.deadline = deadline
@@ -651,7 +659,7 @@ public struct MeTaskOpen: Decodable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, url, title, position, labels, deadline
+        case id, url, title, position, desk, section, labels, deadline
         case dueTime = "due_time"
         case overdueDays = "overdue_days"
     }
@@ -662,6 +670,8 @@ public struct MeTaskOpen: Decodable, Sendable, Equatable {
         url = try? container.decodeIfPresent(String.self, forKey: .url)
         title = (try? container.decodeIfPresent(String.self, forKey: .title)) ?? ""
         position = container.decodeLenientInt(forKey: .position) ?? 0
+        desk = (try? container.decodeIfPresent(Bool.self, forKey: .desk)) ?? false
+        section = try? container.decodeIfPresent(String.self, forKey: .section)
         labels = (try? container.decodeIfPresent([String].self, forKey: .labels)) ?? []
         dueTime = try? container.decodeIfPresent(String.self, forKey: .dueTime)
         deadline = try? container.decodeIfPresent(String.self, forKey: .deadline)

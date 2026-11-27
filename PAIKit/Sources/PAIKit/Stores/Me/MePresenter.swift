@@ -219,15 +219,18 @@ public struct MePresenter: Sendable {
 /// What the Me screens show and in which order: the person's body, life and diary come first and
 /// the numbers about PAI below them. One home for the order, so a screen only draws it.
 public enum MeLayout {
-    /// The rows of the 14-day grid, top to bottom. The morning measure is not a grid row; it lives
+    /// The rows of the 14-day grid, top to bottom. The sleep score and the battery are each a line
+    /// through the days over the row that prints their numbers. The morning measure is not a grid row; it lives
     /// in the day's detail. Rows from Garmin exist only while it is connected.
     public enum GridRow: Equatable, Sendable {
-        case diary, night, sleepScore, battery, moved, messages, agents
+        case diary, night, asleep, sleepScoreTrend, sleepScore, batteryTrend, battery, moved, messages, agents
     }
 
     public static func gridRows(garminConnected: Bool) -> [GridRow] {
         var rows: [GridRow] = [.diary]
-        if garminConnected { rows += [.night, .sleepScore, .battery, .moved] }
+        if garminConnected {
+            rows += [.night, .asleep, .sleepScoreTrend, .sleepScore, .batteryTrend, .battery, .moved]
+        }
         rows += [.messages, .agents]
         return rows
     }

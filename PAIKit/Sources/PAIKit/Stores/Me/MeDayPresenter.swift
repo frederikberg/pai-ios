@@ -73,7 +73,8 @@ public struct MeFact: Equatable, Sendable {
     public let tone: MeFactTone
 }
 
-/// The Todoist card of Today: fixed calendar events, what is left, what was ticked.
+/// The task card of Today: fixed calendar events, the Desk in its own order under its sections,
+/// what else is left, what was ticked.
 public struct MeTodayCard: Equatable, Sendable {
     public struct Fixed: Equatable, Sendable {
         /// `14:00`; nil for an all-day event, which the row names "all day".
@@ -100,8 +101,19 @@ public struct MeTodayCard: Equatable, Sendable {
         public let isGroup: Bool
     }
 
+    /// A run of Desk rows under one section name; nil for the rows above the first section.
+    public struct DeskSection: Equatable, Sendable {
+        public let title: String?
+        public let rows: [Open]
+    }
+
     public let fixed: [Fixed]
+    /// The Desk in the person's order, cut where the section changes. Empty for a store without one.
+    public let desk: [DeskSection]
+    /// The open rows that are not on the Desk, in the order they came.
     public let open: [Open]
+    /// What the rows off the Desk are called: `Due` beside a Desk's store, `To come` otherwise.
+    public let openCaption: String
     public let done: [Done]
     /// `3 done · 6 to come · 1 fixed`; nil when all three are empty.
     public let countLine: String?
@@ -111,6 +123,21 @@ public struct MeTodayCard: Equatable, Sendable {
     public let sourceName: String
     /// Where the header link opens; nil when the server named no address, and there is no link.
     public let todayUrl: URL?
+}
+
+/// A value per day as a line through the days of the grid.
+public struct MeTrend: Equatable, Sendable {
+    public struct Point: Equatable, Sendable {
+        /// The day's column.
+        public let index: Int
+        /// Points from the top of the row.
+        public let y: Double
+    }
+
+    /// One per day that has a value.
+    public let points: [Point]
+    /// The points a line joins: each run is consecutive days of two or more.
+    public let runs: [[Point]]
 }
 
 /// The Plan card: the agreed text, and what is worth saying about it.
@@ -412,10 +439,26 @@ extension MePresenter {
     public func todayCard(tasks: MeTasks?, events: [MeEvent], now: Date, todayKey: String) -> MeTodayCard? {
         guard let tasks, tasks.isConfigured else { return nil }
         let fixed = fixedRows(events, now: now)
-        let open = tasks.open.map {
-            MeTodayCard.Open(
-                id: $0.id, url: $0.url.flatMap(URL.init(string:)), title: $0.title, suffix: openSuffix($0, todayKey))
+        var desk: [MeTodayCard.DeskSection] = []
+        var open: [MeTodayCard.Open] = []
+        var run: [MeTodayCard.Open] = []
+        var runTitle: String?
+        for task in tasks.open {
+            let row = MeTodayCard.Open(
+                id: task.id, url: task.url.flatMap(URL.init(string:)), title: task.title,
+                suffix: openSuffix(task, todayKey))
+            guard task.desk else {
+                open.append(row)
+                continue
+            }
+            if !run.isEmpty, runTitle != task.section {
+                desk.append(MeTodayCard.DeskSection(title: runTitle, rows: run))
+                run = []
+            }
+            runTitle = task.section
+            run.append(row)
         }
+        if !run.isEmpty { desk.append(MeTodayCard.DeskSection(title: runTitle, rows: run)) }
         var done: [MeTodayCard.Done] = []
         var ticked = 0
         for row in tasks.done {
@@ -424,7 +467,7 @@ extension MePresenter {
         }
         var counts: [String] = []
         if ticked > 0 { counts.append("\(ticked) done") }
-        if !open.isEmpty { counts.append("\(open.count) to come") }
+        if !tasks.open.isEmpty { counts.append("\(tasks.open.count) to come") }
         if !fixed.isEmpty { counts.append("\(fixed.count) fixed") }
         var footer: String?
         if case .unavailable = tasks.status {
@@ -432,7 +475,8 @@ extension MePresenter {
             footer = "\(tasks.sourceName) unreachable\(shown)"
         }
         return MeTodayCard(
-            fixed: fixed, open: open, done: done,
+            fixed: fixed, desk: desk, open: open, openCaption: tasks.sourceName == "Todos" ? "Due" : "To come",
+            done: done,
             countLine: counts.isEmpty ? nil : counts.joined(separator: " · "), footer: footer,
             sourceName: tasks.sourceName, todayUrl: tasks.todayUrl.flatMap(URL.init(string:)))
     }
@@ -584,6 +628,45 @@ extension MePresenter {
             if let feel = entry.feel { return .face(feel) }
             return entry.isPrivate ? .privateNoFace : .noFace
         }
+    }
+
+    /// The height of a trend row of the grid.
+    public static let trendRowHeight = 40.0
+    /// The least span of values a trend row's height stands for, so a flat fortnight draws flat.
+    private static let trendMinSpan = 30.0
+    private static let trendPadding = 5.0
+
+    /// A value per day as a line through the days: the row's height stands for the range the
+    /// shown days hold, higher values higher up. A day without a value has no point and is not
+    /// bridged. The same rule as the web's `trend` (`meModel.ts`).
+    public func trend(_ values: [Int?]) -> MeTrend {
+        let known = values.compactMap { $0 }
+        guard let low = known.min(), let high = known.max() else { return MeTrend(points: [], runs: []) }
+        let span = max(Self.trendMinSpan, Double(high - low))
+        let top = Double(low + high) / 2 + span / 2
+        let drawn = Self.trendRowHeight - 2 * Self.trendPadding
+        var points: [MeTrend.Point] = []
+        var runs: [[MeTrend.Point]] = []
+        var run: [MeTrend.Point] = []
+        for (index, value) in values.enumerated() {
+            guard let value else {
+                if run.count > 1 { runs.append(run) }
+                run = []
+                continue
+            }
+            let point = MeTrend.Point(index: index, y: Self.trendPadding + (top - Double(value)) / span * drawn)
+            points.append(point)
+            run.append(point)
+        }
+        if run.count > 1 { runs.append(run) }
+        return MeTrend(points: points, runs: runs)
+    }
+
+    /// `7:35`: hours and minutes asleep, short enough for a day's column.
+    public func sleepClock(seconds: Int?) -> String? {
+        guard let seconds else { return nil }
+        let minutes = (seconds + 30) / 60
+        return String(format: "%d:%02d", minutes / 60, minutes % 60)
     }
 
     /// Height of a message bar against the busiest day on screen: 28 points at most, 2 at least.

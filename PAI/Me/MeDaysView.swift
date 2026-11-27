@@ -1,8 +1,9 @@
 import PAIKit
 import SwiftUI
 
-/// The last 14 days as columns, a row per kind of thing, every row printing its number. Colours
-/// name what a row is; nothing here scores a day. A row whose source is not connected is not
+/// The last 14 days as columns, a row per kind of thing, every row printing its number. The sleep
+/// score and the battery on waking are each a line through the days over their row of numbers.
+/// Colours name what a row is; nothing here scores a day. A row whose source is not connected is not
 /// drawn, and a day without a value leaves its cell blank.
 struct MeDaysView: View {
     let store: MeOverviewStore
@@ -113,10 +114,24 @@ struct MeDaysView: View {
                             .onTapGesture { Task { await store.select(date: day.date) } }
                     }
                 }
+            case .asleep:
+                row("asleep", height: 15) { day in
+                    textCell(
+                        presenter.sleepClock(seconds: day.body?.sleepSeconds),
+                        color: PaiPalette.Semantic.textSecondary, size: 9.5)
+                }
+            case .sleepScoreTrend:
+                trendRow(
+                    presenter.trend(days.map { $0.body?.sleepScore }), days: days, cell: cell,
+                    today: overview.today, color: MeColor.sleepScore)
             case .sleepScore:
                 row("score", height: 15) { day in
-                    numberCell(day.body?.sleepScore, color: PaiPalette.Semantic.textSecondary, size: 10)
+                    numberCell(day.body?.sleepScore, color: MeColor.sleepScore, size: 10)
                 }
+            case .batteryTrend:
+                trendRow(
+                    presenter.trend(days.map { $0.body?.bodyBatteryWake }), days: days, cell: cell,
+                    today: overview.today, color: MeColor.battery)
             case .battery:
                 row("battery", height: 15) { day in
                     numberCell(day.body?.bodyBatteryWake, color: MeColor.battery, size: 10)
@@ -250,8 +265,49 @@ struct MeDaysView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    /// A value per day as a line with a dot per day, today's dot faint like today's night. A tap
+    /// still picks the day under it.
+    private func trendRow(_ trend: MeTrend, days: [MeDay], cell: CGFloat, today: String, color: Color) -> some View {
+        let height = CGFloat(MePresenter.trendRowHeight)
+        func place(_ point: MeTrend.Point) -> CGPoint {
+            CGPoint(x: (CGFloat(point.index) + 0.5) * cell, y: CGFloat(point.y))
+        }
+        var line = Path()
+        for run in trend.runs {
+            line.addLines(run.map(place))
+        }
+        return HStack(spacing: 0) {
+            Color.clear.frame(width: gutter, height: height)
+            ZStack(alignment: .topLeading) {
+                HStack(spacing: 0) {
+                    ForEach(days) { day in
+                        Color.clear
+                            .frame(width: cell, height: height)
+                            .contentShape(Rectangle())
+                            .onTapGesture { Task { await store.select(date: day.date) } }
+                    }
+                }
+                line.stroke(color, style: StrokeStyle(lineWidth: 1.75, lineCap: .round, lineJoin: .round))
+                    .allowsHitTesting(false)
+                ForEach(trend.points, id: \.index) { point in
+                    let isToday = days.indices.contains(point.index) && days[point.index].date == today
+                    Circle()
+                        .fill(color.opacity(isToday ? 0.5 : 1))
+                        .frame(width: 5.5, height: 5.5)
+                        .position(place(point))
+                        .allowsHitTesting(false)
+                }
+            }
+            .frame(width: cell * CGFloat(days.count), height: height, alignment: .topLeading)
+        }
+    }
+
     private func numberCell(_ value: Int?, color: Color, size: CGFloat) -> some View {
-        Text(value.map { "\($0)" } ?? "")
+        textCell(value.map { "\($0)" }, color: color, size: size)
+    }
+
+    private func textCell(_ text: String?, color: Color, size: CGFloat) -> some View {
+        Text(text ?? "")
             .font(.system(size: size))
             .monospacedDigit()
             .foregroundStyle(color)

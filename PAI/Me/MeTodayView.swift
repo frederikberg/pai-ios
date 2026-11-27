@@ -159,7 +159,7 @@ struct MeTodayView: View {
                 Task { await store.refreshTasks() }
             }
             .id(FixtureScrollAnchor.meTasks.rawValue)
-            .fixtureFact("meTasksOpen", "\(card.open.count)")
+            .fixtureFact("meTasksOpen", "\(card.desk.map(\.rows.count).reduce(card.open.count, +))")
         }
     }
 

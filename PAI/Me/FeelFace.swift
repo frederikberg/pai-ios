@@ -15,6 +15,8 @@ enum MeColor {
     static func lock(dark: Bool) -> Color { dark ? PaiPalette.assistant400 : PaiPalette.assistant500 }
     static let sleep = PaiPalette.primary500
     static let battery = PaiPalette.relay500
+    /// The sleep score's line and numbers: Tailwind's sky-500, the web's tone for them.
+    static let sleepScore = Color(red: 0.055, green: 0.647, blue: 0.914)
     static func movement(dark: Bool) -> Color { dark ? PaiPalette.orange400 : PaiPalette.orange500 }
     static func pai(dark: Bool) -> Color { dark ? PaiPalette.surface500 : PaiPalette.surface400 }
     /// Calendar appointments: Tailwind's sky-400, the web's calendar tone.
