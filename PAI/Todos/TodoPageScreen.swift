@@ -17,6 +17,9 @@ struct TodoPageScreen: View {
     @State private var addMode: TodoAddMode = .line
     @State private var ticks = 0
     @State private var opened: TodoSheetTarget?
+    /// Whether the open todo came from this page's own rows, whose view's defaults its subtasks get.
+    @State private var openedFromRows = false
+    @State private var addSection: TodoAddDeskSection?
     @State private var switching = false
     @State private var fronts = 0
     @Environment(\.scenePhase) private var scenePhase
@@ -104,7 +107,11 @@ struct TodoPageScreen: View {
     var body: some View {
         TodoDeskPanel(
             todos: store, mode: $deskMode, listTitle: title, listCount: count, rowModel: rowModel,
-            onTick: tick, onOpen: open
+            onTick: tick, onOpen: { open($0) },
+            onAddHere: { section in
+                addSection = section
+                startAdding(.line)
+            }
         ) {
             pageList
         }
@@ -143,7 +150,7 @@ struct TodoPageScreen: View {
             TodoSwitcherSheet(onPick: go, initialQuery: switchQuery ?? fixtureSwitch ?? "")
         }
         .navigationDestination(isPresented: $showsSettings) { TodoSettingsScreen() }
-        .sheet(isPresented: $adding) {
+        .fullScreenCover(isPresented: $adding, onDismiss: { addSection = nil }) {
             TodoAddSheet(
                 todos: store,
                 draft: TodoCaptureDraft(text: addText ?? fixtureAdd?.text ?? "") {
@@ -151,12 +158,14 @@ struct TodoPageScreen: View {
                     guard let client else { throw PaiError.transport("Not signed in") }
                     return try await client.todosParse(text: text, list: listId, source: .ios)
                 },
-                place: place, initialText: addText ?? fixtureAdd?.text,
+                place: place, placeName: title, deskSection: addSection, initialText: addText ?? fixtureAdd?.text,
                 initialMode: addText == nil
-                    ? (fixtureAdd?.mode ?? addMode) : addMode, onAdded: reportAdded,
-                onComposed: openComposed, onAddedToOpen: openAdded)
+                    ? (fixtureAdd?.mode ?? addMode) : addMode, onOpen: openAdded,
+                onComposed: openComposed)
         }
-        .sheet(item: $opened) { target in TodoSheetView(todoId: target.id) }
+        .sheet(item: $opened) { target in
+            TodoSheetView(todoId: target.id, viewDefaults: openedFromRows ? view?.defaults : nil)
+        }
         .sensoryFeedback(.success, trigger: ticks)
         .task(id: deskKind) { deskMode = startingDeskMode() }
         .onChange(of: environment.todosPlace.fullDeskWanted) { _, wanted in
@@ -189,7 +198,7 @@ struct TodoPageScreen: View {
             header
                 .listRowSeparator(.hidden)
             if let dayLayout {
-                TodoDayRows(layout: dayLayout, rowModel: rowModel, onTick: tick, onOpen: open)
+                TodoDayRows(layout: dayLayout, rowModel: rowModel, onTick: tick, onOpen: { open($0) })
             } else {
                 pageRows
             }
@@ -241,7 +250,7 @@ struct TodoPageScreen: View {
             if let todo = store.todos[id] {
                 TodoRowView(
                     model: rowModel(todo), depth: depth, expandable: expandable, expanded: isExpanded, compact: compact,
-                    onTick: { tick(id) }, onToggleExpanded: { toggleExpanded(id) }, onOpen: { open(id) }
+                    onTick: { tick(id) }, onToggleExpanded: { toggleExpanded(id) }, onOpen: { open(id, fromRows: true) }
                 )
                 .opacity(store.pendingIds.contains(id) ? 0.75 : 1)
                 .swipeActions(edge: .leading) {
@@ -364,7 +373,9 @@ struct TodoPageScreen: View {
         ticks += 1
     }
 
-    private func open(_ id: String) {
+    /// `fromRows` says the todo is one of this page's own rows, so the view shows it.
+    private func open(_ id: String, fromRows: Bool = false) {
+        openedFromRows = fromRows
         opened = TodoSheetTarget(id: id)
     }
 
@@ -396,27 +407,11 @@ struct TodoPageScreen: View {
         return environment.todoDeskModes.mode(for: deskKind)
     }
 
-    /// A todo added to be opened: once the server has it, its sheet opens.
-    private func openAdded(_ changeId: String, _ todoId: String) {
+    /// A todo opened from the add sheet's note, once that sheet has left.
+    private func openAdded(_ todoId: String) {
         Task {
             try? await Task.sleep(for: .milliseconds(700))
-            switch await store.settled(changeId, timeout: 15) {
-            case .applied: open(todoId)
-            case .refused(let refusal): toasts.show("Not added: \(refusal.message)", kind: .error)
-            case .waiting:
-                toasts.show("Saved on this iPhone. It is added once there is a connection.", kind: .info)
-            }
-        }
-    }
-
-    private func reportAdded(_ changeId: String) {
-        Task {
-            let outcome = await store.outcome(of: changeId, timeout: 4)
-            switch outcome.settlement {
-            case .refused: toasts.show(outcome.message(keeper: .app), kind: .error)
-            case .applied, .waiting:
-                TodoUndoToast.show(outcome.message(keeper: .app), changeId: changeId, store: store, toasts: toasts)
-            }
+            open(todoId)
         }
     }
 

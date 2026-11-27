@@ -158,8 +158,8 @@ public enum TodoAddWords {
 }
 
 /// One chip under the add sheet's line: what the parser read, a default of the open view
-/// (`dismissKey` set, a tap leaves it off this todo), or a picker's choice (`pickKey`). The web's
-/// `Chip` (`quickadd/chips.ts`).
+/// (`dismissKey` set, a tap leaves it off this todo), or a picker's choice. The web's `Chip`
+/// (`quickadd/chips.ts`).
 public struct TodoAddChip: Equatable, Sendable, Identifiable {
     public let key: String
     public let kind: String
@@ -167,21 +167,15 @@ public struct TodoAddChip: Equatable, Sendable, Identifiable {
     /// A chip that wears a palette colour of its own (a horizon's) instead of its kind's tone.
     public let color: TodoColor?
     public let dismissKey: String?
-    /// Set on a chip a picker chose: the name `TodoAddDraft.without` takes the choice back by.
-    public let pickKey: String?
 
     public var id: String { key }
 
-    public init(
-        key: String, kind: String, label: String, color: TodoColor? = nil, dismissKey: String? = nil,
-        pickKey: String? = nil
-    ) {
+    public init(key: String, kind: String, label: String, color: TodoColor? = nil, dismissKey: String? = nil) {
         self.key = key
         self.kind = kind
         self.label = label
         self.color = color
         self.dismissKey = dismissKey
-        self.pickKey = pickKey
     }
 
     /// The chips for what the parser read in a line: one per field, in a fixed order, named from

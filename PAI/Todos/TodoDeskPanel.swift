@@ -14,6 +14,8 @@ struct TodoDeskPanel<ListContent: View>: View {
     let rowModel: (Todo) -> TodoRowModel
     let onTick: (String) -> Void
     let onOpen: (String) -> Void
+    /// Opens the add sheet for a todo that lands at the end of this section of the desk.
+    var onAddHere: (TodoAddDeskSection) -> Void = { _ in }
     @ViewBuilder let list: () -> ListContent
 
     @Environment(ToastCenter.self) private var toasts
@@ -137,6 +139,8 @@ struct TodoDeskPanel<ListContent: View>: View {
             Button("Cancel", role: .cancel) { naming = nil }
         }
         .task { arrangeForFixture() }
+        .fixtureFact(
+            "todosDeskAddHere", String(deskRows.filter { if case .addHere = $0 { true } else { false } }.count))
     }
 
     /// A new section goes last, as on the web; a renamed one keeps its place.
@@ -186,16 +190,20 @@ struct TodoDeskPanel<ListContent: View>: View {
 
     private var deskList: some View {
         List {
-            ForEach(todos.deskItems) { item in
-                deskRow(item)
+            ForEach(deskRows) { row in
+                switch row {
+                case .item(let item): deskRow(item)
+                case .addHere(let section): addHere(section)
+                }
             }
             .onMove { from, destination in
-                guard let first = from.first,
+                // Arranging shows the cards and sections alone, so the indexes are the desk's own.
+                guard arranging, let first = from.first,
                     let op = TodoDeskArrange.onMove(todos.deskItems, from: first, to: destination)
                 else { return }
                 todos.submit([op])
             }
-            if todos.deskItems.isEmpty {
+            if todos.deskItems.isEmpty, mode != .desk {
                 Text("Nothing on the desk. Swipe a todo right to put it here.")
                     .font(.footnote)
                     .foregroundStyle(PaiPalette.Semantic.textMuted)
@@ -206,6 +214,52 @@ struct TodoDeskPanel<ListContent: View>: View {
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 36)
         .environment(\.editMode, .constant(arranging ? .active : .inactive))
+    }
+
+    /// A row of the desk's list: a card or a section's heading, or the line that adds into the
+    /// section above it.
+    private enum DeskRow: Identifiable {
+        case item(TodoDeskItem)
+        case addHere(TodoAddDeskSection)
+
+        var id: String {
+            switch self {
+            case .item(let item): TodosOverlay.deskKey(item)
+            case .addHere(let section): "add:\(section.dividerId ?? "top")"
+            }
+        }
+    }
+
+    /// The desk's cards and sections; with the desk alone on screen and not being arranged,
+    /// each section, the unnamed top one included, ends in its "Add here".
+    private var deskRows: [DeskRow] {
+        guard mode == .desk, !arranging else { return todos.deskItems.map(DeskRow.item) }
+        var rows: [DeskRow] = []
+        for section in TodoDeskSections.sections(todos.deskItems) {
+            if let divider = section.divider { rows.append(.item(divider)) }
+            rows.append(contentsOf: section.cards.map(DeskRow.item))
+            rows.append(
+                .addHere(
+                    TodoAddDeskSection(dividerId: section.divider?.id, title: section.divider?.title ?? "Desk")))
+        }
+        return rows
+    }
+
+    private func addHere(_ section: TodoAddDeskSection) -> some View {
+        Button {
+            onAddHere(section)
+        } label: {
+            Label("Add here", systemImage: "plus")
+                .font(.subheadline)
+                .foregroundStyle(PaiPalette.primary500)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .moveDisabled(true)
+        .accessibilityLabel("Add a todo to \(section.title)")
     }
 
     @ViewBuilder private func deskRow(_ item: TodoDeskItem) -> some View {

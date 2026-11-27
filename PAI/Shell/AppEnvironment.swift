@@ -37,6 +37,8 @@ final class AppEnvironment {
     let todoDeskModes: TodoDeskModes
     /// The Todos page last shown on this phone, and the request to show the Desk in full.
     let todosPlace: TodosPlace
+    /// What is typed into a sheet for a new todo, kept until it is sent or discarded.
+    let todoEntryDrafts: TodoEntryDrafts
 
     /// Set when the backend refused the stored token, so the shell can offer a way back that is
     /// distinct from first launch.
@@ -192,6 +194,7 @@ final class AppEnvironment {
         self.todos = Self.makeTodos()
         self.todoDeskModes = TodoDeskModes(storage: Self.persistentFilterStorage(defaults))
         self.todosPlace = TodosPlace(storage: Self.persistentFilterStorage(defaults))
+        self.todoEntryDrafts = TodoEntryDrafts(storage: Self.persistentFilterStorage(defaults))
         self.router = Router(gate: .needsConfiguration)
         router.sleepMode = sleepMode
         sleepMode.onSleepBegan = { [weak self] in Task { @MainActor in self?.sleepBegan() } }
