@@ -21,7 +21,7 @@ struct ProvidersSections: View {
 }
 
 /// Services PAI reaches on its own, with a key the server holds so an agent can use them
-/// unattended; MailVerdict is signed in by each device instead.
+/// unattended; MailVerdict's assistant signs in to it from its own screen instead.
 struct IntegrationsSections: View {
     let settings: SettingsStore
 

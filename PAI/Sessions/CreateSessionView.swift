@@ -263,6 +263,9 @@ struct CreateSessionView: View {
                 if createSession.signInBlocksStart(claudeAuth.auth) {
                     signInBlockedRow
                 } else {
+                    if createSession.isMailVerdictSelected, let connection = environment.connection {
+                        MailVerdictSignInBar(signIn: connection.mailVerdictSignIn, api: connection.apiClient)
+                    }
                     composerBar(createSession, voiceController)
                         .fixtureFact("newSessionType", createSession.selectedSessionTypeId ?? "none")
                 }
