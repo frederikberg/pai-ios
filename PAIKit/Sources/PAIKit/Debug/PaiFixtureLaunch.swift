@@ -58,6 +58,7 @@
         static let todosDescribeFlag = "-PaiFixtureTodosDescribe"
         static let todosWhenFlag = "-PaiFixtureTodosWhen"
         static let todosTickFlag = "-PaiFixtureTodosTick"
+        static let todosSubtaskFlag = "-PaiFixtureTodosSubtask"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -276,6 +277,12 @@
         /// the toast with Undo.
         public static func ticksTodosRow(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
             arguments.contains(todosTickFlag)
+        }
+
+        /// `-PaiFixtureTodosSubtask <line>`: the todo sheet's subtask line opens with this typed,
+        /// scrolled into view.
+        public static func requestedTodosSubtask(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: todosSubtaskFlag, in: arguments)
         }
 
         /// `-PaiFixtureMe <state>`: which of `PaiFixtures.meStates` the Me routes answer. Absent is the full one.

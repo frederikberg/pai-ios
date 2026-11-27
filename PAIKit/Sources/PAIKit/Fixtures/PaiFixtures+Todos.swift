@@ -212,9 +212,10 @@ extension PaiFixtures {
             rows = todosCorpus.filter { $0.horizon == "now" }
         case String(format: "0190f000-0000-7000-8000-00000000b%03d", 3):
             rows = roots
-            for (key, label) in [("now", "Now"), ("week", "This week"), ("soon", "Soon"), ("whenever", "Whenever")] {
+            // The server labels a horizon group with its stored key; the phone names it.
+            for key in ["now", "week", "soon", "whenever"] {
                 let ids = roots.filter { $0.horizon == key }.map(\.id)
-                if !ids.isEmpty { groups.append(["key": key, "label": label, "ids": ids]) }
+                if !ids.isEmpty { groups.append(["key": key, "label": key, "ids": ids]) }
             }
         default: rows = roots
         }

@@ -32,8 +32,7 @@ extension UIColor {
     }
 }
 
-/// A todo's tick circle: its horizon's ring while open (a dot for Now), a filled circle with a
-/// check once done.
+/// A todo's tick circle: its horizon's ring while open, a filled circle with a check once done.
 struct TodoTickCircle: View {
     let mark: TodoHorizonMark
     let done: Bool
@@ -48,9 +47,6 @@ struct TodoTickCircle: View {
                     .foregroundStyle(.white)
             } else {
                 Circle().strokeBorder(mark.color.swatch, lineWidth: 2)
-                if mark.dot {
-                    Circle().fill(mark.color.swatch).frame(width: size * 0.28, height: size * 0.28)
-                }
             }
         }
         .frame(width: size, height: size)

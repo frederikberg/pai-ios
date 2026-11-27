@@ -67,10 +67,11 @@ public enum TodoListRow: Equatable, Sendable, Identifiable {
 public enum TodoRows {
     /// The rows of a page: each group under its heading (no heading for the one group of an
     /// ungrouped answer), todos made here first in the first group, and under each opened row its
-    /// open children, each openable in turn. A row whose todo is not known is left out.
+    /// open children, each openable in turn. A row whose todo is not known is left out. Grouped by
+    /// horizon, a heading says the horizon's name, not its stored key (the web's `groupLabel`).
     public static func build(
         result: TodoPageResult?, pending: [String], todos: [String: Todo], expanded: Set<String>,
-        children: [String: [String]]
+        children: [String: [String]], groupBy: String? = nil
     ) -> [TodoListRow] {
         let groups = result?.groups ?? []
         var rows: [TodoListRow] = []
@@ -89,7 +90,13 @@ public enum TodoRows {
         for (index, group) in groups.enumerated() {
             let ids = (index == 0 ? pending : []) + group.ids
             let known = ids.filter { todos[$0] != nil }
-            if headed, !known.isEmpty { rows.append(.heading(key: group.key, label: group.label, count: known.count)) }
+            if headed, !known.isEmpty {
+                var label = group.label
+                if groupBy == "horizon", let horizon = TodoHorizon.knownValues[group.key] {
+                    label = TodoHorizonMark.of(horizon).label
+                }
+                rows.append(.heading(key: group.key, label: label, count: known.count))
+            }
             for id in ids { add(id, depth: 0) }
         }
         return rows
