@@ -586,7 +586,7 @@ if want todos-screens; then
   todos_screen add "todosPage=Today todosAddMode=line todosAddWords=5 todosAddDefaults=0 todosAddChips=3 todosAddHorizon=Next" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps tomorrow #errand p1"
   todos_screen add-no-date "todosAddMode=line todosAddDefaults=0 todosAddChips=1" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Read Dune no date"
   todos_screen describe "todosAddMode=describe todosAddWords=11" -PaiFixtureRoute todos -PaiFixtureTodosDescribe "Buy stamps tomorrow and then call the plumber about the boiler"
-  todos_screen add-when "todosAddPicker=when todosPicker=when todosAddChips=2" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps #errand p1" -PaiFixtureTodosPicker when
+  todos_screen add-when "todosAddPicker=when todosPicker=when todosAddChips=3 todosAddDefaults=1" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps #errand p1" -PaiFixtureTodosPicker when
   todos_screen add-horizon "todosAddPicker=horizon todosPicker=horizon" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps" -PaiFixtureTodosPicker horizon
   todos_screen add-tags "todosAddPicker=tags todosPicker=tags" -PaiFixtureRoute todosView -PaiFixtureTodosAdd "Buy stamps" -PaiFixtureTodosPicker tags
   todos_screen add-nudge "todosAddPicker=when todosPicker=nudge" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps tomorrow" -PaiFixtureTodosPicker nudge

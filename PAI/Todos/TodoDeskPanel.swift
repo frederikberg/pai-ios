@@ -281,6 +281,8 @@ struct TodoDeskPanel<ListContent: View>: View {
                 }
         } else if let todo = todos.todos[item.todoId ?? ""] {
             TodoRowView(model: rowModel(todo), onTick: { onTick(todo.id) }, onOpen: { onOpen(todo.id) })
+                // Inside the card drawn behind the row, which is narrower than the row itself.
+                .padding(.trailing, 14)
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 12).fill(PaiPalette.Semantic.panelBackground)
                         .padding(.vertical, 3).padding(.horizontal, 10)
