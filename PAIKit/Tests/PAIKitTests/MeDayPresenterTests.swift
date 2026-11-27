@@ -164,6 +164,43 @@ final class MeDayPresenterTests: XCTestCase {
         XCTAssertNil(presenter.todayCard(tasks: nil, events: events, now: now, todayKey: day))
     }
 
+    /// The Desk comes first, cut into its sections in the order the answer gives, and the rows
+    /// off it follow under their own caption; a row from a server that names no Desk is off it.
+    func testTheTodayCardGroupsTheDeskByItsSectionsAheadOfTheRest() throws {
+        let tasks = try JSONDecoder().decode(
+            MeTasks.self,
+            from: Data(
+                #"""
+                {"date": "2026-11-24", "status": "ok", "source": "todos", "as_of": null, "done": [], "moved": 0,
+                 "open": [{"id": "a", "title": "A", "desk": true, "section": null},
+                          {"id": "b", "title": "B", "desk": true, "section": "Morning"},
+                          {"id": "c", "title": "C", "desk": true, "section": "Morning"},
+                          {"id": "d", "title": "D", "desk": true, "section": "Later"},
+                          {"id": "e", "title": "E", "desk": false, "section": null},
+                          {"id": "f", "title": "F"}]}
+                """#.utf8))
+        let now = date("2026-11-24T10:33:00+00:00")
+        let card = try XCTUnwrap(presenter.todayCard(tasks: tasks, events: [], now: now, todayKey: day))
+        XCTAssertEqual(card.desk.map(\.title), [nil, "Morning", "Later"])
+        XCTAssertEqual(card.desk.map { $0.rows.map(\.title) }, [["A"], ["B", "C"], ["D"]])
+        XCTAssertEqual(card.open.map(\.title), ["E", "F"])
+        XCTAssertEqual(card.openCaption, "Due")
+        XCTAssertEqual(card.countLine, "6 to come")
+    }
+
+    /// A day without a value has no point and breaks the line; a higher value sits higher.
+    func testATrendHasAPointPerDayWithAValueAndNeverBridgesADayWithout() {
+        let trend = presenter.trend([50, nil, 70, 90, nil, 60])
+        XCTAssertEqual(trend.points.map(\.index), [0, 2, 3, 5])
+        XCTAssertEqual(trend.runs.map { $0.map(\.index) }, [[2, 3]])
+        let y = Dictionary(uniqueKeysWithValues: trend.points.map { ($0.index, $0.y) })
+        XCTAssertLessThan(y[3] ?? 0, y[2] ?? 0)
+        XCTAssertLessThan(y[2] ?? 0, y[0] ?? 0)
+        XCTAssertTrue(trend.points.allSatisfy { $0.y >= 0 && $0.y <= MePresenter.trendRowHeight })
+        XCTAssertEqual(presenter.trend([nil, nil]), MeTrend(points: [], runs: []))
+        XCTAssertEqual(presenter.sleepClock(seconds: 22_500), "6:15")
+    }
+
     func testThePlanCardNeedsWordsAndNamesWhenItWasAgreed() throws {
         let counts = MePlan(appetite: "big", planned: 3, done: 2, added: 1)
         XCTAssertNil(presenter.planCard(counts, todayKey: day))

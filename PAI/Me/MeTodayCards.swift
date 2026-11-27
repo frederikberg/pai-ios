@@ -27,8 +27,10 @@ private struct GroupCaption: View {
     }
 }
 
-/// The Today card of the task list, read-only: appointments that are fixed, what is left, what was
-/// ticked. A row opens the store the list comes from; nothing here changes a task.
+/// The Today card of the task list, read-only: appointments that are fixed, the Desk in its own
+/// order under its sections, what else is left, what was ticked. The Desk is the plan and shown
+/// whole; the other groups fold to a few rows. A row opens the store the list comes from; nothing
+/// here changes a task.
 struct MeTodayCardView: View {
     let card: MeTodayCard
     let isRefreshing: Bool
@@ -53,15 +55,19 @@ struct MeTodayCardView: View {
                 GroupCaption(title: "Fixed")
                 ForEach(Array(card.fixed.enumerated()), id: \.offset) { _, row in fixedRow(row) }
             }
-            if card.open.isEmpty {
-                GroupCaption(title: "To come")
+            if !card.desk.isEmpty {
+                GroupCaption(title: "Desk")
+                ForEach(Array(card.desk.enumerated()), id: \.offset) { _, section in deskSection(section) }
+            }
+            if card.open.isEmpty && card.desk.isEmpty {
+                GroupCaption(title: card.openCaption)
                 Text("Nothing on today's list.")
                     .font(.system(size: 13.5))
                     .foregroundStyle(PaiPalette.Semantic.textMuted)
                     .padding(.vertical, 7)
                     .accessibilityIdentifier("me-tasks-empty")
-            } else {
-                GroupCaption(title: "To come")
+            } else if !card.open.isEmpty {
+                GroupCaption(title: card.openCaption)
                 let rows = showAllOpen ? card.open : Array(card.open.prefix(shownRows))
                 ForEach(rows, id: \.id) { row in openRow(row) }
                 more(card.open.count - rows.count, expanded: $showAllOpen)
@@ -141,6 +147,20 @@ struct MeTodayCardView: View {
                 titleWithSuffix(row.title, row.suffix)
             }
         }
+    }
+
+    /// A run of Desk rows, under its section's name when it has one.
+    @ViewBuilder
+    private func deskSection(_ section: MeTodayCard.DeskSection) -> some View {
+        if let title = section.title {
+            Text(title)
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(PaiPalette.Semantic.textSecondary)
+                .padding(.top, 10)
+                .padding(.bottom, 3)
+                .accessibilityAddTraits(.isHeader)
+        }
+        ForEach(section.rows, id: \.id) { row in openRow(row) }
     }
 
     @ViewBuilder

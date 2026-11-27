@@ -294,11 +294,12 @@ extension PaiFixtures {
 
     private static func meTaskRow(
         _ id: String, _ title: String, position: Int, due: String? = nil,
-        deadline: String? = nil, overdue: Int = 0, linked: Bool = true
+        deadline: String? = nil, overdue: Int = 0, linked: Bool = true, desk: Bool = false,
+        section: String? = nil
     ) -> [String: Any] {
         [
             "id": id, "url": linked ? "\(meTodosBase)/t/\(position + 1)" : NSNull(), "title": title,
-            "position": position, "labels": [String](),
+            "position": position, "desk": desk, "section": section ?? NSNull(), "labels": [String](),
             "due_time": due ?? NSNull(), "deadline": deadline ?? NSNull(), "overdue_days": overdue,
         ]
     }
@@ -326,10 +327,11 @@ extension PaiFixtures {
         let open: [[String: Any]] =
             isToday
             ? [
-                meTaskRow("t1", "Laundry", position: 0),
-                meTaskRow("t2", "Take the paper bin down", position: 1),
-                meTaskRow("t3", "Book the dentist", position: 2, due: "17:00"),
-                meTaskRow("t4", "Reply to the landlord", position: 3, deadline: inTwoDays),
+                meTaskRow("t1", "Laundry", position: 0, desk: true),
+                meTaskRow("t2", "Take the paper bin down", position: 1, desk: true, section: "Morning"),
+                meTaskRow("t3", "Book the dentist", position: 2, due: "17:00", desk: true, section: "Morning"),
+                meTaskRow(
+                    "t4", "Reply to the landlord", position: 3, deadline: inTwoDays, desk: true, section: "Later"),
                 meTaskRow("t5", "Water the plants", position: 4, overdue: 2),
                 meTaskRow("t6", "Plan the weekend", position: 5, linked: false),
             ] : []

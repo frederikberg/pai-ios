@@ -71,7 +71,10 @@ final class MePresenterTests: XCTestCase {
             MeLayout.todaySections(for: bare, ribbon: false, tasks: false, plan: false), [.body, .write, .diary, .pai])
         XCTAssertEqual(
             MeLayout.gridRows(garminConnected: true),
-            [.diary, .night, .sleepScore, .battery, .moved, .messages, .agents])
+            [
+                .diary, .night, .asleep, .sleepScoreTrend, .sleepScore, .batteryTrend, .battery, .moved, .messages,
+                .agents,
+            ])
         XCTAssertEqual(MeLayout.gridRows(garminConnected: false), [.diary, .messages, .agents])
     }
 
