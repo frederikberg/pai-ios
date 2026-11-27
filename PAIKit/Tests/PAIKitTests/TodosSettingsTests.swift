@@ -135,3 +135,35 @@ final class TodosSettingsTests: XCTestCase {
         XCTAssertEqual(reads, plainReads + 1)
     }
 }
+
+/// Where the Shortcuts picker and the Quick Actions tiles find Todos' views and lists.
+@MainActor
+final class TodosPlacesTests: XCTestCase {
+    func testThePickerListsEveryViewThenEveryOpenList() async throws {
+        let me = try TodosWireSamples.decode(TodosMeAnswer.self, "me")
+        let places = TodoBrowse.places(me)
+        let views = me.views.sorted { $0.rank < $1.rank }
+        let lists = me.lists.filter { !$0.archived }
+        XCTAssertFalse(views.isEmpty)
+        XCTAssertEqual(places.map(\.page), views.map { .view($0.id) } + lists.map { .list($0.id) })
+        XCTAssertEqual(places.map(\.title), views.map(\.name) + lists.map(\.name))
+        for place in places { XCTAssertEqual(TodoPage(key: place.page.key), place.page, "stored by its key") }
+        XCTAssertNil(TodoPage(key: "view:"))
+        XCTAssertNil(TodoPage(key: "board:x"))
+    }
+
+    /// The page last shown is kept, and a request for the full Desk or the switcher is taken once.
+    func testTheLastPageIsKeptAndARequestIsTakenOnce() async throws {
+        let storage = SettingsInMemoryKeyValueStore()
+        let place = TodosPlace(storage: storage)
+        XCTAssertNil(place.lastPage)
+        place.shown(.list("L1"))
+        XCTAssertEqual(TodosPlace(storage: storage).lastPage, .list("L1"))
+        place.requestFullDesk()
+        XCTAssertTrue(place.takeFullDesk())
+        XCTAssertFalse(place.takeFullDesk())
+        place.requestSwitcher()
+        XCTAssertTrue(place.takeSwitcher())
+        XCTAssertFalse(place.takeSwitcher())
+    }
+}

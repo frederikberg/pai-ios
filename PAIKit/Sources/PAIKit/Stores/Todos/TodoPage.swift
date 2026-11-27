@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 /// A page of todos: a saved view, one list, or one tag.
 public enum TodoPage: Hashable, Sendable {
@@ -13,6 +14,68 @@ public enum TodoPage: Hashable, Sendable {
         case .list(let id): "list:\(id)"
         case .tag(let name): "tag:\(name.lowercased())"
         }
+    }
+
+    /// The page a ``key`` names; nil for anything else.
+    public init?(key: String) {
+        guard let colon = key.firstIndex(of: ":") else { return nil }
+        let value = String(key[key.index(after: colon)...])
+        guard !value.isEmpty else { return nil }
+        switch key[..<colon] {
+        case "view": self = .view(value)
+        case "list": self = .list(value)
+        case "tag": self = .tag(value)
+        default: return nil
+        }
+    }
+}
+
+/// Where Todos was last on this phone, and a request to open the Desk in full. "Open Todos" (the
+/// Shortcuts action, the in-app action) lands on the last page; "Open the Desk" lands there too,
+/// with the Desk at full height.
+@MainActor
+@Observable
+public final class TodosPlace {
+    @ObservationIgnored private let storage: (any SettingsKeyValueStore)?
+    static let lastPageKey = "todos.lastPage"
+
+    /// Set by "Open the Desk"; the page that shows next, or the one on screen, takes it.
+    public private(set) var fullDeskWanted = false
+
+    /// `storage` nil keeps nothing between launches (tests, fixture runs).
+    public init(storage: (any SettingsKeyValueStore)?) {
+        self.storage = storage
+    }
+
+    /// The page last shown; nil before any, which opens Todos' home.
+    public var lastPage: TodoPage? {
+        let key: String? = storage?.value(forKey: Self.lastPageKey)
+        return key.flatMap(TodoPage.init(key:))
+    }
+
+    public func shown(_ page: TodoPage) {
+        storage?.setValue(page.key, forKey: Self.lastPageKey)
+    }
+
+    public func requestFullDesk() { fullDeskWanted = true }
+
+    /// Set by the quick switcher action; the page that shows next, or the one on screen, opens it.
+    public private(set) var switcherWanted = false
+
+    public func requestSwitcher() { switcherWanted = true }
+
+    /// Whether the switcher is to open, once.
+    public func takeSwitcher() -> Bool {
+        guard switcherWanted else { return false }
+        switcherWanted = false
+        return true
+    }
+
+    /// Whether the Desk is to show in full, once: the page asking takes the request.
+    public func takeFullDesk() -> Bool {
+        guard fullDeskWanted else { return false }
+        fullDeskWanted = false
+        return true
     }
 }
 

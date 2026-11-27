@@ -35,6 +35,7 @@ struct QuickActionsScreen: View {
         switch item {
         case .action(let action): action.isAvailable(to: capabilities)
         case .shortcut(let id): store.shortcut(id) != nil
+        case .todosPage: capabilities.canOpenTodos
         case .more: false
         }
     }
@@ -164,6 +165,16 @@ struct QuickActionsScreen: View {
                     open(shortcut)
                 }
             }
+        case .todosPage(let key):
+            if let page = TodoPage(key: key) {
+                let entry = todosEntry(page)
+                tile(
+                    title: entry?.title ?? "Todos view", subtitle: todosKind(page), systemImage: "checklist",
+                    tint: PaiPalette.Semantic.textSecondary, height: height, identifier: "quick-todos-page"
+                ) {
+                    TodosEntry.open(page)
+                }
+            }
         case .more:
             tile(
                 title: "More", subtitle: "Other actions", systemImage: "ellipsis.circle.fill",
@@ -190,7 +201,7 @@ struct QuickActionsScreen: View {
         case .me, .computer, .home, .homeCall, .mailverdict: PaiPalette.primary500
         case .ultrafast, .ultrafastCall, .ultrafastCamera: PaiPalette.green500
         case .findNote, .newNote, .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage,
-            .cameraImport:
+            .cameraImport, .todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk:
             PaiPalette.Semantic.textSecondary
         }
     }
@@ -210,7 +221,8 @@ struct QuickActionsScreen: View {
         case .fastCall: "quick-fast-call"
         case .findNote: "quick-find-note"
         case .newNote: "quick-new-note"
-        case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport:
+        case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport, .todos, .newTodo,
+            .searchTodos, .todosSwitcher, .todosDesk:
             "quick-\(action.rawValue)"
         }
     }
@@ -250,6 +262,11 @@ struct QuickActionsScreen: View {
             environment.router.replace(with: [.notes])
         case .newNote:
             Task { await createNote() }
+        case .todos: TodosEntry.open(environment)
+        case .newTodo: TodosEntry.newTodo()
+        case .searchTodos: TodosEntry.search(environment)
+        case .todosSwitcher: TodosEntry.openSwitcher(environment)
+        case .todosDesk: TodosEntry.openDesk(environment)
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport:
             guard let route = action.appEntry?.route else { return }
             environment.router.push(route)
@@ -372,8 +389,30 @@ struct QuickActionsScreen: View {
                     }
                 }
             }
+        case .todosPage(let key):
+            if let page = TodoPage(key: key) {
+                moreRow(
+                    title: todosEntry(page)?.title ?? "Todos view", subtitle: todosKind(page), systemImage: "checklist",
+                    tint: PaiPalette.Semantic.textSecondary, identifier: "quick-todos-page-row", putAway: false
+                ) {
+                    afterClosingMore { TodosEntry.open(page) }
+                }
+            }
         case .more:
             EmptyView()
+        }
+    }
+
+    /// A Todos view or list as Todos names it, from what the phone last read.
+    private func todosEntry(_ page: TodoPage) -> TodoBrowse.Entry? {
+        TodoBrowse.make(me: environment.todos.me, viewCounts: [:]).entry(for: page)
+    }
+
+    private func todosKind(_ page: TodoPage) -> String {
+        switch page {
+        case .view: "Todos view"
+        case .list: "Todos list"
+        case .tag: "Todos tag"
         }
     }
 

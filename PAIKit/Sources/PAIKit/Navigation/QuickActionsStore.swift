@@ -78,6 +78,22 @@ public final class QuickActionsStore {
         return shortcut
     }
 
+    /// Adds a tile for one Todos view or list at the end of the grid; one already added stays where it is.
+    public func addTodosPage(_ page: TodoPage) {
+        guard !arrangement.todosPages.contains(page.key) else { return }
+        var next = arrangement
+        next.todosPages.append(page.key)
+        next.grid.append(.todosPage(page.key))
+        arrangement = next
+    }
+
+    public func deleteTodosPage(_ key: String) {
+        var next = arrangement
+        next.todosPages.removeAll { $0 == key }
+        next.normalize()
+        arrangement = next
+    }
+
     public func updateShortcut(_ shortcut: QuickActionShortcut) {
         guard let index = arrangement.shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
         arrangement.shortcuts[index] = shortcut
@@ -90,11 +106,11 @@ public final class QuickActionsStore {
         arrangement = next
     }
 
-    /// Back to ``QuickActionArrangement/standard``; the shortcuts stay, hidden.
+    /// Back to ``QuickActionArrangement/standard``; the shortcuts and Todos pages stay, hidden.
     public func resetToStandard() {
         arrangement = QuickActionArrangement(
             grid: QuickActionArrangement.standard.grid, more: QuickActionArrangement.standard.more,
-            shortcuts: arrangement.shortcuts)
+            shortcuts: arrangement.shortcuts, todosPages: arrangement.todosPages)
     }
 
     /// `Array.move(fromOffsets:toOffset:)` is SwiftUI's, which the package does not import.

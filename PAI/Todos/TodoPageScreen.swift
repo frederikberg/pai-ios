@@ -155,6 +155,13 @@ struct TodoPageScreen: View {
         .sheet(item: $opened) { target in TodoSheetView(todoId: target.id) }
         .sensoryFeedback(.success, trigger: ticks)
         .task(id: deskKind) { deskMode = startingDeskMode() }
+        .onChange(of: environment.todosPlace.fullDeskWanted) { _, wanted in
+            if wanted, environment.todosPlace.takeFullDesk() { deskMode = .desk }
+        }
+        .onChange(of: environment.todosPlace.switcherWanted, initial: true) { _, wanted in
+            if wanted, environment.todosPlace.takeSwitcher() { switching = true }
+        }
+        .task(id: resolved?.key) { if let resolved { environment.todosPlace.shown(resolved) } }
         .onChange(of: deskMode) { _, mode in environment.todoDeskModes.set(mode, for: deskKind) }
         .task(id: loadKey) { await load() }
         .task { openFixtureState() }
@@ -376,6 +383,7 @@ struct TodoPageScreen: View {
     }
 
     private func startingDeskMode() -> TodoDeskMode {
+        if environment.todosPlace.takeFullDesk() { return .desk }
         #if DEBUG
             if let mode = PaiFixtureLaunch.requestedTodosDesk() { return mode }
         #endif

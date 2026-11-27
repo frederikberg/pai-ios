@@ -195,6 +195,31 @@ public struct TodoBrowse: Equatable, Sendable {
             lists: lists, tags: tagEntries, tagsFolded: views.contains { $0.builtin == nil })
     }
 
+    /// A view or a list somewhere else can open (a Shortcuts picker, a Quick Actions tile): its
+    /// page, its name and what it is.
+    public struct Place: Equatable, Sendable {
+        public let page: TodoPage
+        public let title: String
+        public let kind: String
+    }
+
+    /// Every view in the person's order, then every list that is not archived.
+    public static func places(_ me: TodosMeAnswer?) -> [Place] {
+        let browse = make(me: me, viewCounts: [:])
+        let views = (browse.favourites + browse.moreViews).compactMap { entry in
+            entry.page.map { Place(page: $0, title: entry.title, kind: "View") }
+        }
+        let lists = browse.lists.compactMap { entry in
+            entry.page.map { Place(page: $0, title: entry.title, kind: "List") }
+        }
+        return views + lists
+    }
+
+    /// The entry that opens `page`, wherever it is listed.
+    public func entry(for page: TodoPage) -> Entry? {
+        (favourites + moreViews + lists + tags).first { $0.page == page }
+    }
+
     /// The view a bare Todos opens: the first favourite in the person's own order.
     public static func home(_ me: TodosMeAnswer?) -> TodoView? {
         let views = (me?.views ?? []).sorted { $0.rank < $1.rank }

@@ -131,6 +131,17 @@ struct PaiAppShortcuts: AppShortcutsProvider {
             shortTitle: "Add Todo",
             systemImageName: "checkmark.circle"
         )
+        // The tenth and last phrase set an app may offer; Open Todos View and Open the Desk are in
+        // the Shortcuts app's action list without one.
+        AppShortcut(
+            intent: OpenTodosIntent(),
+            phrases: [
+                "Open Todos in \(.applicationName)",
+                "Open \(.applicationName) todos",
+            ],
+            shortTitle: "Open Todos",
+            systemImageName: "checklist"
+        )
         AppShortcut(
             intent: OpenQuickActionsIntent(),
             phrases: [

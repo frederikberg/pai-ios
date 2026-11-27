@@ -35,6 +35,8 @@ final class AppEnvironment {
 
     /// The state of the desk above Todos' pages, per page kind, kept on the phone.
     let todoDeskModes: TodoDeskModes
+    /// The Todos page last shown on this phone, and the request to show the Desk in full.
+    let todosPlace: TodosPlace
 
     /// Set when the backend refused the stored token, so the shell can offer a way back that is
     /// distinct from first launch.
@@ -189,6 +191,7 @@ final class AppEnvironment {
         self.quickActions = Self.makeQuickActions(defaults)
         self.todos = Self.makeTodos()
         self.todoDeskModes = TodoDeskModes(storage: Self.persistentFilterStorage(defaults))
+        self.todosPlace = TodosPlace(storage: Self.persistentFilterStorage(defaults))
         self.router = Router(gate: .needsConfiguration)
         router.sleepMode = sleepMode
         sleepMode.onSleepBegan = { [weak self] in Task { @MainActor in self?.sleepBegan() } }
