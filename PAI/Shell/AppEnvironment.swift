@@ -114,6 +114,9 @@ final class AppEnvironment {
         /// any request has left. App-wide for the same reason `drafts` is: a composer's own
         /// lifetime must never be what a send's durability depends on.
         let outbox: OutboxStore
+        /// The MailVerdict assistant's own sign-in to MailVerdict, held in memory for this
+        /// connection only; a send to an assistant session carries its token.
+        let mailVerdictSignIn: MailVerdictAssistantSignIn
         /// The microphone, and whatever take is running on it. App-wide because a recording has
         /// to outlive the screen that started it — see `VoiceRecorderController`'s doc comment.
         /// There is one microphone, so there is one of these.
@@ -154,17 +157,13 @@ final class AppEnvironment {
 
     /// The Zitadel native application this app signs in as: a public client, PKCE instead of a
     /// secret, so the client id is no secret either. The roles scope puts the person's project
-    /// roles into the access token.
-    /// The audience scope makes the access token valid at MailVerdict too: PAI Cloud forwards the
-    /// caller's own bearer there for the MailVerdict assistant.
+    /// roles into the access token. It names PAI Cloud's audience only: the MailVerdict assistant
+    /// signs in to MailVerdict on its own (`MailVerdictAssistantSignIn`).
     nonisolated static let signInConfiguration = OidcConfiguration(
         issuer: URL(string: "https://login.bergrunde.net")!,
         clientId: "399443595255349553",
         redirectURI: URL(string: "pai://oauth/callback")!,
-        scopes: [
-            "openid", "profile", "email", "offline_access", "urn:zitadel:iam:org:projects:roles",
-            "urn:zitadel:iam:org:project:id:398140807388856625:aud",
-        ]
+        scopes: ["openid", "profile", "email", "offline_access", "urn:zitadel:iam:org:projects:roles"]
     )
 
     /// The process's one renewer, shared by the connection and the clients App Intents build, so
@@ -427,6 +426,10 @@ final class AppEnvironment {
         // in a closure written out here, so the join between a landed send and the screen waiting
         // on it is covered by the package's own tests instead of by this line.
         outbox.installHandover(drafts: draftStore, sessions: sessions, handoff: NewSessionHandoff.shared)
+        let mailVerdictSignIn = MailVerdictAssistantSignIn()
+        outbox.mailVerdictToken = { [weak sessions, mailVerdictSignIn] target in
+            mailVerdictSignIn.token(for: target, kindOf: { sessions?.session(withId: $0)?.kind })
+        }
         outboxPathObserver?.stop()
         let pathObserver = NetworkPathObserver()
         // Skipping a send's backoff is for a new network: one that came back or a changed primary
@@ -537,6 +540,7 @@ final class AppEnvironment {
             },
             staging: staging,
             outbox: outbox,
+            mailVerdictSignIn: mailVerdictSignIn,
             voice: voice,
             computerCall: computerCall,
             wakeWordSamples: wakeWordSamples,

@@ -101,3 +101,24 @@ public struct PersonWatchKey: Codable, Sendable, Equatable, Identifiable {
         self.displayName = displayName
     }
 }
+
+/// `GET /api/mailverdict/sign-in?platform=ios`: where the MailVerdict assistant's own sign-in
+/// starts. `scope` is space-separated, MailVerdict's audience among it, and asks for no refresh
+/// token.
+public struct MailVerdictSignInConfig: Codable, Sendable, Equatable {
+    public let issuer: String
+    public let clientId: String
+    public let scope: String
+
+    public init(issuer: String, clientId: String, scope: String) {
+        self.issuer = issuer
+        self.clientId = clientId
+        self.scope = scope
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case issuer
+        case clientId = "client_id"
+        case scope
+    }
+}

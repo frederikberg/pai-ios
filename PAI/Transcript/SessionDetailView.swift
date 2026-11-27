@@ -81,6 +81,9 @@ struct SessionDetailView: View {
                     .overlay(alignment: .bottom) { TranscriptStreamStallBanner(sessionID: sessionID) }
                     OutboxBubbleStack(sessionID: sessionID)
                     Divider()
+                    if currentSession?.kind == .mailverdict {
+                        MailVerdictSignInBar(signIn: connection.mailVerdictSignIn, api: connection.apiClient)
+                    }
                     if searchState.isActive {
                         TranscriptSearchBar(state: searchState)
                     } else {

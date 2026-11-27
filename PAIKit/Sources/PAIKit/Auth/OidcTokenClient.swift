@@ -10,10 +10,14 @@ public struct OidcTokenSet: Codable, Equatable, Sendable {
     public let accessToken: String
     /// `nil` when the provider issued none (no `offline_access`); such a sign-in cannot be renewed.
     public let refreshToken: String?
+    /// The access token's lifetime in seconds as the token endpoint stated it; `nil` when it said
+    /// none (and for a set stored before this was kept).
+    public let expiresIn: Double?
 
-    public init(accessToken: String, refreshToken: String?) {
+    public init(accessToken: String, refreshToken: String?, expiresIn: Double? = nil) {
         self.accessToken = accessToken
         self.refreshToken = refreshToken
+        self.expiresIn = expiresIn
     }
 }
 
@@ -46,7 +50,9 @@ public struct OidcTokenClient: Sendable {
             "client_id": configuration.clientId,
             "refresh_token": refreshToken,
         ])
-        return OidcTokenSet(accessToken: renewed.accessToken, refreshToken: renewed.refreshToken ?? refreshToken)
+        return OidcTokenSet(
+            accessToken: renewed.accessToken, refreshToken: renewed.refreshToken ?? refreshToken,
+            expiresIn: renewed.expiresIn)
     }
 
     /// Ends the session at the provider: the refresh token (the access token when there is none)
@@ -76,10 +82,12 @@ public struct OidcTokenClient: Sendable {
     private struct TokenResponse: Decodable {
         let accessToken: String
         let refreshToken: String?
+        let expiresIn: Double?
 
         enum CodingKeys: String, CodingKey {
             case accessToken = "access_token"
             case refreshToken = "refresh_token"
+            case expiresIn = "expires_in"
         }
     }
 
@@ -114,7 +122,8 @@ public struct OidcTokenClient: Sendable {
             guard let tokens = try? JSONDecoder().decode(TokenResponse.self, from: data),
                 !tokens.accessToken.isEmpty
             else { throw .unavailable("unreadable token response") }
-            return OidcTokenSet(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken)
+            return OidcTokenSet(
+                accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: tokens.expiresIn)
         case 400..<500:
             let reason = (try? JSONDecoder().decode(ErrorResponse.self, from: data))
                 .map { $0.errorDescription ?? $0.error }

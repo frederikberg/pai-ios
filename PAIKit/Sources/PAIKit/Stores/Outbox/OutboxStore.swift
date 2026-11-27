@@ -8,7 +8,7 @@ public protocol OutboxSending: Sendable {
         sessionId: String?, message: String, clientMessageId: String, files: [PaiFileUpload],
         draftAttachmentIds: [String], supersededUploadIds: [String], sessionType: String?, workingDir: String?,
         agent: String?, model: String?,
-        thinking: String?, clientMode: String?, heldTake: HeldTake?, noMemory: Bool?
+        thinking: String?, clientMode: String?, heldTake: HeldTake?, noMemory: Bool?, mailVerdictToken: String?
     ) async throws -> PostMessageResponse
 }
 
@@ -143,6 +143,10 @@ public final class OutboxStore {
     /// ``entries``. The `Bool` is whether the server's own draft already holds the text; when it
     /// does not, the handler owns putting the text back (the files go through ``onFilesReturned``).
     public var onRefused: (@MainActor (OutboxEntry, Bool) -> Void)?
+    /// The MailVerdict assistant's token for a send to this target, read at send time and never
+    /// stored in the entry; `nil` for every other target. The app installs
+    /// ``MailVerdictAssistantSignIn/token(for:kindOf:)`` here.
+    public var mailVerdictToken: (@MainActor (OutboxTarget) -> String?)?
     /// Entries an ``undoSend`` has asked the server about and not heard back on — the worker
     /// leaves them alone meanwhile, so no further request carrying one is issued while its fate
     /// is being decided.
@@ -438,7 +442,7 @@ public final class OutboxStore {
                 supersededUploadIds: entry.supersededUploadIds ?? [], sessionType: entry.target.sessionType,
                 workingDir: entry.target.workingDir, agent: entry.target.agent, model: entry.target.model,
                 thinking: entry.target.thinking, clientMode: entry.clientMode, heldTake: entry.heldTake,
-                noMemory: entry.noMemory
+                noMemory: entry.noMemory, mailVerdictToken: mailVerdictToken?(entry.target)
             )
             guard let current = entries.firstIndex(where: { $0.id == entry.id }) else { return }
             if response.withdrawn {

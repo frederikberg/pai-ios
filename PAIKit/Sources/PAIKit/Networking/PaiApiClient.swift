@@ -234,6 +234,11 @@ public struct PaiApiClient: Sendable {
         self.renewCredential = renewCredential
     }
 
+    /// What the MailVerdict assistant's own sign-in starts from on this platform.
+    public func mailVerdictSignIn() async throws -> MailVerdictSignInConfig {
+        try await send(path: "/api/mailverdict/sign-in", query: [URLQueryItem(name: "platform", value: "ios")])
+    }
+
     // MARK: Core request helpers
 
     func send<T: Decodable>(
@@ -663,7 +668,8 @@ public struct PaiApiClient: Sendable {
         thinking: String? = nil,
         clientMode: String? = nil,
         heldTake: HeldTake? = nil,
-        noMemory: Bool? = nil
+        noMemory: Bool? = nil,
+        mailVerdictToken: String? = nil
     ) async throws -> PostMessageResponse {
         let boundary = "PAIKit-\(UUID().uuidString)"
         var body = Data()
@@ -710,7 +716,10 @@ public struct PaiApiClient: Sendable {
             path: "/api/messages",
             method: "POST",
             body: body,
-            contentType: "multipart/form-data; boundary=\(boundary)"
+            contentType: "multipart/form-data; boundary=\(boundary)",
+            // The MailVerdict assistant's own sign-in, for this message's reply alone; a header,
+            // never part of the stored outbox entry.
+            headers: mailVerdictToken.map { ["X-MailVerdict-Key": $0] } ?? [:]
         )
     }
 
