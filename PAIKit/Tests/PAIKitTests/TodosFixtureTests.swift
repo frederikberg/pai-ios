@@ -55,6 +55,8 @@
                 body: #"{"text":"Buy stamps tomorrow and then call the plumber"}"#)
             XCTAssertEqual(composed.ops.count, 2)
             XCTAssertEqual(sheet.history?.count, 2)
+            // The sheet shot's description: a heading, a paragraph and a list, rendered.
+            XCTAssertEqual(NotePreviewDocument(body: sheet.todo.body ?? "", nameToId: [:]).items.count, 3)
             XCTAssertTrue(sheet.children?.contains { $0.status == .done } == true)
             let upcoming = try answer(TodosUpcomingAnswer.self, "GET", "/api/todos/upcoming")
             XCTAssertGreaterThan(
