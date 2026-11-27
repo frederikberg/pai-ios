@@ -336,6 +336,18 @@
             exact("GET", "/api/decisions") { PaiFixtures.openDecisions },
             sessionScoped("GET", suffix: "/decisions") { PaiFixtures.sessionDecisions },
             exact("GET", "/api/canteen/entries") { PaiFixtures.canteenEntries },
+            exact("GET", "/api/dynamic-reports") { PaiFixtures.dynamicReports },
+            // One report answers under any id, the way the notes' fixture routes do.
+            FixtureRoute(
+                method: "GET",
+                matches: { $0.hasPrefix("/api/dynamic-reports/") && $0.split(separator: "/").count == 3 }
+            ) { PaiFixtures.data(PaiFixtures.dynamicReportDetail) },
+            FixtureRoute(
+                method: "GET", matches: { $0.hasPrefix("/api/dynamic-reports/") && $0.hasSuffix("/page") }
+            ) { PaiFixtures.data(PaiFixtures.dynamicReportPage) },
+            FixtureRoute(
+                method: "PUT", matches: { $0.hasPrefix("/api/dynamic-reports/") && $0.hasSuffix("/answers") }
+            ) { PaiFixtures.data(PaiFixtures.dynamicReportDetail) },
             exact("GET", "/api/alarm") { PaiFixtures.alarmList },
             exact("POST", "/api/alarm") { PaiFixtures.alarmCreated },
             FixtureRoute(method: "POST", matches: { $0 == "/api/alarm/dismiss" }) { Data() },

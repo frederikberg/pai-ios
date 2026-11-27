@@ -27,7 +27,7 @@ final class AppRegistryTests: XCTestCase {
             .session(id: "a"), .terminal(sessionID: "a"), .createSession, .subagents(parentID: "a"), .notifications,
             .recordings, .arcSpec(specUuid: "a"), .arcSpecList, .arcReport(specUuid: "a", reportUuid: "b"),
             .arcOverview(specUuid: "a"), .schedulerList, .schedulerTask(id: nil), .computerCall, .usage, .decisions,
-            .browserList, .browser(name: "a"),
+            .browserList, .browser(name: "a"), .reports, .report(id: "a"),
         ]
         let kept: [Route] = [
             .settings, .notes, .note(id: "a"), .noteContainers, .notePreview(id: "a"), .apps, .quickActions, .canteen,
@@ -44,7 +44,8 @@ final class AppRegistryTests: XCTestCase {
         let night = AppRegistry.listedAtNight(for: owner()).map(\.id)
         XCTAssertEqual(
             night, ["quick-actions", "me", "todos", "notes", "alarm", "weather", "canteen", "camera-import"])
-        XCTAssertEqual(Set(listed).subtracting(night), ["arc", "scheduler", "usage", "decisions", "browser"])
+        XCTAssertEqual(
+            Set(listed).subtracting(night), ["arc", "scheduler", "usage", "decisions", "reports", "browser"])
         XCTAssertTrue(night.contains("quick-actions"))
         XCTAssertTrue(night.contains("camera-import"))
     }
