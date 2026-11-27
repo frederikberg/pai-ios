@@ -295,11 +295,11 @@ struct TodoTimeChoices: View {
             }
             DatePicker("Another time", selection: $other, displayedComponents: .hourAndMinute)
                 .environment(\.locale, ClockTime.pickerLocale)
-                .environment(\.timeZone, TimeZone(identifier: "UTC")!)
+                .environment(\.timeZone, TodoClock.zone)
                 .font(.subheadline)
                 .padding(.horizontal, 12)
                 .frame(minHeight: 44)
-                .onChange(of: other) { _, date in set(TodoClock.hhmm(date)) }
+                .onChange(of: other) { _, date in set(TodoClock.text(date)) }
             if current != nil {
                 Button {
                     set(nil)
@@ -416,11 +416,11 @@ struct TodoNudgeChoices: View {
                     .padding(.horizontal, 12)
                     DatePicker("At", selection: $time, displayedComponents: .hourAndMinute)
                         .environment(\.locale, ClockTime.pickerLocale)
-                        .environment(\.timeZone, TimeZone(identifier: "UTC")!)
+                        .environment(\.timeZone, TodoClock.zone)
                         .font(.subheadline)
                         .padding(.horizontal, 12)
                     Button("Add this nudge") {
-                        editing.addNudge(.days(basis: basis, days: days, time: TodoClock.hhmm(time)))
+                        editing.addNudge(.days(basis: basis, days: days, time: TodoClock.text(time)))
                         custom = false
                     }
                     .font(.subheadline.weight(.semibold))

@@ -154,19 +154,19 @@ final class TodoKeyboard {
 
     private init() {
         let center = NotificationCenter.default
-        center.addObserver(
-            forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main
-        ) { [weak self] note in
+        center.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { note in
             let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue
-            MainActor.assumeIsolated {
-                self?.isUp = true
-                if let height = frame?.height, height > 200 { self?.lastHeight = height }
-            }
+            let height = frame?.height ?? 0
+            Task { @MainActor in TodoKeyboard.shared.noteShown(height: height) }
         }
-        center.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) {
-            [weak self] _ in
-            MainActor.assumeIsolated { self?.isUp = false }
+        center.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in TodoKeyboard.shared.isUp = false }
         }
+    }
+
+    private func noteShown(height: CGFloat) {
+        isUp = true
+        if height > 200 { lastHeight = height }
     }
 
     /// The strip under the screen's content the home indicator takes, which the keyboard's own
