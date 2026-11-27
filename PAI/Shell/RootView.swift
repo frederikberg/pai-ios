@@ -200,7 +200,10 @@ struct RootView: View {
                         },
                         initialMode: addingMode,
                         onAdded: { changeId in reportAddedTodo(changeId, toasts: connection.toasts) },
-                        onComposed: { composed in openComposedTodo(composed, toasts: connection.toasts) })
+                        onComposed: { composed in openComposedTodo(composed, toasts: connection.toasts) },
+                        onAddedToOpen: { changeId, todoId in
+                            openAddedTodo(changeId, todoId: todoId, toasts: connection.toasts)
+                        })
                 }
                 .sheet(item: $openedTodo) { target in TodoSheetView(todoId: target.id) }
                 .environment(environment)
@@ -558,6 +561,19 @@ struct RootView: View {
         openedTodo = TodoSheetTarget(id: id)
     }
 
+    /// A todo added to be opened: once the server has it, its sheet opens.
+    private func openAddedTodo(_ changeId: String, todoId: String, toasts: ToastCenter) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(700))
+            switch await environment.todos.settled(changeId, timeout: 15) {
+            case .applied: openedTodo = TodoSheetTarget(id: todoId)
+            case .refused(let refusal): toasts.show("Not added: \(refusal.message)", kind: .error)
+            case .waiting:
+                toasts.show("Saved on this iPhone. It is added once there is a connection.", kind: .info)
+            }
+        }
+    }
+
     /// Plain words became todos: once the server has them the first one opens; several say how
     /// many came in.
     private func openComposedTodo(_ composed: TodosComposed, toasts: ToastCenter) {
@@ -566,7 +582,11 @@ struct RootView: View {
             try? await Task.sleep(for: .milliseconds(700))
             switch await environment.todos.settled(composed.changeId, timeout: 15) {
             case .applied:
-                if composed.count > 1 { toasts.show("Added \(composed.count) todos", kind: .success) }
+                if composed.count > 1 {
+                    TodoUndoToast.show(
+                        "Added \(composed.count) todos", changeId: composed.changeId, store: environment.todos,
+                        toasts: toasts)
+                }
                 openedTodo = TodoSheetTarget(id: composed.firstTodoId)
             case .refused(let refusal):
                 toasts.show("Not added: \(refusal.message)", kind: .error)
@@ -581,9 +601,12 @@ struct RootView: View {
     private func reportAddedTodo(_ changeId: String, toasts: ToastCenter) {
         Task {
             let outcome = await environment.todos.outcome(of: changeId, timeout: 4)
-            var kind = ToastMessage.Kind.info
-            if case .refused = outcome.settlement { kind = .error }
-            toasts.show(outcome.message(keeper: .app), kind: kind)
+            switch outcome.settlement {
+            case .refused: toasts.show(outcome.message(keeper: .app), kind: .error)
+            case .applied, .waiting:
+                TodoUndoToast.show(
+                    outcome.message(keeper: .app), changeId: changeId, store: environment.todos, toasts: toasts)
+            }
         }
     }
 

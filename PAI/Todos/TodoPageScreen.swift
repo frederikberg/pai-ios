@@ -101,7 +101,8 @@ struct TodoPageScreen: View {
         ) {
             pageList
         }
-        .overlay(alignment: .bottomTrailing) { addButton }
+        // Above the line the list folds to while the desk takes the whole height.
+        .overlay(alignment: .bottomTrailing) { addButton.padding(.bottom, deskMode == .desk ? 44 : 0) }
         .navigationTitle("Todos")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -133,7 +134,7 @@ struct TodoPageScreen: View {
                 place: place, initialText: addText ?? fixtureAdd?.text,
                 initialMode: addText == nil
                     ? (fixtureAdd?.mode ?? addMode) : addMode, onAdded: reportAdded,
-                onComposed: openComposed)
+                onComposed: openComposed, onAddedToOpen: openAdded)
         }
         .sheet(item: $opened) { target in TodoSheetView(todoId: target.id) }
         .sensoryFeedback(.success, trigger: ticks)
@@ -141,6 +142,7 @@ struct TodoPageScreen: View {
         .onChange(of: deskMode) { _, mode in environment.todoDeskModes.set(mode, for: deskKind) }
         .task(id: loadKey) { await load() }
         .task { openFixtureState() }
+        .task(id: rows.count) { tickForFixture() }
         .fixtureFact("todosPage", title)
         .fixtureFact("todosDeskMode", deskMode.rawValue)
         .fixtureFact("todosRows", String(rows.count))
@@ -294,7 +296,10 @@ struct TodoPageScreen: View {
             try? await Task.sleep(for: .milliseconds(700))
             switch await store.settled(composed.changeId, timeout: 15) {
             case .applied:
-                if composed.count > 1 { toasts.show("Added \(composed.count) todos", kind: .success) }
+                if composed.count > 1 {
+                    TodoUndoToast.show(
+                        "Added \(composed.count) todos", changeId: composed.changeId, store: store, toasts: toasts)
+                }
                 open(composed.firstTodoId)
             case .refused(let refusal):
                 toasts.show("Not added: \(refusal.message)", kind: .error)
@@ -311,7 +316,7 @@ struct TodoPageScreen: View {
             toasts.show(blocked, kind: .error)
             return
         }
-        store.toggleDone(todoId: id)
+        TodoUndoToast.toggleDone(todo, store: store, toasts: toasts)
         ticks += 1
     }
 
@@ -346,13 +351,40 @@ struct TodoPageScreen: View {
         return environment.todoDeskModes.mode(for: deskKind)
     }
 
+    /// A todo added to be opened: once the server has it, its sheet opens.
+    private func openAdded(_ changeId: String, _ todoId: String) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(700))
+            switch await store.settled(changeId, timeout: 15) {
+            case .applied: open(todoId)
+            case .refused(let refusal): toasts.show("Not added: \(refusal.message)", kind: .error)
+            case .waiting:
+                toasts.show("Saved on this iPhone. It is added once there is a connection.", kind: .info)
+            }
+        }
+    }
+
     private func reportAdded(_ changeId: String) {
         Task {
             let outcome = await store.outcome(of: changeId, timeout: 4)
-            var kind = ToastMessage.Kind.info
-            if case .refused = outcome.settlement { kind = .error }
-            toasts.show(outcome.message(keeper: .app), kind: kind)
+            switch outcome.settlement {
+            case .refused: toasts.show(outcome.message(keeper: .app), kind: .error)
+            case .applied, .waiting:
+                TodoUndoToast.show(outcome.message(keeper: .app), changeId: changeId, store: store, toasts: toasts)
+            }
         }
+    }
+
+    private func tickForFixture() {
+        #if DEBUG
+            // Once per launch: the home page can be built again once `/me` names it.
+            guard PaiFixtureLaunch.ticksTodosRow(), !TodoFixtureOnce.ticked else { return }
+            for case .todo(let id, _, _, _) in rows {
+                TodoFixtureOnce.ticked = true
+                tick(id)
+                return
+            }
+        #endif
     }
 
     private func openFixtureState() {
@@ -416,3 +448,11 @@ struct TodoBrowseScreen: View {
         }
     }
 }
+
+#if DEBUG
+    /// What a fixture launch has done already, kept for the process rather than a page.
+    @MainActor
+    enum TodoFixtureOnce {
+        static var ticked = false
+    }
+#endif

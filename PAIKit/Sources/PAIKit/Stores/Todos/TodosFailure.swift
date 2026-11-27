@@ -66,6 +66,9 @@ public struct TodosRefusal: Equatable, Sendable {
             let last = body.since!.last!
             let what = last.changed.isEmpty ? "it" : last.changed.joined(separator: ", ")
             message = "\(last.actorLabel) changed \(what) first, so your change was not applied."
+        case "undo_conflict" where body.fields != nil:
+            let count = body.fields!.count
+            message = "Can't undo: \(count) field\(count == 1 ? " was" : "s were") changed since."
         case "role":
             message = "You are not allowed to do that in this list."
         case "locked":

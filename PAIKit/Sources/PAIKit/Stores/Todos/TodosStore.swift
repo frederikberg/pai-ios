@@ -306,6 +306,51 @@ public final class TodosStore {
         remove(change)
     }
 
+    /// Takes a change back, the web outbox's `undoChange`: one the server applied is undone as a
+    /// new change (`strict`), one that never left the phone is taken out of the queue, and one
+    /// being sent right now is waited for first. A change the server refused has nothing to undo.
+    public func undo(changeId: String) async -> TodosUndoOutcome {
+        if queue.contains(where: { $0.changeId == changeId }) {
+            // Nothing in flight, or a later change than the one being sent: it never reached the
+            // server, so taking it out of the queue is the whole undo.
+            if drainTask == nil || queue.first?.changeId != changeId {
+                withdraw(changeId: changeId)
+                return .undone
+            }
+            switch await settled(changeId, timeout: Self.undoWaitSeconds) {
+            case .applied: break
+            case .refused: return .nothingToUndo
+            case .waiting: return .failed
+            }
+        }
+        guard let backend else { return .failed }
+        appliedIds.removeAll { $0 == changeId }
+        do {
+            let result = try await backend.todosUndo(changeId: changeId, TodosUndoRequest(changeId: makeId()))
+            merge(result.todos)
+            readTick += 1
+            scheduleCacheWrite()
+            // The undo's own events (a desk put back, a repeat's day restored) read what they name.
+            await catchUp()
+            return .undone
+        } catch {
+            note(error)
+            switch TodosFailure.of(error) {
+            case .refused(let refusal), .serverError(let refusal): return .refused(refusal.message)
+            case .retry, .signedOut: return .failed
+            }
+        }
+    }
+
+    /// How long an Undo pressed while its change is being sent waits for the server's answer.
+    static let undoWaitSeconds: TimeInterval = 30
+
+    /// The todo a queued change creates: a capture's, else its first `todo.create`.
+    public func createdTodoId(ofChange changeId: String) -> String? {
+        guard let change = queue.first(where: { $0.changeId == changeId }) else { return nil }
+        return change.capture?.todoId ?? change.ops.first { $0.name == "todo.create" }?.string("id")
+    }
+
     /// Wait up to `timeout` seconds for a queued capture's verdict, and name the todo it made.
     public func outcome(of changeId: String, timeout: TimeInterval) async -> TodosCaptureOutcome {
         let capture = queue.first { $0.changeId == changeId }?.capture
@@ -1132,6 +1177,28 @@ public final class TodosStore {
 }
 
 /// What became of a capture a door waited on, and the sentence it tells the person.
+/// What became of an Undo.
+public enum TodosUndoOutcome: Equatable, Sendable {
+    /// Taken back: undone on the server, or taken out of the queue before it was sent.
+    case undone
+    /// The server refused the change itself, so there is nothing to take back.
+    case nothingToUndo
+    /// The server refused the undo, said why (something changed since).
+    case refused(String)
+    /// No answer: no connection or no sign-in.
+    case failed
+
+    /// What the toast after an Undo says; nil says nothing.
+    public var message: String? {
+        switch self {
+        case .undone: "Undone"
+        case .nothingToUndo: nil
+        case .refused(let message): message
+        case .failed: "Could not undo; try again."
+        }
+    }
+}
+
 /// Why plain words did not become todos. Nothing was queued either way; the words stay with
 /// the person.
 public enum TodosComposeFailure: Error, Equatable, Sendable {

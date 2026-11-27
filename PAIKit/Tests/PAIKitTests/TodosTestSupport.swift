@@ -64,6 +64,22 @@ actor FakeTodosServer: TodosBackend {
         meWaiters = []
     }
 
+    /// An apply waits, before anything is written, until `releaseApply()` while held.
+    private var applyHeld = false
+    private var applyWaiters: [CheckedContinuation<Void, Never>] = []
+    private var applyArrivals: [CheckedContinuation<Void, Never>] = []
+    func holdApply() { applyHeld = true }
+    func releaseApply() {
+        applyHeld = false
+        for waiter in applyWaiters { waiter.resume() }
+        applyWaiters = []
+    }
+    /// Returns once an apply is waiting at the hold.
+    func waitForHeldApply() async {
+        if !applyWaiters.isEmpty { return }
+        await withCheckedContinuation { applyArrivals.append($0) }
+    }
+
     /// Events the feed answers with, as if written on another device.
     private var feed: [TodoEvent] = []
     func publish(_ event: TodoEvent) { feed.append(event) }
@@ -90,6 +106,13 @@ actor FakeTodosServer: TodosBackend {
     }
 
     func todosApply(_ change: TodosChangeRequest, source: TodosSource) async throws -> TodosApplyResult {
+        if applyHeld {
+            await withCheckedContinuation { continuation in
+                applyWaiters.append(continuation)
+                for arrival in applyArrivals { arrival.resume() }
+                applyArrivals = []
+            }
+        }
         try reach()
         applyCalls += 1
         if !applyFailures.isEmpty { throw applyFailures.removeFirst() }
@@ -154,6 +177,11 @@ actor FakeTodosServer: TodosBackend {
                 break
             }
         }
+        // What the change replaced, for an undo: the rows as they were before, and the seq each
+        // touched row had afterwards, which a later change moves on.
+        undoable[change.changeId] = (
+            before: touched.keys.map { todos[$0] }, after: touched.mapValues(\.updatedSeq), desk: desk
+        )
         todos = staged
         desk = stagedDesk
         appliedLog.append(change.changeId)
@@ -174,6 +202,42 @@ actor FakeTodosServer: TodosBackend {
             throw URLError(.networkConnectionLost)
         }
         return answer
+    }
+
+    private var undoable: [String: (before: [Todo?], after: [String: Int], desk: [TodoDeskItem])] = [:]
+    private(set) var undone: [String] = []
+
+    /// Puts back what an applied change replaced, as the server's strict undo does: refused with
+    /// `undo_conflict` when a row it touched was changed since.
+    func todosUndo(changeId: String, _ request: TodosUndoRequest) async throws -> TodosApplyResult {
+        try reach()
+        guard let record = undoable[changeId] else { throw try refusal("error-404-not-found", status: 404) }
+        let moved = record.after.filter { todos[$0.key]?.updatedSeq != $0.value }.map(\.key)
+        if !moved.isEmpty {
+            let body = try JSONDecoder().decode(
+                TodosErrorBody.self,
+                from: JSONSerialization.data(withJSONObject: [
+                    "error": "undo_conflict", "message": "Changed since.", "fields": moved.map { _ in "status" },
+                ]))
+            throw TodosApiError(statusCode: 409, body: body)
+        }
+        seq += 1
+        var restored: [Todo] = []
+        for (id, _) in record.after {
+            if var row = record.before.compactMap({ $0 }).first(where: { $0.id == id }) {
+                row.updatedSeq = seq
+                todos[id] = row
+                restored.append(row)
+            } else {
+                todos[id] = nil
+            }
+        }
+        desk = record.desk
+        undoable[changeId] = nil
+        undone.append(changeId)
+        return TodosApplyResult(
+            change: nil, applied: 1, of: 1, results: [TodoOpResult(index: 0, ok: true, ref: nil, id: nil, error: nil)],
+            todos: restored, events: [], replayed: false)
     }
 
     /// Change ids applied, with the principal whose credential applied them.

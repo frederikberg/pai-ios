@@ -1,0 +1,840 @@
+{
+ "pills": [
+  {
+   "label": "Today",
+   "insert": "today"
+  },
+  {
+   "label": "Tomorrow",
+   "insert": "tomorrow"
+  },
+  {
+   "label": "@ Tag",
+   "insert": "@"
+  },
+  {
+   "label": "Now",
+   "insert": "p1"
+  },
+  {
+   "label": "Desk",
+   "insert": "*"
+  },
+  {
+   "label": "Deadline",
+   "insert": "by "
+  }
+ ],
+ "inserts": [
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "today",
+   "out": {
+    "text": "today ",
+    "caret": 5
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "tomorrow",
+   "out": {
+    "text": "tomorrow ",
+    "caret": 8
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "@",
+   "out": {
+    "text": "@",
+    "caret": 1
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "p1",
+   "out": {
+    "text": "p1 ",
+    "caret": 2
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "*",
+   "out": {
+    "text": "* ",
+    "caret": 1
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "by ",
+   "out": {
+    "text": "by ",
+    "caret": 3
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "today",
+   "out": {
+    "text": "today ",
+    "caret": 5
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "tomorrow",
+   "out": {
+    "text": "tomorrow ",
+    "caret": 8
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "@",
+   "out": {
+    "text": "@",
+    "caret": 1
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "p1",
+   "out": {
+    "text": "p1 ",
+    "caret": 2
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "*",
+   "out": {
+    "text": "* ",
+    "caret": 1
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "by ",
+   "out": {
+    "text": "by ",
+    "caret": 3
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "today",
+   "out": {
+    "text": "today ",
+    "caret": 5
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "tomorrow",
+   "out": {
+    "text": "tomorrow ",
+    "caret": 8
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "@",
+   "out": {
+    "text": "@",
+    "caret": 1
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "p1",
+   "out": {
+    "text": "p1 ",
+    "caret": 2
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "*",
+   "out": {
+    "text": "* ",
+    "caret": 1
+   }
+  },
+  {
+   "text": "",
+   "caret": 0,
+   "piece": "by ",
+   "out": {
+    "text": "by ",
+    "caret": 3
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 0,
+   "piece": "today",
+   "out": {
+    "text": "today Buy stamps",
+    "caret": 5
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 0,
+   "piece": "tomorrow",
+   "out": {
+    "text": "tomorrow Buy stamps",
+    "caret": 8
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 0,
+   "piece": "@",
+   "out": {
+    "text": "@Buy stamps",
+    "caret": 1
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 0,
+   "piece": "p1",
+   "out": {
+    "text": "p1 Buy stamps",
+    "caret": 2
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 0,
+   "piece": "*",
+   "out": {
+    "text": "* Buy stamps",
+    "caret": 1
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 0,
+   "piece": "by ",
+   "out": {
+    "text": "by Buy stamps",
+    "caret": 3
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 5,
+   "piece": "today",
+   "out": {
+    "text": "Buy s today tamps",
+    "caret": 11
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 5,
+   "piece": "tomorrow",
+   "out": {
+    "text": "Buy s tomorrow tamps",
+    "caret": 14
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 5,
+   "piece": "@",
+   "out": {
+    "text": "Buy s @tamps",
+    "caret": 7
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 5,
+   "piece": "p1",
+   "out": {
+    "text": "Buy s p1 tamps",
+    "caret": 8
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 5,
+   "piece": "*",
+   "out": {
+    "text": "Buy s * tamps",
+    "caret": 7
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 5,
+   "piece": "by ",
+   "out": {
+    "text": "Buy s by tamps",
+    "caret": 9
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 10,
+   "piece": "today",
+   "out": {
+    "text": "Buy stamps today ",
+    "caret": 16
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 10,
+   "piece": "tomorrow",
+   "out": {
+    "text": "Buy stamps tomorrow ",
+    "caret": 19
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 10,
+   "piece": "@",
+   "out": {
+    "text": "Buy stamps @",
+    "caret": 12
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 10,
+   "piece": "p1",
+   "out": {
+    "text": "Buy stamps p1 ",
+    "caret": 13
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 10,
+   "piece": "*",
+   "out": {
+    "text": "Buy stamps * ",
+    "caret": 12
+   }
+  },
+  {
+   "text": "Buy stamps",
+   "caret": 10,
+   "piece": "by ",
+   "out": {
+    "text": "Buy stamps by ",
+    "caret": 14
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 0,
+   "piece": "today",
+   "out": {
+    "text": "today Buy stamps ",
+    "caret": 5
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 0,
+   "piece": "tomorrow",
+   "out": {
+    "text": "tomorrow Buy stamps ",
+    "caret": 8
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 0,
+   "piece": "@",
+   "out": {
+    "text": "@Buy stamps ",
+    "caret": 1
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 0,
+   "piece": "p1",
+   "out": {
+    "text": "p1 Buy stamps ",
+    "caret": 2
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 0,
+   "piece": "*",
+   "out": {
+    "text": "* Buy stamps ",
+    "caret": 1
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 0,
+   "piece": "by ",
+   "out": {
+    "text": "by Buy stamps ",
+    "caret": 3
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 5,
+   "piece": "today",
+   "out": {
+    "text": "Buy s today tamps ",
+    "caret": 11
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 5,
+   "piece": "tomorrow",
+   "out": {
+    "text": "Buy s tomorrow tamps ",
+    "caret": 14
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 5,
+   "piece": "@",
+   "out": {
+    "text": "Buy s @tamps ",
+    "caret": 7
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 5,
+   "piece": "p1",
+   "out": {
+    "text": "Buy s p1 tamps ",
+    "caret": 8
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 5,
+   "piece": "*",
+   "out": {
+    "text": "Buy s * tamps ",
+    "caret": 7
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 5,
+   "piece": "by ",
+   "out": {
+    "text": "Buy s by tamps ",
+    "caret": 9
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 11,
+   "piece": "today",
+   "out": {
+    "text": "Buy stamps today ",
+    "caret": 16
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 11,
+   "piece": "tomorrow",
+   "out": {
+    "text": "Buy stamps tomorrow ",
+    "caret": 19
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 11,
+   "piece": "@",
+   "out": {
+    "text": "Buy stamps @",
+    "caret": 12
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 11,
+   "piece": "p1",
+   "out": {
+    "text": "Buy stamps p1 ",
+    "caret": 13
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 11,
+   "piece": "*",
+   "out": {
+    "text": "Buy stamps * ",
+    "caret": 12
+   }
+  },
+  {
+   "text": "Buy stamps ",
+   "caret": 11,
+   "piece": "by ",
+   "out": {
+    "text": "Buy stamps by ",
+    "caret": 14
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 0,
+   "piece": "today",
+   "out": {
+    "text": "today Buy  milk",
+    "caret": 5
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 0,
+   "piece": "tomorrow",
+   "out": {
+    "text": "tomorrow Buy  milk",
+    "caret": 8
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 0,
+   "piece": "@",
+   "out": {
+    "text": "@Buy  milk",
+    "caret": 1
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 0,
+   "piece": "p1",
+   "out": {
+    "text": "p1 Buy  milk",
+    "caret": 2
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 0,
+   "piece": "*",
+   "out": {
+    "text": "* Buy  milk",
+    "caret": 1
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 0,
+   "piece": "by ",
+   "out": {
+    "text": "by Buy  milk",
+    "caret": 3
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 4,
+   "piece": "today",
+   "out": {
+    "text": "Buy today  milk",
+    "caret": 9
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 4,
+   "piece": "tomorrow",
+   "out": {
+    "text": "Buy tomorrow  milk",
+    "caret": 12
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 4,
+   "piece": "@",
+   "out": {
+    "text": "Buy @ milk",
+    "caret": 5
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 4,
+   "piece": "p1",
+   "out": {
+    "text": "Buy p1  milk",
+    "caret": 6
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 4,
+   "piece": "*",
+   "out": {
+    "text": "Buy *  milk",
+    "caret": 5
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 4,
+   "piece": "by ",
+   "out": {
+    "text": "Buy by  milk",
+    "caret": 7
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 9,
+   "piece": "today",
+   "out": {
+    "text": "Buy  milk today ",
+    "caret": 15
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 9,
+   "piece": "tomorrow",
+   "out": {
+    "text": "Buy  milk tomorrow ",
+    "caret": 18
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 9,
+   "piece": "@",
+   "out": {
+    "text": "Buy  milk @",
+    "caret": 11
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 9,
+   "piece": "p1",
+   "out": {
+    "text": "Buy  milk p1 ",
+    "caret": 12
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 9,
+   "piece": "*",
+   "out": {
+    "text": "Buy  milk * ",
+    "caret": 11
+   }
+  },
+  {
+   "text": "Buy  milk",
+   "caret": 9,
+   "piece": "by ",
+   "out": {
+    "text": "Buy  milk by ",
+    "caret": 13
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 0,
+   "piece": "today",
+   "out": {
+    "text": "today Café 🍎 run",
+    "caret": 5
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 0,
+   "piece": "tomorrow",
+   "out": {
+    "text": "tomorrow Café 🍎 run",
+    "caret": 8
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 0,
+   "piece": "@",
+   "out": {
+    "text": "@Café 🍎 run",
+    "caret": 1
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 0,
+   "piece": "p1",
+   "out": {
+    "text": "p1 Café 🍎 run",
+    "caret": 2
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 0,
+   "piece": "*",
+   "out": {
+    "text": "* Café 🍎 run",
+    "caret": 1
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 0,
+   "piece": "by ",
+   "out": {
+    "text": "by Café 🍎 run",
+    "caret": 3
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 5,
+   "piece": "today",
+   "out": {
+    "text": "Café today 🍎 run",
+    "caret": 10
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 5,
+   "piece": "tomorrow",
+   "out": {
+    "text": "Café tomorrow 🍎 run",
+    "caret": 13
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 5,
+   "piece": "@",
+   "out": {
+    "text": "Café @🍎 run",
+    "caret": 6
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 5,
+   "piece": "p1",
+   "out": {
+    "text": "Café p1 🍎 run",
+    "caret": 7
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 5,
+   "piece": "*",
+   "out": {
+    "text": "Café * 🍎 run",
+    "caret": 6
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 5,
+   "piece": "by ",
+   "out": {
+    "text": "Café by 🍎 run",
+    "caret": 8
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 11,
+   "piece": "today",
+   "out": {
+    "text": "Café 🍎 run today ",
+    "caret": 17
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 11,
+   "piece": "tomorrow",
+   "out": {
+    "text": "Café 🍎 run tomorrow ",
+    "caret": 20
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 11,
+   "piece": "@",
+   "out": {
+    "text": "Café 🍎 run @",
+    "caret": 13
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 11,
+   "piece": "p1",
+   "out": {
+    "text": "Café 🍎 run p1 ",
+    "caret": 14
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 11,
+   "piece": "*",
+   "out": {
+    "text": "Café 🍎 run * ",
+    "caret": 13
+   }
+  },
+  {
+   "text": "Café 🍎 run",
+   "caret": 11,
+   "piece": "by ",
+   "out": {
+    "text": "Café 🍎 run by ",
+    "caret": 15
+   }
+  }
+ ]
+}

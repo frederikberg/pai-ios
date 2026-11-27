@@ -56,6 +56,8 @@ public protocol TodosBackend: Sendable {
     func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer
     /// Plain words read into todos by a model; nothing is written.
     func todosCompose(_ request: TodosComposeRequest) async throws -> TodosComposeAnswer
+    /// Undoes an applied change as a new change of its own (`request.changeId`).
+    func todosUndo(changeId: String, _ request: TodosUndoRequest) async throws -> TodosApplyResult
 }
 
 extension PaiApiClient: TodosBackend {
@@ -133,6 +135,11 @@ extension PaiApiClient: TodosBackend {
 
     public func todosCompose(_ request: TodosComposeRequest) async throws -> TodosComposeAnswer {
         try await todosSend("POST", "/compose", body: Self.jsonBody(request))
+    }
+
+    public func todosUndo(changeId: String, _ request: TodosUndoRequest) async throws -> TodosApplyResult {
+        try await todosSend(
+            "POST", "/changes/\(Self.escapedSegment(changeId))/undo", body: Self.jsonBody(request))
     }
 
     private static func escapedSegment(_ value: String) -> String {
