@@ -218,10 +218,7 @@ final class TodosUndoTests: XCTestCase {
             let inserts: [Case]
         }
         let vectors = try TodosWireSamples.decode(Vectors.self, "web-insert-vectors")
-        // The horizon tap wears the phone's name for `now`; the others read as on the web.
-        XCTAssertEqual(
-            TodoAddWords.taps.filter { $0.insert != "p1" }.map(\.label),
-            vectors.pills.filter { $0.insert != "p1" }.map(\.label))
+        XCTAssertEqual(TodoAddWords.taps.map(\.label), vectors.pills.map(\.label))
         XCTAssertEqual(TodoAddWords.taps.map(\.insert), vectors.pills.map(\.insert))
         XCTAssertGreaterThan(vectors.inserts.count, 50)
         for case_ in vectors.inserts {
