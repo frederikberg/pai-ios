@@ -451,11 +451,23 @@ public struct TodoDefaultNudges: Codable, Equatable, Sendable {
         public let minutes: Int?
         public let days: Int?
         public let time: String?
+
+        public init(minutes: Int? = nil, days: Int? = nil, time: String? = nil) {
+            self.minutes = minutes
+            self.days = days
+            self.time = time
+        }
     }
 
     public let timed: [Entry]
     public let day: [Entry]
     public let deadline: [Entry]
+
+    public init(timed: [Entry], day: [Entry], deadline: [Entry]) {
+        self.timed = timed
+        self.day = day
+        self.deadline = deadline
+    }
 
     public var isEmpty: Bool { timed.isEmpty && day.isEmpty && deadline.isEmpty }
 }
@@ -970,6 +982,25 @@ public struct TodosParseAnswer: Codable, Equatable, Sendable {
         issues = try container.decodeIfPresent([TodoParseIssue].self, forKey: .issues) ?? []
         clears = try container.decodeIfPresent([String].self, forKey: .clears) ?? []
     }
+}
+
+/// Someone the caller may add to a list (`GET /people`).
+public struct TodoPerson: Codable, Equatable, Sendable, Identifiable {
+    public let principal: String
+    public let userId: String
+    public let displayName: String
+
+    public var id: String { principal }
+
+    enum CodingKeys: String, CodingKey {
+        case principal
+        case userId = "user_id"
+        case displayName = "display_name"
+    }
+}
+
+public struct TodosPeopleAnswer: Codable, Equatable, Sendable {
+    public let people: [TodoPerson]
 }
 
 /// `POST /changes/{id}/undo`: undo that change as a new one, `changeId`. `strict` refuses with

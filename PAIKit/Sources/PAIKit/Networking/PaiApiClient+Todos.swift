@@ -58,6 +58,8 @@ public protocol TodosBackend: Sendable {
     func todosCompose(_ request: TodosComposeRequest) async throws -> TodosComposeAnswer
     /// Undoes an applied change as a new change of its own (`request.changeId`).
     func todosUndo(changeId: String, _ request: TodosUndoRequest) async throws -> TodosApplyResult
+    /// The people the caller may share a list with.
+    func todosPeople() async throws -> TodosPeopleAnswer
 }
 
 extension PaiApiClient: TodosBackend {
@@ -140,6 +142,10 @@ extension PaiApiClient: TodosBackend {
     public func todosUndo(changeId: String, _ request: TodosUndoRequest) async throws -> TodosApplyResult {
         try await todosSend(
             "POST", "/changes/\(Self.escapedSegment(changeId))/undo", body: Self.jsonBody(request))
+    }
+
+    public func todosPeople() async throws -> TodosPeopleAnswer {
+        try await todosSend("GET", "/people")
     }
 
     private static func escapedSegment(_ value: String) -> String {

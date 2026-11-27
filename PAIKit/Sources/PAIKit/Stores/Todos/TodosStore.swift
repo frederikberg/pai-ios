@@ -342,6 +342,23 @@ public final class TodosStore {
         }
     }
 
+    /// A settings change (prefs, a list, its people, a tag, a favourite): queued like every
+    /// change, and once applied `/me` is read again, which is where settings live. The server's
+    /// events for one's own change are skipped by the feed, so nothing else would read them.
+    @discardableResult
+    public func applySettings(_ ops: [TodoOp], timeout: TimeInterval = 30) async -> TodosSettlement {
+        let changeId = submit(ops)
+        let settlement = await settled(changeId, timeout: timeout)
+        if case .applied = settlement { await refreshMe() }
+        return settlement
+    }
+
+    /// The people a list can be shared with; none when the server cannot be asked.
+    public func people() async -> [TodoPerson] {
+        guard let backend else { return [] }
+        return (try? await backend.todosPeople().people) ?? []
+    }
+
     /// How long an Undo pressed while its change is being sent waits for the server's answer.
     static let undoWaitSeconds: TimeInterval = 30
 

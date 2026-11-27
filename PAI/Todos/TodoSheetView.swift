@@ -18,6 +18,8 @@ struct TodoSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var backdating = false
+    /// A subtask opened from this sheet, in a sheet of its own.
+    @State private var openedChild: TodoSheetTarget?
     /// The When screen pushed without a tap, for a screenshot of the nudges.
     @State private var showsWhen = false
     @FocusState private var titleFocused: Bool
@@ -72,6 +74,7 @@ struct TodoSheetView: View {
                 .presentationDetents([.medium, .large])
             }
         }
+        .sheet(item: $openedChild) { target in TodoSheetView(todoId: target.id) }
         .task(id: store.readTick) { await store.loadSheet(todoId) }
         .task {
             #if DEBUG
@@ -239,14 +242,32 @@ struct TodoSheetView: View {
                         TodoTickCircle(mark: TodoHorizonMark.of(child.horizon), done: child.status != .open)
                     }
                     .buttonStyle(.plain)
-                    Text(child.title)
-                        .strikethrough(child.status != .open)
-                        .foregroundStyle(
-                            child.status == .open ? PaiPalette.Semantic.textStrong : PaiPalette.Semantic.textFaint)
+                    Button {
+                        openedChild = TodoSheetTarget(id: child.id)
+                    } label: {
+                        HStack {
+                            Text(child.title)
+                                .strikethrough(child.status != .open)
+                                .foregroundStyle(
+                                    child.status == .open
+                                        ? PaiPalette.Semantic.textStrong : PaiPalette.Semantic.textFaint)
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(
+                                PaiPalette.Semantic.textFaint)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             if blocked == nil && todo.status == .open {
-                TodoSubtaskLine(parentId: todo.id, today: today)
+                TodoSubtaskLine(parentId: todo.id, today: today) { changeId, childId in
+                    Task {
+                        if case .applied = await store.settled(changeId, timeout: 15) {
+                            openedChild = TodoSheetTarget(id: childId)
+                        }
+                    }
+                }
             }
         }
     }

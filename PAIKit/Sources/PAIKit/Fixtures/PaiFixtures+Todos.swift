@@ -103,13 +103,14 @@ extension PaiFixtures {
             "principal": "user:0190f000-0000-7000-8000-00000000f001", "role": "owner", "display_name": "Sam",
         ]
         func list(
-            _ id: String, _ name: String, kind: String, layout: String = "list", icon: Any = null, color: Any = null
+            _ id: String, _ name: String, kind: String, layout: String = "list", icon: Any = null, color: Any = null,
+            others: [[String: Any]] = []
         )
             -> [String: Any]
         {
             [
                 "id": id, "name": name, "kind": kind, "layout": layout, "icon": icon, "color": color, "locked": false,
-                "archived": false, "role": "owner", "members": [me],
+                "archived": false, "role": "owner", "members": [me] + others,
                 "counts": ["open": todosCorpus.filter { $0.list == id }.count],
             ]
         }
@@ -137,7 +138,14 @@ extension PaiFixtures {
             "display_name": "Sam", "actor_kind": "human", "seq": 200,
             "lists": [
                 list(todosPersonalList, "Personal", kind: "personal"),
-                list(todosGroceriesList, "Groceries", kind: "shared", layout: "checklist", icon: "cart", color: "teal"),
+                list(
+                    todosGroceriesList, "Groceries", kind: "shared", layout: "checklist", icon: "cart", color: "teal",
+                    others: [
+                        [
+                            "principal": "user:0190f000-0000-7000-8000-00000000f004", "role": "editor",
+                            "display_name": "Kim",
+                        ]
+                    ]),
                 list(todosFlatList, "Flat share", kind: "shared"),
             ],
             "prefs": [
@@ -260,6 +268,22 @@ extension PaiFixtures {
             }
             return (200, todosJSON(todosQueryAnswer(todosCorpus)))
         case ("POST", "/parse"): return (200, todosJSON(todosParse(request?["text"] as? String ?? "")))
+        case ("GET", "/people"):
+            return (
+                200,
+                todosJSON([
+                    "people": [
+                        [
+                            "principal": "user:0190f000-0000-7000-8000-00000000f002",
+                            "user_id": "0190f000-0000-7000-8000-00000000f002", "display_name": "Robin",
+                        ],
+                        [
+                            "principal": "user:0190f000-0000-7000-8000-00000000f003",
+                            "user_id": "0190f000-0000-7000-8000-00000000f003", "display_name": "Alex",
+                        ],
+                    ]
+                ])
+            )
         case ("POST", "/compose"): return (200, todosJSON(todosCompose(request?["text"] as? String ?? "")))
         case ("POST", "/apply"): return (200, todosJSON(todosApplied(request ?? [:])))
         default: break

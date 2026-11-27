@@ -71,4 +71,97 @@ final class TodosRigTests: XCTestCase {
         XCTAssertEqual(relaunched.todos[todo.id]?.title, "Post the \(word) letter")
         XCTAssertTrue(relaunched.queue.isEmpty)
     }
+
+    /// Every op the settings screens send, taken by a real server: prefs, default nudges, a list
+    /// with its look, lock and people, a tag's colour, quiet, name, merge and delete, a favourite.
+    func testTheSettingsOpsAreTakenByARealServer() async throws {
+        guard let url = ProcessInfo.processInfo.environment["TODOS_RIG_URL"], !url.isEmpty else {
+            throw XCTSkip("TODOS_RIG_URL is not set")
+        }
+        let client = PaiApiClient(requestFactory: try PaiRequestFactory(baseURL: url, deviceName: "rig") { nil })
+        let store = TodosStore(storage: InMemoryTodosStorage())
+        store.connect(client)
+        await store.refresh()
+        func taken(_ ops: [TodoOp?], _ what: String) async {
+            let settlement = await store.applySettings(ops.compactMap { $0 })
+            guard case .applied(let result?) = settlement else { return XCTFail("\(what): \(settlement)") }
+            XCTAssertTrue(result.results.allSatisfy(\.ok), "\(what): \(result.results)")
+        }
+
+        await taken(
+            [
+                TodoSettingsOps.timezone("Europe/Lisbon"), TodoSettingsOps.dayRollover("04:00"),
+                TodoSettingsOps.deadlineLeadDays(5),
+            ], "general")
+        XCTAssertEqual(store.me?.prefs?.timezone, "Europe/Lisbon")
+        XCTAssertEqual(store.me?.prefs?.deadlineLeadDays, 5)
+        var nudges = TodoDefaultNudges(timed: [], day: [], deadline: [])
+        nudges = TodoNudgeDefaultsEdit.adding(nudges, .timed)
+        nudges = TodoNudgeDefaultsEdit.adding(nudges, .day)
+        nudges = TodoNudgeDefaultsEdit.adding(nudges, .deadline)
+        await taken([TodoSettingsOps.defaultNudges(nudges)], "default nudges")
+        XCTAssertEqual(store.me?.prefs?.defaultNudges, nudges)
+
+        let listId = TodosStore.uuidv7()
+        await taken([TodoSettingsOps.listCreate(id: listId, name: "Rig settings list", layout: "checklist")], "create")
+        let list = try XCTUnwrap(store.lists.first { $0.id == listId })
+        await taken([TodoSettingsOps.defaultList(listId)], "default list")
+        XCTAssertEqual(store.me?.prefs?.defaultListId, listId)
+        await taken([TodoSettingsOps.defaultList(nil)], "default list back")
+        await taken(
+            [
+                TodoSettingsOps.listRename(list, "Rig settings list two"), TodoSettingsOps.listLayout(list, "list"),
+                TodoSettingsOps.listColor(list, .sky), TodoSettingsOps.listIcon(list, .cart),
+            ], "list look")
+        let styled = try XCTUnwrap(store.lists.first { $0.id == listId })
+        XCTAssertEqual(styled.name, "Rig settings list two")
+        XCTAssertEqual(styled.color, "sky")
+        await taken([TodoSettingsOps.listLocked(styled, true)], "lock")
+        await taken([TodoSettingsOps.listLocked(styled, false)], "unlock")
+        // An address is shared with only once someone signs in with it, which no rig persona has
+        // done: the server reads the op and refuses the address, not the op's shape.
+        let byEmail = await store.applySettings([
+            TodoSettingsOps.share(styled, email: "nobody-yet@example.org", role: .editor)
+        ])
+        guard case .refused(let refusal) = byEmail else { return XCTFail("share by email: \(byEmail)") }
+        XCTAssertTrue(refusal.message.contains("address"), refusal.message)
+        // Someone to share with: whom the server offers, else the person the rig names in
+        // `TODOS_RIG_PERSON_USER` (a persona's user id from the stack's personas.json).
+        var people = await store.people()
+        if people.isEmpty, let user = ProcessInfo.processInfo.environment["TODOS_RIG_PERSON_USER"], !user.isEmpty {
+            people = [TodoPerson(principal: "user:\(user)", userId: user, displayName: "Rig person")]
+        }
+        if let person = TodoListRules.candidates(people, for: styled).first {
+            await taken([TodoSettingsOps.share(styled, with: person, role: .viewer)], "share with a person")
+            let shared = try XCTUnwrap(store.lists.first { $0.id == listId })
+            let member = try XCTUnwrap(shared.members.first { $0.principal == person.principal })
+            await taken([TodoSettingsOps.setRole(shared, of: member, to: .editor)], "role")
+            await taken([TodoSettingsOps.removeMember(shared, member)], "remove")
+        }
+        await taken([TodoSettingsOps.listArchive(styled)], "archive")
+
+        let word = "rigtag\(Int.random(in: 1000...9999))"
+        for text in ["One #\(word)a", "Two #\(word)b"] {
+            guard case .applied = await store.settled(store.capture(text: text), timeout: 30) else {
+                return XCTFail("capture")
+            }
+        }
+        await store.refresh()
+        let first = try XCTUnwrap(store.me?.tags.first { $0.name == "\(word)a" })
+        let second = try XCTUnwrap(store.me?.tags.first { $0.name == "\(word)b" })
+        await taken([TodoSettingsOps.tagColor(first, .violet), TodoSettingsOps.tagQuiet(first, true)], "tag look")
+        await taken([TodoSettingsOps.tagRename(first, "\(word)c")], "tag rename")
+        let renamed = try XCTUnwrap(store.me?.tags.first { $0.name == "\(word)c" })
+        XCTAssertEqual(renamed.color, "violet")
+        XCTAssertTrue(renamed.quiet)
+        await taken([TodoSettingsOps.tagMerge(renamed, into: second)], "merge")
+        let merged = try XCTUnwrap(store.me?.tags.first { $0.name == "\(word)b" })
+        await taken([TodoSettingsOps.tagDelete(merged)], "delete")
+        XCTAssertNil(store.me?.tags.first { $0.name.hasPrefix(word) })
+
+        let view = try XCTUnwrap(store.me?.views.first)
+        await taken([TodoSettingsOps.favourite(view, !view.pinned)], "favourite")
+        XCTAssertEqual(store.me?.views.first { $0.id == view.id }?.pinned, !view.pinned)
+        await taken([TodoSettingsOps.favourite(view, view.pinned)], "favourite back")
+    }
 }
