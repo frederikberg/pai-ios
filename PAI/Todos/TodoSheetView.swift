@@ -19,6 +19,8 @@ struct TodoSheetView: View {
     @State private var title = ""
     @State private var newSubtask = ""
     @State private var backdating = false
+    /// The When screen pushed without a tap, for a screenshot of the nudges.
+    @State private var showsWhen = false
     @FocusState private var titleFocused: Bool
 
     private var store: TodosStore { environment.todos }
@@ -53,6 +55,11 @@ struct TodoSheetView: View {
                     ToolbarItem(placement: .topBarLeading) { moreMenu(todo) }
                 }
             }
+            .navigationDestination(isPresented: $showsWhen) {
+                if let todo {
+                    TodoWhenScreen(todo: todo, today: today, canEdit: blocked == nil, submit: submit)
+                }
+            }
             .sheet(isPresented: $backdating) {
                 TodoDayPickerScreen(title: "Done on an earlier day", today: today, maxDate: today) { day in
                     if let day { submit([TodoFieldOps.doneOn(todoId, day: day)]) }
@@ -62,6 +69,11 @@ struct TodoSheetView: View {
             }
         }
         .task(id: store.readTick) { await store.loadSheet(todoId) }
+        .task {
+            #if DEBUG
+                if PaiFixtureLaunch.opensTodosWhen() { showsWhen = true }
+            #endif
+        }
         .fixtureFact("todosSheet", todo?.ref ?? "")
     }
 

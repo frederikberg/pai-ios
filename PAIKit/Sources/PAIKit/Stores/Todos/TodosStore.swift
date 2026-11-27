@@ -212,16 +212,16 @@ public final class TodosStore {
     /// `/List`, `*` for the desk). `parsed` is the parser's answer for exactly `text` when one is
     /// at hand (the add sheet asks while typing); otherwise the words are read when the change goes
     /// out. `place` is the page it was typed on: its view's defaults and its list apply as on the
-    /// web. Returns the change's id.
+    /// web; `dismissed` names the ones left off this todo. Returns the change's id.
     @discardableResult
     public func capture(
-        text: String, place: TodoCreatePlace = .anywhere, links: [TodoLinkSpec] = [],
+        text: String, place: TodoCreatePlace = .anywhere, dismissed: Set<String> = [], links: [TodoLinkSpec] = [],
         parsed: TodosParseAnswer? = nil, source: TodosSource = .ios
     ) -> String {
         let (words, body) = Self.split(text)
         let capture = TodosCapture(
             text: words, body: body, todoId: makeId(), list: place.listId, place: place, links: links,
-            day: currentDay())
+            day: currentDay(), dismissed: dismissed.sorted())
         let ops = parsed.map { [createOp(capture, from: $0)] } ?? []
         return enqueue(
             TodosQueuedChange(
@@ -257,6 +257,46 @@ public final class TodosStore {
                 title: "", signedOut: signedOut, saved: true)
         }
         return await outcome(of: capture(text: text, links: links, source: source), timeout: timeout)
+    }
+
+    /// Plain words read into todos by the server's model (`POST /compose`), laid over the place's
+    /// defaults as every add is, and queued as ONE change, so one Undo takes all of it back.
+    /// Throws without queueing anything when there is no connection to ask or the model read no
+    /// todo; the caller keeps the words then.
+    public func compose(text: String, place: TodoCreatePlace = .anywhere, source: TodosSource = .ios) async throws
+        -> TodosComposed
+    {
+        let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !words.isEmpty else { throw TodosComposeFailure.unread }
+        guard let backend else { throw TodosComposeFailure.unreachable }
+        let answer: TodosComposeAnswer
+        do {
+            answer = try await backend.todosCompose(TodosComposeRequest(text: words, list: place.listId))
+        } catch is TodosApiError {
+            throw TodosComposeFailure.unread
+        } catch {
+            throw TodosComposeFailure.unreachable
+        }
+        let ops = TodoCreate.withViewDefaults(
+            answer.ops.filter { $0.name == "todo.create" }, place: place, today: currentDay())
+        guard let first = ops.first?.string("id") else { throw TodosComposeFailure.unread }
+        let changeId = submit(ops, source: source)
+        return TodosComposed(changeId: changeId, firstTodoId: first, count: ops.count)
+    }
+
+    /// Plain words from a door that reports back (Siri, Shortcuts): read by the model when it can
+    /// be asked, else queued as typed through the capture path, so nothing said is lost.
+    public func describeAndWait(text: String, source: TodosSource, timeout: TimeInterval) async
+        -> TodosCaptureOutcome
+    {
+        guard let composed = try? await compose(text: text, source: source) else {
+            return await captureAndWait(text: text, source: source, timeout: timeout)
+        }
+        let outcome = await outcome(of: composed.changeId, timeout: timeout)
+        guard composed.count > 1, outcome.added else { return outcome }
+        return TodosCaptureOutcome(
+            changeId: outcome.changeId, settlement: outcome.settlement, title: outcome.title,
+            signedOut: outcome.signedOut, saved: outcome.saved, count: composed.count)
     }
 
     /// Take a queued change out before it was sent, for a door that lets the person change the
@@ -512,19 +552,23 @@ public final class TodosStore {
 
     /// The parser's reading laid over the place it was typed in (`TodoCreate`), with the
     /// capture's own id, its body and its links. A line the parser read entirely as fields keeps
-    /// the words as its title.
+    /// the words as its title; a line that says "no date" leaves the view's day off.
     static func createOp(_ capture: TodosCapture, from answer: TodosParseAnswer, today: String?) -> TodoOp {
         var typed = TodoCreate.typed(from: answer)
         if answer.title.trimmingCharacters(in: .whitespaces).isEmpty { typed["title"] = .string(capture.text) }
         return finish(
             TodoCreate.op(
-                id: capture.todoId, title: capture.text, place: capture.createPlace, today: today, typed: typed),
+                id: capture.todoId, title: capture.text, place: capture.createPlace, today: today, typed: typed,
+                dismissed: TodoCreate.cleared(Set(capture.dismissed), answer: answer)),
             capture)
     }
 
     static func plainCreateOp(_ capture: TodosCapture, today: String?) -> TodoOp {
         finish(
-            TodoCreate.op(id: capture.todoId, title: capture.text, place: capture.createPlace, today: today), capture)
+            TodoCreate.op(
+                id: capture.todoId, title: capture.text, place: capture.createPlace, today: today,
+                dismissed: Set(capture.dismissed)),
+            capture)
     }
 
     private static func finish(_ op: TodoOp, _ capture: TodosCapture) -> TodoOp {
@@ -901,6 +945,21 @@ public final class TodosStore {
     }
 
     /// Read a todo for its sheet: its nudges, every child (done ones after the open), its changes.
+    /// The id of the todo numbered `number` (a link's `T-<n>`): from what is held, else read from
+    /// the server. Nil when this person cannot see it or there is no connection.
+    public func todoId(number: Int) async -> String? {
+        if let held = todos.values.first(where: { $0.number == number }) { return held.id }
+        guard let backend else { return nil }
+        do {
+            let answer = try await backend.todosDetail(ref: "T-\(number)")
+            merge([answer.todo])
+            return answer.todo.id
+        } catch {
+            note(error)
+            return nil
+        }
+    }
+
     public func loadSheet(_ todoId: String) async {
         guard let backend else { return }
         moment += 1
@@ -1073,6 +1132,22 @@ public final class TodosStore {
 }
 
 /// What became of a capture a door waited on, and the sentence it tells the person.
+/// Why plain words did not become todos. Nothing was queued either way; the words stay with
+/// the person.
+public enum TodosComposeFailure: Error, Equatable, Sendable {
+    /// No connection or no sign-in to ask the model with: the words can still be added as typed.
+    case unreachable
+    /// The model did not answer, or read no todo in the words.
+    case unread
+}
+
+/// Plain words queued as todos: the one change, the first todo (the one to open), and how many.
+public struct TodosComposed: Equatable, Sendable {
+    public let changeId: String
+    public let firstTodoId: String
+    public let count: Int
+}
+
 public struct TodosCaptureOutcome: Equatable, Sendable {
     public let changeId: String
     public let settlement: TodosSettlement
@@ -1082,6 +1157,8 @@ public struct TodosCaptureOutcome: Equatable, Sendable {
     public let signedOut: Bool
     /// The capture reached the disk. When it did not, it exists only while this process lives.
     public let saved: Bool
+    /// How many todos the change made: more than one when plain words were read as several.
+    public var count = 1
 
     /// Which door asks, which decides what a capture that could not go out yet means: the app on
     /// screen sends it by itself once it can; an intent's process is suspended soon after it
@@ -1098,6 +1175,8 @@ public struct TodosCaptureOutcome: Equatable, Sendable {
 
     public func message(keeper: Keeper) -> String {
         switch settlement {
+        case .applied where count > 1:
+            return "Added \(count) todos, first \u{201C}\(title)\u{201D}."
         case .applied:
             return "Added \u{201C}\(title)\u{201D}."
         case .refused(let refusal):

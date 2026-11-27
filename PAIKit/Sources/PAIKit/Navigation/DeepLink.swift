@@ -38,8 +38,15 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     /// quick action open. It is presented over whatever the app shows, so ``routes`` (empty) is
     /// never applied for it; `RootView` presents the sheet instead.
     case newTodo
+    /// The add sheet in its plain-words mode: what the Describe todo quick action opens. Presented
+    /// like ``newTodo``.
+    case describeTodo
+    /// Todos: its home (`page` nil) or one view or list, with the todo numbered `todo` opened
+    /// over it. `RootView` opens the todo once the page is shown.
+    case todos(page: TodoPage?, todo: Int?)
+
     /// Todos' home.
-    case todos
+    public static let todosHome = DeepLink.todos(page: nil, todo: nil)
 
     /// The routes this link lands on. Whole paths rather than single routes: a deep link arrives
     /// knowing nothing about what the app was showing, so it replaces the stack, and a note with
@@ -56,8 +63,9 @@ public enum DeepLink: Equatable, Sendable, Hashable {
         case .browser(nil): return [.browserList]
         case .alarm: return [.alarm]
         case .weather: return [.weather]
-        case .newTodo: return []
-        case .todos: return [.todos]
+        case .newTodo, .describeTodo: return []
+        case .todos(let page?, _): return [.todosPage(page)]
+        case .todos(nil, _): return [.todos]
         }
     }
 
@@ -65,13 +73,15 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     /// apply. A presented screen sits on top of the navigation stack, so replacing the path
     /// underneath it leaves it covering the destination.
     ///
-    /// Only the launcher and the alarm ask for it: both are a fresh start from outside the app (a
-    /// hardware button; a control or a ringing push) that must not land behind a sheet. `createSession`
+    /// The launcher, the alarm and the add sheets ask for it: each is a fresh start from outside
+    /// the app (a hardware button; a control or a ringing push) that must not land behind a sheet. `createSession`
     /// is itself a presented sheet, so closing the overlays first would tear down the very screen
     /// the link is opening.
     public var dismissesOverlays: Bool {
         switch self {
-        case .quickActions, .alarm, .newTodo: return true
+        case .quickActions, .alarm, .newTodo, .describeTodo: return true
+        // The todo opens as a sheet of its own, which another one presented would hide.
+        case .todos(_, .some): return true
         case .session, .note, .notesList, .createSession, .notification, .browser, .weather, .todos: return false
         }
     }
@@ -96,6 +106,9 @@ extension DeepLink {
     public static let notificationIDKey = "pai_notification_id"
     /// An alarm push's own key; the alarm it names is dismissed when the push is tapped.
     public static let alarmIDKey = "pai_alarm_id"
+    /// A nudge's push: the number of the todo it is about (the first one when several nudges are
+    /// due in the same minute and arrive as one push).
+    public static let todoNumberKey = "pai_todo_number"
 
     /// Reads a link out of a notification's `userInfo`.
     ///
@@ -112,6 +125,9 @@ extension DeepLink {
     /// somewhere they did not ask to go.
     public static func from(payload: [String: String]) -> DeepLink? {
         if let id = payload[alarmIDKey], !id.isEmpty { return .alarm(id: id) }
+        if let number = payload[todoNumberKey].flatMap(Int.init), number > 0 {
+            return .todos(page: nil, todo: number)
+        }
         if let id = payload[notificationIDKey], !id.isEmpty { return .notification(id: id) }
         if let id = payload[sessionIDKey], !id.isEmpty {
             let messageID = payload[messageIDKey].flatMap(Int.init)
@@ -170,9 +186,12 @@ extension DeepLink {
         case "newtodo":
             guard segments.count == 1 else { return nil }
             return .newTodo
+        case "describetodo":
+            guard segments.count == 1 else { return nil }
+            return .describeTodo
         case "todos":
             guard segments.count == 1 else { return nil }
-            return .todos
+            return .todosHome
         case "browser":
             guard segments.count <= 2 else { return nil }
             guard segments.count == 2 else { return .browser(name: nil) }
@@ -234,13 +253,36 @@ extension DeepLink {
             }
             if segments.count == 2, segments[1] == "alarm" { return .alarm(id: nil) }
             if segments.count == 2, segments[1] == "weather" { return .weather }
-            if segments.count == 2, segments[1] == "todos" { return .todos }
+            if segments.count >= 2, segments[1] == "todos" {
+                return todos(segments: Array(segments.dropFirst(2)), todo: value("t"))
+            }
             if segments.count == 2, segments[1] == "notes" { return .notesList }
             guard segments.count >= 3, segments[1] == "notes", let noteID = id(at: 2) else { return nil }
             guard segments.count == 3 || segments[3] == "preview" else { return nil }
             return .note(id: noteID)
         default:
             return nil
+        }
+    }
+
+    /// A path under `/apps/todos`, the web's route shapes (`shell/route.ts`): `v/<view id>`,
+    /// `l/<list id>`, `t/<number>` (a todo's permanent link), and `?t=<number>` on any of them for
+    /// the todo opened over the page. A page the phone has no screen for (search, changes,
+    /// settings, an unknown one) opens the home, still with its todo.
+    static func todos(segments: [String], todo: String?) -> DeepLink {
+        func positive(_ text: String?) -> Int? {
+            guard let text, !text.isEmpty, text.allSatisfy(\.isASCII), text.allSatisfy(\.isNumber),
+                let value = Int(text), value > 0
+            else { return nil }
+            return value
+        }
+        let number = positive(todo)
+        let arg = segments.count > 1 ? (segments[1].removingPercentEncoding ?? segments[1]) : ""
+        switch segments.first {
+        case "v" where !arg.isEmpty: return .todos(page: .view(arg), todo: number)
+        case "l" where !arg.isEmpty: return .todos(page: .list(arg), todo: number)
+        case "t": return .todos(page: nil, todo: positive(arg) ?? number)
+        default: return .todos(page: nil, todo: number)
         }
     }
 
@@ -264,6 +306,7 @@ extension DeepLink {
         case .alarm: return URL(string: "pai://alarm")
         case .weather: return URL(string: "pai://weather")
         case .newTodo: return URL(string: "pai://newtodo")
+        case .describeTodo: return URL(string: "pai://describetodo")
         case .todos: return URL(string: "pai://todos")
         }
     }

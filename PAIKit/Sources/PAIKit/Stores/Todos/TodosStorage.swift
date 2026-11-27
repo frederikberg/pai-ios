@@ -18,15 +18,17 @@ public struct TodosCapture: Codable, Equatable, Sendable {
     /// parser reads "tomorrow" against the day it runs on, so a capture that waited past a day
     /// boundary (or whose day is unknown) is created with its words as the title instead.
     public let day: String?
+    /// The place's defaults the person left off this todo (`TodoCreate.op`'s `dismissed`).
+    public let dismissed: [String]
 
     enum CodingKeys: String, CodingKey {
-        case text, body, list, place, links, day
+        case text, body, list, place, links, day, dismissed
         case todoId = "todo_id"
     }
 
     public init(
         text: String, body: String? = nil, todoId: String, list: String?, place: TodoCreatePlace? = nil,
-        links: [TodoLinkSpec], day: String?
+        links: [TodoLinkSpec], day: String?, dismissed: [String] = []
     ) {
         self.text = text
         self.body = body
@@ -35,6 +37,7 @@ public struct TodosCapture: Codable, Equatable, Sendable {
         self.list = list
         self.links = links
         self.day = day
+        self.dismissed = dismissed
     }
 
     public init(from decoder: Decoder) throws {
@@ -46,6 +49,7 @@ public struct TodosCapture: Codable, Equatable, Sendable {
         place = try container.decodeIfPresent(TodoCreatePlace.self, forKey: .place)
         links = try container.decodeIfPresent([TodoLinkSpec].self, forKey: .links) ?? []
         day = try container.decodeIfPresent(String.self, forKey: .day)
+        dismissed = try container.decodeIfPresent([String].self, forKey: .dismissed) ?? []
     }
 }
 

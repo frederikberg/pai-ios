@@ -57,15 +57,17 @@ public enum TodoCreate {
     }
 
     /// A `todo.create` whose fields are the place's defaults overlaid by what was typed: each typed
-    /// field replaces its default, tags add to the view's. The client does the overlay, so the op
-    /// and the log show real values.
+    /// field replaces its default, tags add to the view's. `dismissed` names the defaults left off
+    /// this todo (`tag:<name>`, `horizon`, `when`, `desk`, `list`, `parent`). The client does the
+    /// overlay, so the op and the log show real values.
     public static func op(
-        id: String, title: String, place: TodoCreatePlace, today: String?, typed: [String: PaiJSONValue] = [:]
+        id: String, title: String, place: TodoCreatePlace, today: String?, typed: [String: PaiJSONValue] = [:],
+        dismissed: Set<String> = []
     ) -> TodoOp {
         let defaults = place.defaults
         var fields: [String: PaiJSONValue] = [:]
-        if let list = defaults?.list ?? place.listId { fields["list"] = .string(list) }
-        let viewTags = defaults?.tags ?? []
+        if !dismissed.contains("list"), let list = defaults?.list ?? place.listId { fields["list"] = .string(list) }
+        let viewTags = (defaults?.tags ?? []).filter { !dismissed.contains("tag:\($0)") }
         var tags = viewTags
         if case .array(let typedTags) = typed["tags"] {
             for case .string(let tag) in typedTags where !tags.contains(where: { $0.lowercased() == tag.lowercased() })
@@ -74,15 +76,147 @@ public enum TodoCreate {
             }
         }
         if !tags.isEmpty { fields["tags"] = .array(tags.map(PaiJSONValue.string)) }
-        if let horizon = defaults?.horizon { fields["horizon"] = .string(horizon.rawValue) }
-        if defaults?.when == "today", let today { fields["when"] = .object(["date": .string(today)]) }
-        if defaults?.desk == true { fields["desk"] = .bool(true) }
-        if let parent = defaults?.parent { fields["parent"] = .string(parent) }
+        if !dismissed.contains("horizon"), let horizon = defaults?.horizon {
+            fields["horizon"] = .string(horizon.rawValue)
+        }
+        if !dismissed.contains("when"), defaults?.when == "today", let today {
+            fields["when"] = .object(["date": .string(today)])
+        }
+        if !dismissed.contains("desk"), defaults?.desk == true { fields["desk"] = .bool(true) }
+        if !dismissed.contains("parent"), let parent = defaults?.parent { fields["parent"] = .string(parent) }
         for (key, value) in typed where key != "tags" { fields[key] = value }
         fields["op"] = .string("todo.create")
         fields["id"] = .string(id)
         if fields["title"] == nil { fields["title"] = .string(title) }
         return TodoOp(fields: fields)
+    }
+
+    /// What the person dismissed, plus the day the line itself cleared: "no date" drops the
+    /// view's day.
+    public static func cleared(_ dismissed: Set<String>, answer: TodosParseAnswer?) -> Set<String> {
+        guard answer?.clears.contains("when") == true else { return dismissed }
+        return dismissed.union(["when", "fixed-when"])
+    }
+
+    /// The model's creates laid over the place's defaults, as for every add: a field the model
+    /// left empty (absent, null, false or an empty list) takes the view's value, tags add to the
+    /// view's. A subtask goes as it is: it lives where its parent does.
+    public static func withViewDefaults(_ ops: [TodoOp], place: TodoCreatePlace, today: String?) -> [TodoOp] {
+        ops.map { op in
+            if let parent = op.fields["parent"], parent != .null { return op }
+            var said: [String: PaiJSONValue] = [:]
+            for (key, value) in op.fields where !["op", "id", "title"].contains(key) {
+                switch value {
+                case .null, .bool(false): continue
+                case .array(let items) where items.isEmpty: continue
+                default: said[key] = value
+                }
+            }
+            return Self.op(
+                id: op.string("id") ?? "", title: op.string("title") ?? "", place: place, today: today, typed: said)
+        }
+    }
+}
+
+/// One chip under the add sheet's line: what the parser read, or a default of the open view
+/// (`dismissKey` set, a tap leaves it off this todo). The web's `Chip` (`quickadd/chips.ts`).
+public struct TodoAddChip: Equatable, Sendable, Identifiable {
+    public let key: String
+    public let kind: String
+    public let label: String
+    /// A chip that wears a palette colour of its own (a horizon's) instead of its kind's tone.
+    public let color: TodoColor?
+    public let dismissKey: String?
+
+    public var id: String { key }
+
+    public init(key: String, kind: String, label: String, color: TodoColor? = nil, dismissKey: String? = nil) {
+        self.key = key
+        self.kind = kind
+        self.label = label
+        self.color = color
+        self.dismissKey = dismissKey
+    }
+
+    /// The chips for what the parser read in a line: one per field, in a fixed order, named from
+    /// the fields themselves, never from the typed words.
+    public static func read(_ answer: TodosParseAnswer?, today: String) -> [TodoAddChip] {
+        guard let answer else { return [] }
+        let fields = answer.fields
+        var chips: [TodoAddChip] = []
+        if let when = fields.when {
+            let label = TodoDates.relativeDay(when.date, today: today) + (when.time.map { " \($0)" } ?? "")
+            chips.append(TodoAddChip(key: "when", kind: "when", label: label))
+        }
+        if let deadline = fields.deadline {
+            chips.append(
+                TodoAddChip(
+                    key: "deadline", kind: "deadline",
+                    label: "Deadline \(TodoDates.relativeDay(deadline.date, today: today))"))
+        }
+        if let rule = fields.repeat {
+            chips.append(
+                TodoAddChip(key: "repeat", kind: "repeat", label: TodoWords.repeatRule(TodoFieldOps.repeatJSON(rule))))
+        }
+        if let horizon = fields.horizon {
+            let mark = TodoHorizonMark.of(horizon)
+            chips.append(TodoAddChip(key: "horizon", kind: "horizon", label: mark.label, color: mark.color))
+        }
+        if answer.clears.contains("when") {
+            chips.append(TodoAddChip(key: "clear:when", kind: "clear", label: "No date"))
+        }
+        for name in fields.tags { chips.append(TodoAddChip(key: "tag:\(name)", kind: "tag", label: name)) }
+        if let list = fields.list { chips.append(TodoAddChip(key: "list", kind: "list", label: list)) }
+        if let parent = fields.parent {
+            chips.append(TodoAddChip(key: "parent", kind: "parent", label: "Under \(parent)"))
+        }
+        if fields.desk { chips.append(TodoAddChip(key: "desk", kind: "desk", label: "Desk")) }
+        for nudge in fields.nudges {
+            guard case .object(let spec) = nudge else { continue }
+            chips.append(
+                TodoAddChip(key: "nudge:\(spec["id"]?.stringValue ?? "")", kind: "nudge", label: nudgeLabel(spec)))
+        }
+        return chips
+    }
+
+    private static func nudgeLabel(_ spec: [String: PaiJSONValue]) -> String {
+        if case .object(let at) = spec["at"] { return "Nudge \(at["time"]?.stringValue ?? "")" }
+        guard case .object(let before) = spec["before"] else { return "Nudge" }
+        func whole(_ key: String) -> Int? {
+            guard case .number(let value) = before[key] else { return nil }
+            return NSDecimalNumber(decimal: value).intValue
+        }
+        if let minutes = whole("minutes") {
+            return "Nudge \(abs(minutes)) min \(minutes >= 0 ? "before" : "after")"
+        }
+        if let days = whole("days") {
+            return "Nudge \(abs(days)) d \(days >= 0 ? "before" : "after") \(before["time"]?.stringValue ?? "")"
+                .trimmingCharacters(in: .whitespaces)
+        }
+        return "Nudge"
+    }
+
+    /// The chips a view's defaults put on a todo made inside it, minus the ones dismissed.
+    public static func defaults(
+        _ defaults: TodoViewDefaults?, dismissed: Set<String>, listName: (String) -> String?
+    ) -> [TodoAddChip] {
+        guard let defaults else { return [] }
+        var chips: [TodoAddChip] = []
+        func add(_ dismissKey: String, _ kind: String, _ label: String, _ color: TodoColor? = nil) {
+            guard !dismissed.contains(dismissKey) else { return }
+            chips.append(
+                TodoAddChip(key: "view:\(dismissKey)", kind: kind, label: label, color: color, dismissKey: dismissKey))
+        }
+        for tag in defaults.tags ?? [] { add("tag:\(tag)", "tag", tag) }
+        if let horizon = defaults.horizon {
+            let mark = TodoHorizonMark.of(horizon)
+            add("horizon", "horizon", mark.label, mark.color)
+        }
+        if defaults.when == "today" { add("when", "when", "Today") }
+        if defaults.desk == true { add("desk", "desk", "Desk") }
+        if let list = defaults.list { add("list", "list", listName(list) ?? "List") }
+        if defaults.parent != nil { add("parent", "parent", "Subtask") }
+        return chips
     }
 }
 

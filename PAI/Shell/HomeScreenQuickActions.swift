@@ -9,9 +9,14 @@ import UIKit
 enum HomeScreenQuickActions {
     /// `UIApplicationShortcutItemType` in `Config/Info.plist`.
     static let newTodoType = "com.frederikberg.pai.new-todo"
+    static let describeTodoType = "com.frederikberg.pai.describe-todo"
 
     static func link(for item: UIApplicationShortcutItem) -> DeepLink? {
-        item.type == newTodoType ? .newTodo : nil
+        switch item.type {
+        case newTodoType: .newTodo
+        case describeTodoType: .describeTodo
+        default: nil
+        }
     }
 
     @MainActor

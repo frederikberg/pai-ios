@@ -137,8 +137,9 @@ final class TodosCaptureTests: XCTestCase {
         let url = try XCTUnwrap(DeepLink.newTodo.url)
         XCTAssertEqual(DeepLink.from(url: url), .newTodo)
         XCTAssertTrue(DeepLink.newTodo.dismissesOverlays)
-        XCTAssertEqual(DeepLink.from(url: try XCTUnwrap(DeepLink.todos.url)), .todos)
-        XCTAssertEqual(DeepLink.from(webURL: try XCTUnwrap(URL(string: "https://pai.example.org/apps/todos"))), .todos)
-        XCTAssertEqual(DeepLink.todos.routes, [.todos])
+        XCTAssertEqual(DeepLink.from(url: try XCTUnwrap(DeepLink.todosHome.url)), .todosHome)
+        XCTAssertEqual(
+            DeepLink.from(webURL: try XCTUnwrap(URL(string: "https://pai.example.org/apps/todos"))), .todosHome)
+        XCTAssertEqual(DeepLink.todosHome.routes, [.todos])
     }
 }

@@ -85,7 +85,7 @@ struct TodoFieldSections: View {
             parts.append(words.prefix(1).lowercased() + words.dropFirst())
         }
         if nudges.count == 1 {
-            parts.append("nudge \(TodoWords.nudge(nudges[0]).lowercased())")
+            parts.append("nudge \(TodoWords.nudgeShort(nudges[0]))")
         } else if nudges.count > 1 {
             parts.append("\(nudges.count) nudges")
         }
@@ -99,7 +99,8 @@ struct TodoFieldSections: View {
     private var tagsLine: String {
         let tags = todo.tags.isEmpty ? todo.inheritedTags : todo.tags
         guard !tags.isEmpty else { return "None" }
-        return tags.prefix(3).joined(separator: " · ") + (tags.count > 3 ? " +\(tags.count - 3)" : "")
+        return tags.prefix(3).map(TodoIdentity.tagLeaf).joined(separator: " · ")
+            + (tags.count > 3 ? " +\(tags.count - 3)" : "")
     }
 
     /// Lists this person can move a todo into: owner or editor, not locked, not archived.
@@ -218,6 +219,7 @@ struct TodoWhenScreen: View {
             if canEdit { repeatSection }
             nudgeSection
         }
+        .fixtureFact("todosDefaultNudges", String(store.nudges(of: todo.id).filter(\.isDefault).count))
         .navigationTitle("When")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -293,7 +295,10 @@ struct TodoWhenScreen: View {
             ForEach(store.nudges(of: todo.id)) { nudge in
                 let state = TodoWords.nudgeState(nudge.state, fireAt: nudge.fireAt)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(TodoWords.nudge(nudge))
+                    HStack(spacing: 6) {
+                        Text(TodoWords.nudge(nudge))
+                        if nudge.isDefault { TodoDefaultMark() }
+                    }
                     Text(state.label).font(.caption).foregroundStyle(PaiPalette.Semantic.textMuted)
                 }
                 .swipeActions {
@@ -315,14 +320,98 @@ struct TodoWhenScreen: View {
                         }
                     }
                 }
+            }
+            if current.when != nil || current.deadline != nil {
+                NavigationLink("Days before, at a time") {
+                    TodoNudgeDaysScreen(todo: current) { choice in
+                        store.submit([TodoFieldOps.nudgeSet(todo.id, choice, id: TodosStore.uuidv7())])
+                    }
+                }
             } else {
-                Text("Give the todo a day and a time to be nudged at it.")
+                Text("Give the todo a day or a deadline to be nudged before it.")
                     .font(.footnote)
                     .foregroundStyle(PaiPalette.Semantic.textMuted)
+            }
+            if TodoFieldOps.offersDefaults(current, prefs: store.me?.prefs) {
+                Button("Use my default nudges") { store.submit([TodoFieldOps.nudgeDefaults(todo.id)]) }
             }
         } header: {
             Text("Nudges")
         }
+    }
+}
+
+/// The quiet mark on a nudge the person's default nudges made.
+struct TodoDefaultMark: View {
+    var body: some View {
+        Text("default")
+            .font(.caption2)
+            .foregroundStyle(PaiPalette.Semantic.textMuted)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(RoundedRectangle(cornerRadius: 4).fill(PaiPalette.Semantic.raisedSurface))
+            .accessibilityLabel("Made by your default nudges")
+    }
+}
+
+/// A nudge whole days before the day or the deadline, at a time of day: it rings at that
+/// wall-clock time whatever the todo's own time is.
+struct TodoNudgeDaysScreen: View {
+    let todo: Todo
+    let add: (TodoFieldOps.NudgeChoice) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var days = 1
+    @State private var time = TodoNudgeDaysScreen.clock("17:00")
+    @State private var basis = "when"
+
+    var body: some View {
+        Form {
+            Stepper(value: $days, in: 0...60) {
+                Text(days == 0 ? "On the day" : "\(days) day\(days == 1 ? "" : "s") before")
+            }
+            DatePicker("At", selection: $time, displayedComponents: .hourAndMinute)
+                .environment(\.locale, ClockTime.pickerLocale)
+                .environment(\.timeZone, Self.calendar.timeZone)
+            if todo.when != nil, todo.deadline != nil {
+                Picker("Counted from", selection: $basis) {
+                    Text("The day").tag("when")
+                    Text("The deadline").tag("deadline")
+                }
+            }
+            Section {
+                Button("Add nudge") {
+                    add(.days(basis: basis, days: days, time: Self.hhmm(time)))
+                    dismiss()
+                }
+            } footer: {
+                Text(preview).foregroundStyle(PaiPalette.Semantic.textMuted)
+            }
+        }
+        .navigationTitle("Days before")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { if todo.when == nil { basis = "deadline" } }
+    }
+
+    private var preview: String {
+        TodoWords.nudge(kind: "before", date: nil, time: Self.hhmm(time), basis: basis, offsetMinutes: nil, days: days)
+    }
+
+    private static var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    static func clock(_ text: String) -> Date {
+        let parts = text.split(separator: ":").compactMap { Int($0) }
+        return calendar.date(from: DateComponents(year: 2000, month: 1, day: 1, hour: parts[0], minute: parts[1]))
+            ?? Date()
+    }
+
+    static func hhmm(_ date: Date) -> String {
+        let parts = calendar.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
     }
 }
 
@@ -530,7 +619,7 @@ struct TodoTagsScreen: View {
                         )
                     } label: {
                         HStack {
-                            TodoTagChip(name: name, color: color(name))
+                            TodoTagChip(name: name, color: color(name), whole: true)
                             Spacer()
                             if on { Image(systemName: "checkmark") }
                         }

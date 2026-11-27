@@ -1,0 +1,188 @@
+{
+  "children": [],
+  "history": [
+    {
+      "actor": {
+        "kind": "human",
+        "label": "Owner",
+        "principal": "user:97031634-5d14-466c-b72d-10c8af86f00f"
+      },
+      "created_at": "2026-11-27T00:43:28.964069+00:00",
+      "events": [
+        {
+          "after": {
+            "body": "",
+            "completed_at": null,
+            "completed_count": 0,
+            "created_at": "2026-11-27T00:43:28.964069+00:00",
+            "created_by": "user:97031634-5d14-466c-b72d-10c8af86f00f",
+            "created_kind": "human",
+            "created_label": "Owner",
+            "created_session_id": null,
+            "created_source": "api",
+            "deadline": "2026-12-05",
+            "deadline_lead_days": null,
+            "horizon": 4,
+            "id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca",
+            "inbox": true,
+            "key": null,
+            "list_id": "02de0b20-c970-4c15-8ab9-f84a349674e9",
+            "number": 1,
+            "parent_id": null,
+            "rank": "V",
+            "repeat": null,
+            "someday": false,
+            "status": "open",
+            "title": "Water the plants",
+            "when_date": "2026-12-03",
+            "when_time": null
+          },
+          "before": null,
+          "change_id": "55317c01-55a8-427b-b4fe-e09f50da996c",
+          "entity": "todo",
+          "entity_id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca",
+          "list_id": "02de0b20-c970-4c15-8ab9-f84a349674e9",
+          "op": "create",
+          "seq": 11,
+          "todo_id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca"
+        },
+        {
+          "after": {
+            "basis": "when",
+            "id": "e33654ae-fd94-402d-afb2-bb66622f8dc8",
+            "kind": "before",
+            "local_date": null,
+            "local_time": "17:00:00",
+            "offset_days": 1,
+            "offset_minutes": null,
+            "origin": "default",
+            "todo_id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca",
+            "user_id": "97031634-5d14-466c-b72d-10c8af86f00f"
+          },
+          "before": null,
+          "change_id": "55317c01-55a8-427b-b4fe-e09f50da996c",
+          "entity": "nudge",
+          "entity_id": "e33654ae-fd94-402d-afb2-bb66622f8dc8",
+          "list_id": null,
+          "op": "create",
+          "seq": 12,
+          "todo_id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca"
+        },
+        {
+          "after": {
+            "basis": "deadline",
+            "id": "9bd7fd57-e955-4af4-ad6c-6dbd934910c6",
+            "kind": "before",
+            "local_date": null,
+            "local_time": "17:00:00",
+            "offset_days": 2,
+            "offset_minutes": null,
+            "origin": "default",
+            "todo_id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca",
+            "user_id": "97031634-5d14-466c-b72d-10c8af86f00f"
+          },
+          "before": null,
+          "change_id": "55317c01-55a8-427b-b4fe-e09f50da996c",
+          "entity": "nudge",
+          "entity_id": "9bd7fd57-e955-4af4-ad6c-6dbd934910c6",
+          "list_id": null,
+          "op": "create",
+          "seq": 13,
+          "todo_id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca"
+        }
+      ],
+      "id": "55317c01-55a8-427b-b4fe-e09f50da996c",
+      "op_count": 1,
+      "seq_first": 11,
+      "seq_last": 13,
+      "session_id": null,
+      "source": "api",
+      "summary": "Added T-1 Water the plants",
+      "undo_of": null,
+      "undone_by": null
+    }
+  ],
+  "nudges": [
+    {
+      "basis": "deadline",
+      "date": null,
+      "days": 2,
+      "fire_at": "2026-12-03T16:00:00+00:00",
+      "id": "9bd7fd57-e955-4af4-ad6c-6dbd934910c6",
+      "kind": "before",
+      "offset_minutes": null,
+      "origin": "default",
+      "state": "armed",
+      "time": "17:00",
+      "todo_id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca"
+    },
+    {
+      "basis": "when",
+      "date": null,
+      "days": 1,
+      "fire_at": "2026-12-02T16:00:00+00:00",
+      "id": "e33654ae-fd94-402d-afb2-bb66622f8dc8",
+      "kind": "before",
+      "offset_minutes": null,
+      "origin": "default",
+      "state": "armed",
+      "time": "17:00",
+      "todo_id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca"
+    }
+  ],
+  "todo": {
+    "asleep": true,
+    "attachments": [],
+    "body": "",
+    "body_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "body_preview": "",
+    "checklist": null,
+    "children_open": 0,
+    "children_total": 0,
+    "completed_at": null,
+    "completed_count": 0,
+    "context": null,
+    "created": {
+      "at": "2026-11-27T00:43:28.964069+00:00",
+      "by": "user:97031634-5d14-466c-b72d-10c8af86f00f",
+      "kind": "human",
+      "label": "Owner",
+      "session_id": null,
+      "source": "api"
+    },
+    "deadline": {
+      "date": "2026-12-05",
+      "lead_days": null
+    },
+    "depth": 0,
+    "folded_ids": null,
+    "has_nudge": true,
+    "horizon": "whenever",
+    "id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca",
+    "in_band": false,
+    "inbox": true,
+    "inherited_tags": [],
+    "key": null,
+    "last_done_at": null,
+    "links": [],
+    "list_id": "02de0b20-c970-4c15-8ab9-f84a349674e9",
+    "number": 1,
+    "on_desk": false,
+    "parent_id": null,
+    "rank": "V",
+    "ref": "T-1",
+    "repeat": null,
+    "root_id": "e110afe3-4f3a-42a2-a232-bfd67bbdd5ca",
+    "someday": false,
+    "status": "open",
+    "tags": [],
+    "title": "Water the plants",
+    "updated_at": "2026-11-27T00:43:28.964069+00:00",
+    "updated_seq": 11,
+    "version": 1,
+    "when": {
+      "date": "2026-12-03",
+      "time": null
+    }
+  }
+}

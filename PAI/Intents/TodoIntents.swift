@@ -43,6 +43,40 @@ struct AddTodoIntent: AppIntent {
     static let waitSeconds: TimeInterval = 8
 }
 
+/// Add todos by saying what needs doing in plain words: Siri, Shortcuts, or the Action button
+/// through a shortcut. A model on the server reads the words into one or several todos, with
+/// their days, tags and subtasks, queued as one change. Without a network the words are queued as
+/// typed, read by the capture parser like Add Todo's, so nothing said is lost.
+struct DescribeTodoIntent: AppIntent {
+    static var title: LocalizedStringResource { "Describe Todo" }
+    static var description: IntentDescription {
+        IntentDescription("Say what needs doing in plain words; Todos in PAI makes the todos from it.")
+    }
+    static var openAppWhenRun: Bool { false }
+
+    @Parameter(title: "Words", requestValueDialog: "What needs doing?")
+    var text: String
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Describe \(\.$text) to Todos")
+    }
+
+    init() {}
+
+    init(text: String) {
+        self.text = text
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let outcome = await AppEnvironment.shared.todos.describeAndWait(
+            text: text, source: .shortcut, timeout: AddTodoIntent.waitSeconds)
+        let message = outcome.message(keeper: .intent)
+        if case .refused = outcome.settlement { throw AddTodoIntentError(message: message) }
+        return .result(dialog: IntentDialog(LocalizedStringResource(stringLiteral: message)))
+    }
+}
+
 struct AddTodoIntentError: Swift.Error, CustomLocalizedStringResourceConvertible {
     let message: String
 

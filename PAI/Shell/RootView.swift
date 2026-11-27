@@ -23,8 +23,13 @@ struct RootView: View {
     @State private var arrivals = ArrivalBannerStore()
     /// Tells the server while the app is in front, so no device of this person is pushed meanwhile.
     @State private var presence: PresenceReporter?
-    /// The New todo sheet, opened by the control and the Home Screen quick action.
+    /// The New todo sheet, opened by the control and the Home Screen quick actions, in the mode
+    /// the way in asked for.
     @State private var addingTodo = false
+    @State private var addingMode: TodoAddMode = .line
+    /// A todo opened from outside: a nudge's push, a link to it, or the first of the todos plain
+    /// words became in the sheet above.
+    @State private var openedTodo: TodoSheetTarget?
 
     /// The parked deep link, if one is waiting. Read through the observable inbox rather than
     /// polled, so a notification tapped while the app is already open navigates immediately
@@ -193,8 +198,11 @@ struct RootView: View {
                         draft: TodoCaptureDraft { [client = connection.apiClient] text in
                             try await client.todosParse(text: text, list: nil, source: .ios)
                         },
-                        onAdded: { changeId in reportAddedTodo(changeId, toasts: connection.toasts) })
+                        initialMode: addingMode,
+                        onAdded: { changeId in reportAddedTodo(changeId, toasts: connection.toasts) },
+                        onComposed: { composed in openComposedTodo(composed, toasts: connection.toasts) })
                 }
+                .sheet(item: $openedTodo) { target in TodoSheetView(todoId: target.id) }
                 .environment(environment)
                 .environment(connection.sessions)
                 .environment(connection.machines)
@@ -501,8 +509,17 @@ struct RootView: View {
         // is a deliberate open with no touch inside the app to show for it.
         attention.noteActivity()
         // The add sheet opens over whatever is on screen; the navigation stays where it was.
-        if link == .newTodo {
+        if link == .newTodo || link == .describeTodo {
+            addingMode = link == .describeTodo ? .describe : .line
             OverlayDismissal.dismissAll { addingTodo = true }
+            return
+        }
+        // A todo by its number: the page the link names, then the todo's own sheet over it.
+        if case .todos(_, let number?) = link {
+            OverlayDismissal.dismissAll {
+                environment.router.replace(with: link.routes)
+                Task { await openTodo(number: number, toasts: connection.toasts) }
+            }
             return
         }
         // `.notification` is the one case `DeepLink.routes` cannot answer on its own — see its
@@ -530,6 +547,33 @@ struct RootView: View {
         }
         // Routed only once the overlays are gone — see `OverlayDismissal`.
         OverlayDismissal.dismissAll { environment.router.replace(with: link.routes) }
+    }
+
+    /// Opens the todo numbered `number`, read from the server when the phone does not hold it.
+    private func openTodo(number: Int, toasts: ToastCenter) async {
+        guard let id = await environment.todos.todoId(number: number) else {
+            toasts.show("T-\(number) could not be opened.", kind: .error)
+            return
+        }
+        openedTodo = TodoSheetTarget(id: id)
+    }
+
+    /// Plain words became todos: once the server has them the first one opens; several say how
+    /// many came in.
+    private func openComposedTodo(_ composed: TodosComposed, toasts: ToastCenter) {
+        Task {
+            // The add sheet is still leaving; a sheet asked for meanwhile is dropped.
+            try? await Task.sleep(for: .milliseconds(700))
+            switch await environment.todos.settled(composed.changeId, timeout: 15) {
+            case .applied:
+                if composed.count > 1 { toasts.show("Added \(composed.count) todos", kind: .success) }
+                openedTodo = TodoSheetTarget(id: composed.firstTodoId)
+            case .refused(let refusal):
+                toasts.show("Not added: \(refusal.message)", kind: .error)
+            case .waiting:
+                toasts.show("Saved on this iPhone. It is added once there is a connection.", kind: .info)
+            }
+        }
     }
 
     /// Says how a todo from the add sheet went: added, refused, or kept on the phone until it can
