@@ -236,21 +236,18 @@ public struct TodoAddChip: Equatable, Sendable, Identifiable {
     }
 
     /// The chips a view's defaults put on a todo made inside it, minus the ones dismissed and
-    /// the ones the line itself names: what is typed replaces its default in the todo made
-    /// (`TodoCreate.op`), so the default no longer shows. Tags add to the view's and stay.
+    /// the ones the line itself names, the web's `defaultChips` and `standingDefaults`: a field
+    /// the line names replaces the view's value for it (`TodoCreate.op`), so its default chip
+    /// goes; tags add up, so theirs stay.
     public static func defaults(
         _ defaults: TodoViewDefaults?, dismissed: Set<String>, typed: TodosParseAnswer? = nil,
         listName: (String) -> String?
     ) -> [TodoAddChip] {
         guard let defaults else { return [] }
-        let named = typed.map { TodoCreate.typed(from: $0) } ?? [:]
-        let replaces: [String: String] = [
-            "horizon": "horizon", "when": "when", "desk": "desk", "list": "list", "parent": "parent",
-        ]
+        let named = Set(read(typed, today: "").map(\.kind).filter { $0 != "tag" })
         var chips: [TodoAddChip] = []
         func add(_ dismissKey: String, _ kind: String, _ label: String, _ color: TodoColor? = nil) {
-            guard !dismissed.contains(dismissKey) else { return }
-            if let field = replaces[dismissKey], named[field] != nil { return }
+            guard !dismissed.contains(dismissKey), kind == "tag" || !named.contains(kind) else { return }
             chips.append(
                 TodoAddChip(key: "view:\(dismissKey)", kind: kind, label: label, color: color, dismissKey: dismissKey))
         }

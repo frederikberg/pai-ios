@@ -2,7 +2,7 @@
   "horizons": [
     {
       "horizon": "now",
-      "label": "Now",
+      "label": "Next",
       "color": "rose"
     },
     {
@@ -613,7 +613,7 @@
         {
           "key": "view:horizon",
           "kind": "horizon",
-          "label": "Now",
+          "label": "Next",
           "color": "rose",
           "fromView": {
             "dismissKey": "horizon"
@@ -682,7 +682,7 @@
         {
           "key": "view:horizon",
           "kind": "horizon",
-          "label": "Now",
+          "label": "Next",
           "color": "rose",
           "fromView": {
             "dismissKey": "horizon"
@@ -1095,6 +1095,411 @@
           "op": "todo.create",
           "id": "a",
           "title": "Read"
+        }
+      ]
+    }
+  ],
+  "standing": [
+    {
+      "answer": {
+        "title": "Dune",
+        "tokens": [
+          {
+            "start": 0,
+            "end": 3,
+            "kind": "clear",
+            "value": null,
+            "display": "clear"
+          }
+        ],
+        "issues": [],
+        "clears": [
+          "when"
+        ],
+        "fields": {
+          "tags": [],
+          "horizon": null,
+          "when": null,
+          "deadline": null,
+          "repeat": null,
+          "parent": null,
+          "list": null,
+          "desk": false,
+          "nudges": []
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "defaults": {
+        "tags": [
+          "work/ops",
+          "home"
+        ],
+        "horizon": "now",
+        "when": "today",
+        "desk": true,
+        "list": "L1",
+        "parent": "P1"
+      },
+      "chips": [
+        {
+          "key": "view:tag:work/ops",
+          "kind": "tag",
+          "label": "work/ops",
+          "fromView": {
+            "dismissKey": "tag:work/ops"
+          }
+        },
+        {
+          "key": "view:tag:home",
+          "kind": "tag",
+          "label": "home",
+          "fromView": {
+            "dismissKey": "tag:home"
+          }
+        },
+        {
+          "key": "view:horizon",
+          "kind": "horizon",
+          "label": "Next",
+          "color": "rose",
+          "fromView": {
+            "dismissKey": "horizon"
+          }
+        },
+        {
+          "key": "view:desk",
+          "kind": "desk",
+          "label": "Desk",
+          "fromView": {
+            "dismissKey": "desk"
+          }
+        },
+        {
+          "key": "view:list",
+          "kind": "list",
+          "label": "Personal",
+          "fromView": {
+            "dismissKey": "list"
+          }
+        },
+        {
+          "key": "view:parent",
+          "kind": "parent",
+          "label": "Subtask",
+          "fromView": {
+            "dismissKey": "parent"
+          }
+        }
+      ]
+    },
+    {
+      "answer": {
+        "title": "Dune",
+        "tokens": [
+          {
+            "start": 0,
+            "end": 3,
+            "kind": "when",
+            "value": null,
+            "display": "when"
+          },
+          {
+            "start": 4,
+            "end": 7,
+            "kind": "horizon",
+            "value": null,
+            "display": "horizon"
+          },
+          {
+            "start": 8,
+            "end": 11,
+            "kind": "tag",
+            "value": null,
+            "display": "tag"
+          },
+          {
+            "start": 12,
+            "end": 15,
+            "kind": "desk",
+            "value": null,
+            "display": "desk"
+          }
+        ],
+        "issues": [],
+        "clears": [],
+        "fields": {
+          "tags": [
+            "home/garden"
+          ],
+          "horizon": "soon",
+          "when": {
+            "date": "2026-11-28",
+            "time": "17:00"
+          },
+          "deadline": null,
+          "repeat": null,
+          "parent": null,
+          "list": null,
+          "desk": true,
+          "nudges": []
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "defaults": {
+        "tags": [
+          "work/ops",
+          "home"
+        ],
+        "horizon": "now",
+        "when": "today",
+        "desk": true,
+        "list": "L1",
+        "parent": "P1"
+      },
+      "chips": [
+        {
+          "key": "view:tag:work/ops",
+          "kind": "tag",
+          "label": "work/ops",
+          "fromView": {
+            "dismissKey": "tag:work/ops"
+          }
+        },
+        {
+          "key": "view:tag:home",
+          "kind": "tag",
+          "label": "home",
+          "fromView": {
+            "dismissKey": "tag:home"
+          }
+        },
+        {
+          "key": "view:list",
+          "kind": "list",
+          "label": "Personal",
+          "fromView": {
+            "dismissKey": "list"
+          }
+        },
+        {
+          "key": "view:parent",
+          "kind": "parent",
+          "label": "Subtask",
+          "fromView": {
+            "dismissKey": "parent"
+          }
+        }
+      ]
+    },
+    {
+      "answer": {
+        "title": "Dune",
+        "tokens": [],
+        "issues": [],
+        "clears": [],
+        "fields": {
+          "tags": [],
+          "horizon": null,
+          "when": null,
+          "deadline": {
+            "date": "2026-12-24",
+            "lead_days": null
+          },
+          "repeat": {
+            "mode": "schedule",
+            "every": 2,
+            "unit": "week",
+            "on": null,
+            "skip_missed": false
+          },
+          "parent": "T-4",
+          "list": "Groceries",
+          "desk": false,
+          "nudges": []
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "defaults": {
+        "tags": [
+          "work/ops",
+          "home"
+        ],
+        "horizon": "now",
+        "when": "today",
+        "desk": true,
+        "list": "L1",
+        "parent": "P1"
+      },
+      "chips": [
+        {
+          "key": "view:tag:work/ops",
+          "kind": "tag",
+          "label": "work/ops",
+          "fromView": {
+            "dismissKey": "tag:work/ops"
+          }
+        },
+        {
+          "key": "view:tag:home",
+          "kind": "tag",
+          "label": "home",
+          "fromView": {
+            "dismissKey": "tag:home"
+          }
+        },
+        {
+          "key": "view:horizon",
+          "kind": "horizon",
+          "label": "Next",
+          "color": "rose",
+          "fromView": {
+            "dismissKey": "horizon"
+          }
+        },
+        {
+          "key": "view:when",
+          "kind": "when",
+          "label": "Today",
+          "fromView": {
+            "dismissKey": "when"
+          }
+        },
+        {
+          "key": "view:desk",
+          "kind": "desk",
+          "label": "Desk",
+          "fromView": {
+            "dismissKey": "desk"
+          }
+        }
+      ]
+    },
+    {
+      "answer": {
+        "title": "Dune",
+        "tokens": [],
+        "issues": [],
+        "clears": [],
+        "fields": {
+          "tags": [],
+          "horizon": null,
+          "when": null,
+          "deadline": null,
+          "repeat": null,
+          "parent": null,
+          "list": null,
+          "desk": false,
+          "nudges": [
+            {
+              "id": "a",
+              "at": {
+                "date": "2026-11-28",
+                "time": "08:00"
+              }
+            },
+            {
+              "id": "b",
+              "before": {
+                "basis": "when",
+                "minutes": -30
+              }
+            },
+            {
+              "id": "c",
+              "before": {
+                "basis": "deadline",
+                "days": 2,
+                "time": "17:00"
+              }
+            }
+          ]
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "defaults": {
+        "tags": [
+          "work/ops",
+          "home"
+        ],
+        "horizon": "now",
+        "when": "today",
+        "desk": true,
+        "list": "L1",
+        "parent": "P1"
+      },
+      "chips": [
+        {
+          "key": "view:tag:work/ops",
+          "kind": "tag",
+          "label": "work/ops",
+          "fromView": {
+            "dismissKey": "tag:work/ops"
+          }
+        },
+        {
+          "key": "view:tag:home",
+          "kind": "tag",
+          "label": "home",
+          "fromView": {
+            "dismissKey": "tag:home"
+          }
+        },
+        {
+          "key": "view:horizon",
+          "kind": "horizon",
+          "label": "Next",
+          "color": "rose",
+          "fromView": {
+            "dismissKey": "horizon"
+          }
+        },
+        {
+          "key": "view:when",
+          "kind": "when",
+          "label": "Today",
+          "fromView": {
+            "dismissKey": "when"
+          }
+        },
+        {
+          "key": "view:desk",
+          "kind": "desk",
+          "label": "Desk",
+          "fromView": {
+            "dismissKey": "desk"
+          }
+        },
+        {
+          "key": "view:list",
+          "kind": "list",
+          "label": "Personal",
+          "fromView": {
+            "dismissKey": "list"
+          }
+        },
+        {
+          "key": "view:parent",
+          "kind": "parent",
+          "label": "Subtask",
+          "fromView": {
+            "dismissKey": "parent"
+          }
         }
       ]
     }

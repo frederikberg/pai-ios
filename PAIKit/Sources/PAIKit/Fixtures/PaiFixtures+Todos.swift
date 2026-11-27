@@ -292,7 +292,7 @@ extension PaiFixtures {
         return nil
     }
 
-    /// The fixture's reading of a capture line: `#tags`, `tomorrow`, `now`/`p1`, `*` for the desk
+    /// The fixture's reading of a capture line: `#tags`, `tomorrow`, `p1`/`!next`, `*` for the desk
     /// and a closing "no date", enough to photograph the add sheet's chips; the rest stays in the
     /// title.
     static func todosParse(_ text: String) -> [String: Any] {
@@ -327,7 +327,7 @@ extension PaiFixtures {
             } else if word.lowercased() == "tomorrow" {
                 when = ["date": "2026-11-27", "time": NSNull()]
                 tokens.append(["start": start, "end": end, "kind": "when", "value": when, "display": "Fri 27 Nov"])
-            } else if word.lowercased() == "p1" {
+            } else if ["p1", "!next"].contains(word.lowercased()) {
                 horizon = "now"
                 tokens.append(["start": start, "end": end, "kind": "horizon", "value": "now", "display": "now"])
             } else if word == "*" {
