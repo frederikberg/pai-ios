@@ -18,6 +18,8 @@ struct TodoPageScreen: View {
     @State private var ticks = 0
     @State private var opened: TodoSheetTarget?
     @State private var switching = false
+    @State private var fronts = 0
+    @Environment(\.scenePhase) private var scenePhase
     @State private var switchQuery: String?
     @State private var showsSettings = false
 
@@ -95,7 +97,9 @@ struct TodoPageScreen: View {
         TodoCreatePlace(defaults: view?.defaults, listId: list?.id, page: resolved?.key)
     }
 
-    private var loadKey: String { "\(resolved?.key ?? "")#\(store.readTick)" }
+    /// Asked again whenever the page comes to the front (shown again after another screen, or the
+    /// app back from the background) as well as after a change, so it is never left stale.
+    private var loadKey: String { "\(resolved?.key ?? "")#\(store.readTick)#\(fronts)" }
 
     var body: some View {
         TodoDeskPanel(
@@ -164,6 +168,8 @@ struct TodoPageScreen: View {
         .task(id: resolved?.key) { if let resolved { environment.todosPlace.shown(resolved) } }
         .onChange(of: deskMode) { _, mode in environment.todoDeskModes.set(mode, for: deskKind) }
         .task(id: loadKey) { await load() }
+        .onAppear { fronts += 1 }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { fronts += 1 } }
         .task { openFixtureState() }
         .task(id: rows.count) { tickForFixture() }
         .fixtureFact("todosPage", title)

@@ -469,7 +469,10 @@ public final class NotesStore {
 
     /// Fetches a note's outgoing links and backlinks — a snapshot, not something kept live; see
     /// this store's own doc comment on ``linkGraphs``.
+    /// The server's link graph is computed from the saved body, so an edit still waiting for its
+    /// save (an image just embedded) is saved first: the graph then lists it at once.
     public func loadLinkGraph(id: String) async {
+        await flush(id: id)
         do {
             linkGraphs[id] = try await api.getNoteLinks(id: id)
             requestSucceeded()
