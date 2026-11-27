@@ -21,11 +21,15 @@ public enum TodoPage: Hashable, Sendable {
         guard let colon = key.firstIndex(of: ":") else { return nil }
         let value = String(key[key.index(after: colon)...])
         guard !value.isEmpty else { return nil }
-        switch key[..<colon] {
-        case "view": self = .view(value)
-        case "list": self = .list(value)
-        case "tag": self = .tag(value)
-        default: return nil
+        let kind = key[..<colon]
+        if kind == "view" {
+            self = .view(value)
+        } else if kind == "list" {
+            self = .list(value)
+        } else if kind == "tag" {
+            self = .tag(value)
+        } else {
+            return nil
         }
     }
 }
