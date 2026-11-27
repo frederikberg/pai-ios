@@ -48,11 +48,12 @@ struct TodoSheetView: View {
             .navigationTitle(todo?.ref ?? "Todo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                // "Close", not "Done": in a todo app Done reads as finishing the todo.
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
                 }
                 if let todo {
-                    ToolbarItem(placement: .topBarLeading) { moreMenu(todo) }
+                    ToolbarItem(placement: .topBarTrailing) { moreMenu(todo) }
                 }
             }
             .navigationDestination(isPresented: $showsWhen) {
@@ -62,7 +63,11 @@ struct TodoSheetView: View {
             }
             .sheet(isPresented: $backdating) {
                 TodoDayPickerScreen(title: "Done on an earlier day", today: today, maxDate: today) { day in
-                    if let day { submit([TodoFieldOps.doneOn(todoId, day: day)]) }
+                    if let day {
+                        undoable(
+                            [TodoFieldOps.doneOn(todoId, day: day)],
+                            "Completed \u{201C}\(todo?.title ?? "")\u{201D} on \(day)")
+                    }
                     backdating = false
                 }
                 .presentationDetents([.medium, .large])
@@ -75,6 +80,15 @@ struct TodoSheetView: View {
             #endif
         }
         .fixtureFact("todosSheet", todo?.ref ?? "")
+    }
+
+    /// A change that takes something away, said with Undo.
+    private func undoable(_ ops: [TodoOp], _ text: String) {
+        if let blocked {
+            toasts.show(blocked, kind: .error)
+            return
+        }
+        TodoUndoToast.show(text, changeId: store.submit(ops), store: store, toasts: toasts)
     }
 
     private func submit(_ ops: [TodoOp]) {
@@ -128,7 +142,7 @@ struct TodoSheetView: View {
                     toasts.show(blocked, kind: .error)
                     return
                 }
-                store.toggleDone(todoId: todo.id)
+                TodoUndoToast.toggleDone(todo, store: store, toasts: toasts)
             } label: {
                 TodoTickCircle(mark: TodoHorizonMark.of(todo.horizon), done: todo.status != .open, size: 26)
             }
@@ -162,12 +176,20 @@ struct TodoSheetView: View {
             }
             if todo.status == .open && blocked == nil {
                 Button("Done on an earlier day…") { backdating = true }
-                Button("Drop it") { submit([TodoOp.complete(todo: todo.id, dropped: true)]) }
-                if todo.repeat != nil { Button("Skip this time") { submit([TodoFieldOps.skip(todo.id)]) } }
+                Button("Drop it") {
+                    undoable(
+                        [TodoOp.complete(todo: todo.id, dropped: true)], "Dropped \u{201C}\(todo.title)\u{201D}")
+                }
+                if todo.repeat != nil {
+                    Button("Skip this time") {
+                        undoable([TodoFieldOps.skip(todo.id)], "Skipped this round of \u{201C}\(todo.title)\u{201D}")
+                    }
+                }
             }
             if todo.status != .deleted && blocked == nil {
+                // The sheet closes on a deleted todo, so the toast with Undo is the way back.
                 Button("Delete", role: .destructive) {
-                    submit([TodoFieldOps.delete(todo.id)])
+                    undoable([TodoFieldOps.delete(todo.id)], "Deleted \u{201C}\(todo.title)\u{201D}")
                     dismiss()
                 }
             }
@@ -187,7 +209,7 @@ struct TodoSheetView: View {
                             toasts.show(blocked, kind: .error)
                             return
                         }
-                        store.toggleDone(todoId: child.id)
+                        TodoUndoToast.toggleDone(child, store: store, toasts: toasts)
                     } label: {
                         TodoTickCircle(mark: TodoHorizonMark.of(child.horizon), done: child.status != .open)
                     }
@@ -223,9 +245,11 @@ struct TodoSheetView: View {
                 TodoDescriptionScreen(todo: todo, canEdit: blocked == nil, submit: submit)
             } label: {
                 let text = store.details[todo.id]?.todo.body ?? todo.body ?? todo.bodyPreview
-                Text(text.isEmpty ? "No description" : text)
-                    .lineLimit(8)
-                    .foregroundStyle(text.isEmpty ? PaiPalette.Semantic.textFaint : PaiPalette.Semantic.textPrimary)
+                if text.isEmpty {
+                    Text("No description").foregroundStyle(PaiPalette.Semantic.textFaint)
+                } else {
+                    TodoDescriptionView(text: text)
+                }
             }
         }
     }
@@ -294,33 +318,73 @@ struct TodoDescriptionScreen: View {
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
-    @State private var text = ""
-    @State private var loaded = false
+    /// Begun once the whole description has been read; saved by Save and again on leaving.
+    @State private var edit: TodoBodyEdit?
 
-    private var current: String { environment.todos.details[todo.id]?.todo.body ?? todo.body ?? "" }
+    /// The todo as last read whole; a row carries only the first line of its description.
+    private var read: Todo? {
+        environment.todos.details[todo.id]?.todo ?? (todo.body != nil ? todo : nil)
+    }
 
     var body: some View {
-        TextEditor(text: $text)
-            .padding(.horizontal, 12)
-            .disabled(!canEdit)
-            .navigationTitle("Description")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if canEdit {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            let hash = environment.todos.details[todo.id]?.todo.bodyHash ?? todo.bodyHash
-                            if text != current { submit([TodoFieldOps.body(todo.id, text, ifBodyHash: hash)]) }
-                            dismiss()
-                        }
+        Group {
+            if let edit {
+                TextEditor(text: Binding(get: { edit.text }, set: { self.edit?.text = $0 }))
+                    .padding(.horizontal, 12)
+                    .disabled(!canEdit)
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle("Description")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if canEdit {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        save()
+                        dismiss()
                     }
                 }
             }
-            .onAppear {
-                if !loaded {
-                    text = current
-                    loaded = true
-                }
+        }
+        .onAppear(perform: begin)
+        .onChange(of: read?.bodyHash) { begin() }
+        // Leaving by Back or a swipe keeps what was typed, as Save would.
+        .onDisappear(perform: save)
+    }
+
+    private func begin() {
+        guard edit == nil, let read else { return }
+        edit = TodoBodyEdit(read)
+    }
+
+    private func save() {
+        guard canEdit, let op = edit?.take() else { return }
+        submit([op])
+    }
+}
+
+/// A todo's description as the Notes preview draws markdown: headings, lists and task boxes,
+/// links and code. Its files are named; they open from the Files section.
+struct TodoDescriptionView: View {
+    let text: String
+
+    /// A description longer than this many blocks is read on its own screen.
+    static let blocksShown = 12
+
+    var body: some View {
+        let document = NotePreviewDocument(body: text, nameToId: [:])
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(document.items.prefix(Self.blocksShown)) { item in
+                NotePreviewBlockView(
+                    block: item.block, taskBase: item.firstTask, attachments: document.attachments, containerId: nil)
             }
+            if document.items.count > Self.blocksShown {
+                Text("More…").font(.footnote).foregroundStyle(PaiPalette.Semantic.textMuted)
+            }
+        }
+        .environment(\.previewNamesFilesOnly, true)
+        .fixtureFact("todosDescriptionBlocks", String(document.items.count))
     }
 }

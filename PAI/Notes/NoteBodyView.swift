@@ -496,15 +496,34 @@ struct NotePreviewAttachmentView: View {
     let attachment: NotePreviewAttachment
     let containerId: String?
 
+    @Environment(\.previewNamesFilesOnly) private var namesFilesOnly
+
     var body: some View {
         if let containerId {
             NoteAttachmentEmbedView(
                 containerId: containerId, target: attachment.target, mode: attachment.mode, label: attachment.label)
+        } else if namesFilesOnly {
+            Label(attachment.label ?? (attachment.target as NSString).lastPathComponent, systemImage: "paperclip")
+                .font(PaiTypography.caption.font)
+                .foregroundStyle(PaiPalette.Notes.muted)
         } else {
             Text("\(attachment.target) — this note has no container, so its attachments can't be resolved")
                 .font(PaiTypography.caption.font)
                 .foregroundStyle(PaiPalette.Notes.muted)
         }
+    }
+}
+
+/// Set by a page whose files are not a note container's (a todo's description): an attachment
+/// it writes is named, not fetched.
+private struct PreviewNamesFilesOnlyKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var previewNamesFilesOnly: Bool {
+        get { self[PreviewNamesFilesOnlyKey.self] }
+        set { self[PreviewNamesFilesOnlyKey.self] = newValue }
     }
 }
 

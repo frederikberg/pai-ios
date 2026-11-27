@@ -198,6 +198,35 @@ public enum TodoFieldOps {
     }
 }
 
+/// A description being edited: the text it started from, guarded by that text's hash, so a save
+/// made after someone else changed the description is refused as a conflict instead of
+/// overwriting theirs. Saved by Save and again when the screen is left; whichever comes first
+/// sends it, the other finds nothing left to send.
+public struct TodoBodyEdit: Equatable, Sendable {
+    public let todoId: String
+    public var text: String
+    private var original: String
+    private let originalHash: String
+
+    /// Nil while the todo's whole description has not been read: a row carries only its first
+    /// line, and editing that would save the rest away.
+    public init?(_ todo: Todo) {
+        guard let body = todo.body else { return nil }
+        todoId = todo.id
+        text = body
+        original = body
+        originalHash = todo.bodyHash
+    }
+
+    /// The op that saves the text, or nil when nothing changed since it began or since the last
+    /// save.
+    public mutating func take() -> TodoOp? {
+        guard text != original else { return nil }
+        original = text
+        return TodoFieldOps.body(todoId, text, ifBodyHash: originalHash)
+    }
+}
+
 /// How dates, repeats and nudges are said, the web's `shell/dates.ts`, `fields/days.ts`,
 /// `quickadd/chips.ts` and `detail/nudges.ts`.
 public enum TodoWords {

@@ -57,6 +57,7 @@
         static let todosArrangeFlag = "-PaiFixtureTodosArrange"
         static let todosDescribeFlag = "-PaiFixtureTodosDescribe"
         static let todosWhenFlag = "-PaiFixtureTodosWhen"
+        static let todosTickFlag = "-PaiFixtureTodosTick"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -269,6 +270,12 @@
         /// with the nudges.
         public static func opensTodosWhen(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
             arguments.contains(todosWhenFlag)
+        }
+
+        /// `-PaiFixtureTodosTick`: a Todos page ticks its first row once it has rows, which shows
+        /// the toast with Undo.
+        public static func ticksTodosRow(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains(todosTickFlag)
         }
 
         /// `-PaiFixtureMe <state>`: which of `PaiFixtures.meStates` the Me routes answer. Absent is the full one.

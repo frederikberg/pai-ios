@@ -26,6 +26,9 @@ struct TodoAddSheet: View {
     let onAdded: (String) -> Void
     /// Told what plain words became, so whoever presented the sheet can open the first todo.
     var onComposed: (TodosComposed) -> Void = { _ in }
+    /// Told a queued change and the todo it makes, which the presenter opens once the server has
+    /// it: the way from a line to every field the todo sheet has.
+    var onAddedToOpen: (_ changeId: String, _ todoId: String) -> Void = { _, _ in }
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
@@ -62,7 +65,7 @@ struct TodoAddSheet: View {
         guard mode == .line else { return [] }
         let answer = draft.answer(for: draft.text)
         let gone = TodoCreate.cleared(dismissed, answer: answer)
-        let defaults = TodoAddChip.defaults(place.defaults, dismissed: gone) { id in
+        let defaults = TodoAddChip.defaults(place.defaults, dismissed: gone, typed: answer) { id in
             todos.lists.first { $0.id == id }?.name
         }
         return defaults + TodoAddChip.read(answer, today: today)
@@ -77,7 +80,12 @@ struct TodoAddSheet: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 12) {
                 field
-                if mode == .line { chipRow } else { describeStatus }
+                if mode == .line {
+                    chipRow
+                    tapRow
+                } else {
+                    describeStatus
+                }
                 ForEach(mode == .line ? draft.issues : [], id: \.self) { issue in
                     Text(issue).font(.footnote).foregroundStyle(.secondary)
                 }
@@ -150,6 +158,45 @@ struct TodoAddSheet: View {
                 }
             }
         }
+    }
+
+    /// Words for what a line can say, put into it as if typed, then the way into every field.
+    private var tapRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(TodoAddWords.taps, id: \.label) { tap in
+                    Button(tap.label) {
+                        draft.text = TodoAddWords.insert(tap.insert, into: draft.text, at: draft.text.utf16.count).text
+                        focused = true
+                    }
+                    .font(.footnote.weight(.medium))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().strokeBorder(PaiPalette.Semantic.borderDefault))
+                    .buttonStyle(.plain)
+                }
+                Button(action: addAndOpen) {
+                    Label("Add and open", systemImage: "chevron.right").labelStyle(.titleAndIcon)
+                }
+                .font(.footnote.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .disabled(!canSend)
+                .accessibilityHint("Adds the todo and opens it, with its day, time, nudges, tags and list")
+            }
+        }
+    }
+
+    /// Adds the line and hands the new todo to the presenter to open.
+    private func addAndOpen() {
+        guard let taken = draft.take() else { return }
+        let changeId = todos.capture(text: taken.text, place: place, dismissed: dismissed, parsed: taken.answer)
+        if let todoId = todos.createdTodoId(ofChange: changeId) {
+            onAddedToOpen(changeId, todoId)
+        } else {
+            onAdded(changeId)
+        }
+        dismiss()
     }
 
     @ViewBuilder private var describeStatus: some View {

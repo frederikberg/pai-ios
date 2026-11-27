@@ -579,12 +579,13 @@ if want todos-screens; then
   todos_screen list "todosPage=Personal todosDeskMode=bar" -PaiFixtureRoute todosList
   todos_screen groceries "todosPage=Groceries" -PaiFixtureRoute todosGroceries
   todos_screen checklist "todosPage=Personal" -PaiFixtureRoute todosList -PaiFixtureTodosExpand
-  todos_screen add "todosPage=Today todosAddMode=line todosAddWords=5 todosAddDefaults=1 todosAddChips=4" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps tomorrow #errand p1"
+  todos_screen add "todosPage=Today todosAddMode=line todosAddWords=5 todosAddDefaults=0 todosAddChips=3" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps tomorrow #errand p1"
   todos_screen add-no-date "todosAddMode=line todosAddDefaults=0 todosAddChips=1" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Read Dune no date"
   todos_screen describe "todosAddMode=describe todosAddWords=11" -PaiFixtureRoute todos -PaiFixtureTodosDescribe "Buy stamps tomorrow and then call the plumber about the boiler"
   todos_screen sheet-nudges "todosSheet=T-9 todosDefaultNudges=1" -PaiFixtureRoute todosList -PaiFixtureTodosOpen -PaiFixtureTodosWhen
   todos_screen browse "todosBrowse=7,1,3" -PaiFixtureRoute todosBrowse
-  todos_screen sheet "todosSheet=T-9" -PaiFixtureRoute todosList -PaiFixtureTodosOpen
+  todos_screen sheet "todosSheet=T-9 todosDescriptionBlocks=3" -PaiFixtureRoute todosList -PaiFixtureTodosOpen
+  todos_screen tick-undo "todosUndoToast=shown" -PaiFixtureRoute todos -PaiFixtureTodosTick
   todos_screen upcoming "todosPage=Upcoming" -PaiFixtureRoute todosUpcoming
   todos_screen logbook "todosPage=Logbook todosDayRows=7" -PaiFixtureRoute todosLogbook
   todos_screen search "todosSearchHits=1" -PaiFixtureRoute todosSearch -PaiFixtureTodosSearch plumber

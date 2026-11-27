@@ -282,7 +282,8 @@ extension PaiFixtures {
             return (
                 200,
                 todosJSON([
-                    "todo": todo.json, "children": children, "nudges": ref == todosParent ? todosNudges(for: ref) : [],
+                    "todo": todosDetailRow(todo), "children": children,
+                    "nudges": ref == todosParent ? todosNudges(for: ref) : [],
                     "history": todosHistory(for: todo),
                 ])
             )
@@ -369,6 +370,27 @@ extension PaiFixtures {
             },
             "todos": [], "events": [], "replayed": false,
         ]
+    }
+
+    /// The todo as `GET /todos/{ref}` answers it: with its whole description, which for the todo
+    /// with subtasks is markdown (a heading, a list with a task box, a link, emphasis), so the sheet
+    /// photographs it rendered.
+    static func todosDetailRow(_ todo: FixtureTodo) -> [String: Any] {
+        var row = todo.json
+        if todo.id == todosParent {
+            row["body"] = """
+                ## Before the trip
+                Pack the **warm** jacket and check the [timetable](https://example.org/timetable).
+
+                - [x] Book the hostel
+                - [ ] Charge the camera
+                - Ask about the *late* check-in
+                """
+            row["body_preview"] = "## Before the trip"
+        } else {
+            row["body"] = todo.preview
+        }
+        return row
     }
 
     /// One nudge added by hand and one the person's default nudges made, days before at 17:00.

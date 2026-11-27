@@ -882,9 +882,11 @@ public struct TodosErrorBody: Codable, Equatable, Sendable {
     public let index: Int?
     public let op: String?
     public let reason: String?
+    /// `undo_conflict`: the fields changed since the change being undone.
+    public let fields: [String]?
 
     enum CodingKeys: String, CodingKey {
-        case error, message, field, needs, ref, todo, current, since, index, op, reason
+        case error, message, field, needs, ref, todo, current, since, index, op, reason, fields
         case listId = "list_id"
     }
 }
@@ -967,6 +969,23 @@ public struct TodosParseAnswer: Codable, Equatable, Sendable {
         createOp = try container.decode(TodoOp.self, forKey: .createOp)
         issues = try container.decodeIfPresent([TodoParseIssue].self, forKey: .issues) ?? []
         clears = try container.decodeIfPresent([String].self, forKey: .clears) ?? []
+    }
+}
+
+/// `POST /changes/{id}/undo`: undo that change as a new one, `changeId`. `strict` refuses with
+/// 409 `undo_conflict` when anything it touched was changed since.
+public struct TodosUndoRequest: Codable, Equatable, Sendable {
+    public let changeId: String
+    public let mode: String
+
+    public init(changeId: String, mode: String = "strict") {
+        self.changeId = changeId
+        self.mode = mode
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case mode
+        case changeId = "change_id"
     }
 }
 

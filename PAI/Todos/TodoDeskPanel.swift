@@ -16,6 +16,7 @@ struct TodoDeskPanel<ListContent: View>: View {
     let onOpen: (String) -> Void
     @ViewBuilder let list: () -> ListContent
 
+    @Environment(ToastCenter.self) private var toasts
     /// The cards can be dragged into a new order, sections included.
     @State private var arranging = false
     /// The section being named: a new one (nil id) or one renamed.
@@ -157,6 +158,12 @@ struct TodoDeskPanel<ListContent: View>: View {
         #endif
     }
 
+    /// A desk clear, said with Undo, which puts the cards back.
+    private func clear(_ what: String, _ text: String) {
+        let changeId = todos.submit([TodoOp(fields: ["op": .string("desk.clear"), "what": .string(what)])])
+        TodoUndoToast.show(text, changeId: changeId, store: todos, toasts: toasts)
+    }
+
     /// New section, Arrange and the two clears: the desk's less used actions.
     private var actionsMenu: some View {
         Menu {
@@ -164,11 +171,11 @@ struct TodoDeskPanel<ListContent: View>: View {
             Button("Arrange", systemImage: "arrow.up.arrow.down") { withAnimation(.snappy) { arranging = true } }
                 .disabled(todos.deskItems.count < 2 || arranging)
             Button("Clear done", systemImage: "checkmark.circle") {
-                todos.submit([TodoOp(fields: ["op": .string("desk.clear"), "what": .string("done")])])
+                clear("done", "Cleared the done todos off the desk")
             }
             .disabled(todos.deskItems.isEmpty)
             Button("Clear all", systemImage: "xmark.circle", role: .destructive) {
-                todos.submit([TodoOp(fields: ["op": .string("desk.clear"), "what": .string("all")])])
+                clear("all", "Cleared the desk")
             }
             .disabled(todos.deskItems.isEmpty)
         } label: {
@@ -211,7 +218,12 @@ struct TodoDeskPanel<ListContent: View>: View {
                 .listRowSeparator(.hidden)
                 .contextMenu {
                     Button("Rename") { naming = (item.id, item.title ?? "") }
-                    Button("Clear section", role: .destructive) { todos.submit([TodoFieldOps.clearSection(item.id)]) }
+                    Button("Clear section", role: .destructive) {
+                        TodoUndoToast.show(
+                            "Section cleared", changeId: todos.submit([TodoFieldOps.clearSection(item.id)]),
+                            store: todos,
+                            toasts: toasts)
+                    }
                 }
         } else if let todo = todos.todos[item.todoId ?? ""] {
             TodoRowView(model: rowModel(todo), onTick: { onTick(todo.id) }, onOpen: { onOpen(todo.id) })
@@ -235,17 +247,20 @@ struct TodoDeskPanel<ListContent: View>: View {
         Button {
             withAnimation(.snappy) { mode = .split }
         } label: {
+            // The chevron sits beside the title and the whole line takes the tap: the page's
+            // round add button covers the line's right end.
             HStack(spacing: 6) {
+                Image(systemName: "chevron.up").font(.caption)
                 Text(listTitle).font(.subheadline.weight(.semibold))
                 if let listCount {
                     Text("\(listCount)").monospacedDigit().foregroundStyle(PaiPalette.Semantic.textFaint)
                 }
                 Spacer()
-                Image(systemName: "chevron.up").font(.caption)
             }
             .foregroundStyle(PaiPalette.Semantic.textSecondary)
             .padding(.horizontal, 16)
             .frame(height: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
