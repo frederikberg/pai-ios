@@ -47,7 +47,7 @@ struct TodoSettingsScreen: View {
                 }
             #endif
         }
-        .fixtureFact("todosSettings", fixtureSection?.rawValue ?? "all")
+        .fixtureFact("todosSettings", "all")
     }
 }
 
@@ -97,7 +97,13 @@ enum TodoSettingsSection: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    @MainActor @ViewBuilder var screen: some View {
+    /// The section's screen. It reports itself as the section on show: the list beneath it in the
+    /// navigation stack is not drawn again when one is pushed, so its own report would stay "all".
+    @MainActor var screen: some View {
+        content.fixtureFact("todosSettings", rawValue)
+    }
+
+    @MainActor @ViewBuilder private var content: some View {
         switch self {
         case .general: TodoGeneralSettings()
         case .nudges: TodoNudgeSettings()
