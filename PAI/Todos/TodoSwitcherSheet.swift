@@ -67,6 +67,7 @@ struct TodoSwitcherSheet: View {
             if query.isEmpty { query = initialQuery }
             focused = true
         }
+        .onChange(of: initialQuery) { _, words in if query.isEmpty { query = words } }
         .fixtureFact("todosSwitcherHits", String(hits.count))
         .fixtureFact("todosSwitcherFirst", hits.first?.title.replacingOccurrences(of: " ", with: "_") ?? "")
     }
