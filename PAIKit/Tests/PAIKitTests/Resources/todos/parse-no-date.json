@@ -1,0 +1,50 @@
+{
+  "clears": [
+    "when"
+  ],
+  "create_op": {
+    "body": null,
+    "created_at": null,
+    "deadline": null,
+    "default_nudges": null,
+    "desk": null,
+    "horizon": null,
+    "id": "92f98c59-3880-4479-9756-3436ef085a40",
+    "inbox": null,
+    "key": null,
+    "link_session": null,
+    "links": null,
+    "list": null,
+    "nudges": null,
+    "op": "todo.create",
+    "parent": null,
+    "position": null,
+    "repeat": null,
+    "someday": null,
+    "tags": null,
+    "title": "Dune",
+    "when": null
+  },
+  "fields": {
+    "deadline": null,
+    "desk": false,
+    "horizon": null,
+    "list": null,
+    "nudges": [],
+    "parent": null,
+    "repeat": null,
+    "tags": [],
+    "when": null
+  },
+  "issues": [],
+  "title": "Dune",
+  "tokens": [
+    {
+      "display": "No date",
+      "end": 12,
+      "kind": "clear",
+      "start": 5,
+      "value": "when"
+    }
+  ]
+}

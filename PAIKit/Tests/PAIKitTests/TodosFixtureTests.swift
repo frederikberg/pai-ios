@@ -48,7 +48,12 @@
             let sheet = try answer(
                 TodosDetailAnswer.self, "GET", "/api/todos/todos/\(PaiFixtures.todosParent)",
                 query: [URLQueryItem(name: "closed", value: "1")])
-            XCTAssertEqual(sheet.nudges.count, 1)
+            XCTAssertTrue(sheet.nudges.contains { $0.isDefault && $0.days != nil })
+            XCTAssertTrue(sheet.nudges.contains { !$0.isDefault })
+            let composed = try answer(
+                TodosComposeAnswer.self, "POST", "/api/todos/compose",
+                body: #"{"text":"Buy stamps tomorrow and then call the plumber"}"#)
+            XCTAssertEqual(composed.ops.count, 2)
             XCTAssertEqual(sheet.history?.count, 2)
             XCTAssertTrue(sheet.children?.contains { $0.status == .done } == true)
             let upcoming = try answer(TodosUpcomingAnswer.self, "GET", "/api/todos/upcoming")

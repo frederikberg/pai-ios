@@ -59,6 +59,14 @@
 			<key>UIApplicationShortcutItemIconSymbolName</key>
 			<string>checkmark.circle</string>
 		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.frederikberg.pai.describe-todo</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Describe todo</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>sparkles</string>
+		</dict>
 	</array>
 
 	<!-- `pai://session/<id>` and `pai://note/<id>`, so a Shortcuts action or a widget can open

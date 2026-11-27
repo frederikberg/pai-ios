@@ -110,6 +110,8 @@ public enum TodoFieldOps {
     public enum NudgeChoice: Equatable, Sendable {
         case at(date: String, time: String)
         case before(basis: String, minutes: Int)
+        /// Whole days before the day or deadline, at a time of day: it rings at that wall-clock time.
+        case days(basis: String, days: Int, time: String)
     }
 
     public static func nudgeSet(_ todoId: String, _ choice: NudgeChoice, id: String) -> TodoOp {
@@ -118,8 +120,25 @@ public enum TodoFieldOps {
         case .at(let date, let time): fields["at"] = .object(["date": .string(date), "time": .string(time)])
         case .before(let basis, let minutes):
             fields["before"] = .object(["basis": .string(basis), "minutes": .number(Decimal(minutes))])
+        case .days(let basis, let days, let time):
+            fields["before"] = .object([
+                "basis": .string(basis), "days": .number(Decimal(days)), "time": .string(time),
+            ])
         }
         return TodoOp(fields: fields)
+    }
+
+    /// Gives the todo what the person's default nudges say for the day and deadline it has now, in
+    /// place of the default nudges it holds; nudges added by hand stay.
+    public static func nudgeDefaults(_ todoId: String) -> TodoOp {
+        TodoOp(fields: ["op": .string("nudge.defaults"), "todo": .string(todoId)])
+    }
+
+    /// Whether "Use my default nudges" has anything to do: the person has defaults, and the open
+    /// todo has a day or a deadline they count from.
+    public static func offersDefaults(_ todo: Todo, prefs: TodoPrefs?) -> Bool {
+        guard let defaults = prefs?.defaultNudges, !defaults.isEmpty else { return false }
+        return todo.status == .open && (todo.when != nil || todo.deadline != nil)
     }
 
     public static func nudgeRemove(_ id: String) -> TodoOp {
@@ -304,10 +323,18 @@ public enum TodoWords {
     }
 
     /// One line for a nudge: when it fires, in the person's own words.
-    public static func nudge(kind: String, date: String?, time: String?, basis: String?, offsetMinutes: Int?) -> String
-    {
+    public static func nudge(
+        kind: String, date: String?, time: String?, basis: String?, offsetMinutes: Int?, days: Int? = nil
+    ) -> String {
         if kind == "at" {
             return "At \(date ?? "—") \(time.map { String($0.prefix(5)) } ?? "")".trimmingCharacters(in: .whitespaces)
+        }
+        if let days {
+            let day = basis == "deadline" ? "the deadline" : "the day"
+            let at = time.map { String($0.prefix(5)) } ?? ""
+            if days == 0 { return "On \(day) at \(at)" }
+            let count = Swift.abs(days)
+            return "\(count) day\(count == 1 ? "" : "s") \(days > 0 ? "before" : "after") \(day) at \(at)"
         }
         let minutes = offsetMinutes ?? 0
         let basisWords = basis == "deadline" ? "the deadline" : "the time"
@@ -317,8 +344,31 @@ public enum TodoWords {
 
     public static func nudge(_ nudge: TodoNudge) -> String {
         Self.nudge(
-            kind: nudge.kind, date: nudge.date, time: nudge.time, basis: nudge.basis, offsetMinutes: nudge.offsetMinutes
-        )
+            kind: nudge.kind, date: nudge.date, time: nudge.time, basis: nudge.basis,
+            offsetMinutes: nudge.offsetMinutes,
+            days: nudge.days)
+    }
+
+    /// A nudge as the When line says it, after the day and the repeat: "1 day before at 17:00",
+    /// "15 min before", "at 08:15 on Mon, 30 Nov".
+    public static func nudgeShort(_ nudge: TodoNudge) -> String {
+        let at = nudge.time.map { String($0.prefix(5)) } ?? ""
+        if nudge.kind == "at" {
+            return "at \(at)" + (nudge.date.map { " on \(format($0, "EEE, d MMM"))" } ?? "")
+        }
+        if let days = nudge.days {
+            if days == 0 { return "at \(at) on the \(nudge.basis == "deadline" ? "deadline day" : "day")" }
+            let count = Swift.abs(days)
+            let of = nudge.basis == "deadline" ? " the deadline" : ""
+            return "\(count) day\(count == 1 ? "" : "s") \(days > 0 ? "before" : "after")\(of) at \(at)"
+        }
+        let minutes = nudge.offsetMinutes ?? 0
+        if minutes == 0 { return nudge.basis == "deadline" ? "at the deadline" : "at the time" }
+        let abs = Swift.abs(minutes)
+        let amount =
+            abs % 1440 == 0
+            ? "\(abs / 1440) day\(abs == 1440 ? "" : "s")" : abs % 60 == 0 ? "\(abs / 60) h" : "\(abs) min"
+        return "\(amount) \(minutes > 0 ? "before" : "after")\(nudge.basis == "deadline" ? " the deadline" : "")"
     }
 
     public enum StateTone: String, Sendable { case quiet, live, warn }
@@ -350,15 +400,15 @@ public enum TodoWords {
             {
                 let at = op.object("at")
                 let before = op.object("before")
-                var minutes: Int?
-                if case .number(let value) = before?.fields["minutes"] {
-                    minutes = NSDecimalNumber(decimal: value).intValue
+                func whole(_ key: String) -> Int? {
+                    guard case .number(let value) = before?.fields[key] else { return nil }
+                    return NSDecimalNumber(decimal: value).intValue
                 }
                 out.append(
                     TodoNudge(
                         id: id, todoId: todoId, kind: at == nil ? "before" : "at", date: at?.string("date"),
-                        time: at?.string("time"), basis: before?.string("basis"), offsetMinutes: minutes, fireAt: nil,
-                        state: .armed))
+                        time: at?.string("time") ?? before?.string("time"), basis: before?.string("basis"),
+                        offsetMinutes: whole("minutes"), days: whole("days"), state: .armed))
             } else if op.name == "nudge.remove", let id = op.string("id") {
                 out.removeAll { $0.id == id }
             }

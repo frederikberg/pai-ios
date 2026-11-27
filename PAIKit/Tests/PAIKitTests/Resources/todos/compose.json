@@ -1,0 +1,28 @@
+{
+  "model": "rig",
+  "ops": [
+    {
+      "body": null,
+      "created_at": null,
+      "deadline": null,
+      "default_nudges": null,
+      "desk": null,
+      "horizon": null,
+      "id": "5468419b-0ce3-43fa-97e3-b763722fad16",
+      "inbox": null,
+      "key": null,
+      "link_session": null,
+      "links": null,
+      "list": null,
+      "nudges": null,
+      "op": "todo.create",
+      "parent": null,
+      "position": null,
+      "repeat": null,
+      "someday": null,
+      "tags": null,
+      "title": "Call the plumber tomorrow",
+      "when": null
+    }
+  ]
+}

@@ -218,6 +218,7 @@ actor FakeTodosServer: TodosBackend {
         parsed.append(text)
         let sample = try TodosWireSamples.decode(TodosParseAnswer.self, "parse-fields")
         if text.hasPrefix("Call the plumber") { return sample }
+        if text.hasSuffix("no date") { return try TodosWireSamples.decode(TodosParseAnswer.self, "parse-no-date") }
         // Words the sample does not cover read as a plain title, as the parser reads them.
         let plain: [String: Any] = [
             "title": text, "tokens": [], "issues": [],
@@ -279,7 +280,9 @@ actor FakeTodosServer: TodosBackend {
 
     func todosDetail(ref: String) async throws -> TodosDetailAnswer {
         try reach()
-        guard let todo = todos[ref] else { throw try refusal("error-404-not-found", status: 404) }
+        guard let todo = todos[ref] ?? todos.values.first(where: { $0.ref == ref }) else {
+            throw try refusal("error-404-not-found", status: 404)
+        }
         let children = todos.values.filter { $0.parentId == ref && $0.status == .open }.sorted { $0.title < $1.title }
         return TodosDetailAnswer(todo: todo, children: children, nudges: [], history: nil)
     }
@@ -300,6 +303,29 @@ actor FakeTodosServer: TodosBackend {
     func todosLogbook(cursor: String?) async throws -> TodosLogbookAnswer {
         try reach()
         return TodosLogbookAnswer(days: [], todos: [:], nextCursor: nil)
+    }
+
+    private(set) var composed: [TodosComposeRequest] = []
+    private var composeAnswer: TodosComposeAnswer?
+    private var composeRefuses = false
+
+    /// What the model reads next; nil answers the captured sample.
+    func setCompose(_ answer: TodosComposeAnswer?, refuses: Bool = false) {
+        composeAnswer = answer
+        composeRefuses = refuses
+    }
+
+    func todosCompose(_ request: TodosComposeRequest) async throws -> TodosComposeAnswer {
+        try reach()
+        composed.append(request)
+        if composeRefuses {
+            // The route's own refusal when no model answered: 503 `unavailable`.
+            let body = try JSONDecoder().decode(
+                TodosErrorBody.self, from: Data(#"{"error":"unavailable","message":"No model answered."}"#.utf8))
+            throw TodosApiError(statusCode: 503, body: body)
+        }
+        if let composeAnswer { return composeAnswer }
+        return try TodosWireSamples.decode(TodosComposeAnswer.self, "compose")
     }
 
     private(set) var searched: [TodosSearchRequest] = []

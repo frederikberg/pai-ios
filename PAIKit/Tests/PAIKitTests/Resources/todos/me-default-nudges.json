@@ -1,0 +1,197 @@
+{
+  "actor_kind": "human",
+  "display_name": "Owner",
+  "lists": [
+    {
+      "archived": false,
+      "color": null,
+      "counts": {
+        "open": 1
+      },
+      "icon": null,
+      "id": "02de0b20-c970-4c15-8ab9-f84a349674e9",
+      "kind": "personal",
+      "layout": "list",
+      "locked": false,
+      "members": [
+        {
+          "display_name": "Owner",
+          "principal": "user:97031634-5d14-466c-b72d-10c8af86f00f",
+          "role": "owner"
+        }
+      ],
+      "name": "Personal",
+      "role": "owner"
+    }
+  ],
+  "prefs": {
+    "active_scope": null,
+    "day_rollover": "03:30",
+    "deadline_lead_days": 2,
+    "default_list_id": "02de0b20-c970-4c15-8ab9-f84a349674e9",
+    "default_nudges": {
+      "day": [
+        {
+          "days": 1,
+          "minutes": null,
+          "time": "17:00"
+        }
+      ],
+      "deadline": [
+        {
+          "days": 2,
+          "minutes": null,
+          "time": "17:00"
+        }
+      ],
+      "timed": [
+        {
+          "days": null,
+          "minutes": 15,
+          "time": null
+        }
+      ]
+    },
+    "scopes": [],
+    "seen_seq": 0,
+    "timezone": "Europe/Berlin"
+  },
+  "principal": "user:97031634-5d14-466c-b72d-10c8af86f00f",
+  "seq": 13,
+  "tags": [],
+  "user_id": "97031634-5d14-466c-b72d-10c8af86f00f",
+  "views": [
+    {
+      "builtin": "today",
+      "defaults": {
+        "desk": null,
+        "horizon": null,
+        "list": null,
+        "parent": null,
+        "tags": null,
+        "when": "today"
+      },
+      "display": {},
+      "group_by": "none",
+      "icon": null,
+      "id": "e145885d-c58f-403d-b297-7cac1ba5b277",
+      "layout": "today",
+      "name": "Today",
+      "pinned": true,
+      "query": "is:today -is:desk",
+      "rank": "8",
+      "sort": "hand",
+      "tree": "fold"
+    },
+    {
+      "builtin": "upcoming",
+      "defaults": {
+        "desk": null,
+        "horizon": null,
+        "list": null,
+        "parent": null,
+        "tags": null,
+        "when": null
+      },
+      "display": {},
+      "group_by": "none",
+      "icon": null,
+      "id": "506976c0-7d02-4ac3-8738-e09b5038ff16",
+      "layout": "agenda",
+      "name": "Upcoming",
+      "pinned": true,
+      "query": "is:open (when:>today OR deadline:>today)",
+      "rank": "H",
+      "sort": "when",
+      "tree": "fold"
+    },
+    {
+      "builtin": "all",
+      "defaults": {
+        "desk": null,
+        "horizon": null,
+        "list": null,
+        "parent": null,
+        "tags": null,
+        "when": null
+      },
+      "display": {},
+      "group_by": "horizon",
+      "icon": null,
+      "id": "94bfb4f5-1078-4ab0-846f-478a5d055ab6",
+      "layout": "list",
+      "name": "All",
+      "pinned": true,
+      "query": "is:root",
+      "rank": "Q",
+      "sort": "hand",
+      "tree": "fold"
+    },
+    {
+      "builtin": "chrono",
+      "defaults": {
+        "desk": null,
+        "horizon": null,
+        "list": null,
+        "parent": null,
+        "tags": null,
+        "when": null
+      },
+      "display": {},
+      "group_by": "none",
+      "icon": null,
+      "id": "09d2b280-8b93-496a-9ad9-1c8678f4a186",
+      "layout": "list",
+      "name": "Chrono",
+      "pinned": true,
+      "query": "is:open",
+      "rank": "Z",
+      "sort": "-created",
+      "tree": "flat"
+    },
+    {
+      "builtin": "inbox",
+      "defaults": {
+        "desk": null,
+        "horizon": null,
+        "list": null,
+        "parent": null,
+        "tags": null,
+        "when": null
+      },
+      "display": {},
+      "group_by": "none",
+      "icon": null,
+      "id": "a1ea97ce-8e89-4f48-b3ed-b078f9072ba6",
+      "layout": "list",
+      "name": "Inbox",
+      "pinned": true,
+      "query": "is:inbox",
+      "rank": "i",
+      "sort": "-created",
+      "tree": "fold"
+    },
+    {
+      "builtin": "logbook",
+      "defaults": {
+        "desk": null,
+        "horizon": null,
+        "list": null,
+        "parent": null,
+        "tags": null,
+        "when": null
+      },
+      "display": {},
+      "group_by": "completed",
+      "icon": null,
+      "id": "3e6600b9-2333-437b-bf22-bb354add258c",
+      "layout": "log",
+      "name": "Logbook",
+      "pinned": true,
+      "query": "is:done OR is:dropped",
+      "rank": "r",
+      "sort": "-completed",
+      "tree": "flat"
+    }
+  ]
+}

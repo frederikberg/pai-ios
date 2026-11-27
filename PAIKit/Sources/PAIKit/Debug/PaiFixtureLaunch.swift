@@ -55,6 +55,8 @@
         static let todosOpenFlag = "-PaiFixtureTodosOpen"
         static let todosSearchFlag = "-PaiFixtureTodosSearch"
         static let todosArrangeFlag = "-PaiFixtureTodosArrange"
+        static let todosDescribeFlag = "-PaiFixtureTodosDescribe"
+        static let todosWhenFlag = "-PaiFixtureTodosWhen"
 
         /// What the debug bridge can change while the app runs: the offline switch, and whether
         /// the one-shot conflict has been served.
@@ -255,6 +257,18 @@
         /// `-PaiFixtureTodosArrange`: the desk opens with its cards in arranging mode.
         public static func arrangesTodosDesk(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
             arguments.contains(todosArrangeFlag)
+        }
+
+        /// `-PaiFixtureTodosDescribe <text>`: a Todos page opens its add sheet in the plain-words
+        /// mode with this typed.
+        public static func requestedTodosDescribe(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: todosDescribeFlag, in: arguments)
+        }
+
+        /// `-PaiFixtureTodosWhen`: the sheet `-PaiFixtureTodosOpen` opens shows its When screen,
+        /// with the nudges.
+        public static func opensTodosWhen(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains(todosWhenFlag)
         }
 
         /// `-PaiFixtureMe <state>`: which of `PaiFixtures.meStates` the Me routes answer. Absent is the full one.

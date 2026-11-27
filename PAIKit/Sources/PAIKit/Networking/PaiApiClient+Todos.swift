@@ -54,6 +54,8 @@ public protocol TodosBackend: Sendable {
     func todosUpcoming(days: Int) async throws -> TodosUpcomingAnswer
     func todosLogbook(cursor: String?) async throws -> TodosLogbookAnswer
     func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer
+    /// Plain words read into todos by a model; nothing is written.
+    func todosCompose(_ request: TodosComposeRequest) async throws -> TodosComposeAnswer
 }
 
 extension PaiApiClient: TodosBackend {
@@ -127,6 +129,10 @@ extension PaiApiClient: TodosBackend {
 
     public func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer {
         try await todosSend("POST", "/search", body: Self.jsonBody(request))
+    }
+
+    public func todosCompose(_ request: TodosComposeRequest) async throws -> TodosComposeAnswer {
+        try await todosSend("POST", "/compose", body: Self.jsonBody(request))
     }
 
     private static func escapedSegment(_ value: String) -> String {

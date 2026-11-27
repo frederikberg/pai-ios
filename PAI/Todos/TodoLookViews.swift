@@ -32,8 +32,8 @@ extension UIColor {
     }
 }
 
-/// A todo's tick circle: its horizon's ring while open (dashed for Whenever, a dot for Now), a
-/// filled circle with a check once done.
+/// A todo's tick circle: its horizon's ring while open (a dot for Now), a filled circle with a
+/// check once done.
 struct TodoTickCircle: View {
     let mark: TodoHorizonMark
     let done: Bool
@@ -47,9 +47,7 @@ struct TodoTickCircle: View {
                     .font(.system(size: size * 0.5, weight: .bold))
                     .foregroundStyle(.white)
             } else {
-                Circle()
-                    .strokeBorder(
-                        mark.color.swatch, style: StrokeStyle(lineWidth: 2, dash: mark.dashed ? [3, 3] : []))
+                Circle().strokeBorder(mark.color.swatch, lineWidth: 2)
                 if mark.dot {
                     Circle().fill(mark.color.swatch).frame(width: size * 0.28, height: size * 0.28)
                 }
@@ -60,19 +58,27 @@ struct TodoTickCircle: View {
     }
 }
 
-/// A tag as a chip in its colour.
+/// A tag as a chip in its colour. A nested tag shows its last part, where a long press tells the
+/// whole path; a picker, where tags are told apart, shows the whole name.
 struct TodoTagChip: View {
     let name: String
     let color: TodoColor
+    var whole = false
+
+    private var leaf: String { whole ? name : TodoIdentity.tagLeaf(name) }
 
     var body: some View {
-        Text(name)
+        Text(leaf)
             .font(.caption)
             .lineLimit(1)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .foregroundStyle(color.chipText)
             .background(RoundedRectangle(cornerRadius: 5).fill(color.chip))
+            .accessibilityLabel(name)
+            .contextMenu {
+                if leaf != name { Text(name) }
+            }
     }
 }
 

@@ -92,12 +92,14 @@ struct TodoDeskPanel<ListContent: View>: View {
                 Button {
                     naming = (nil, "")
                 } label: {
-                    Label("Section", systemImage: "plus").labelStyle(.titleAndIcon).padding(.horizontal, 4)
+                    // The bar is narrow beside the desk's own buttons; the words never wrap.
+                    Label("Section", systemImage: "plus").labelStyle(.titleAndIcon).lineLimit(1)
+                        .fixedSize().padding(.horizontal, 4)
                 }
                 Button {
                     withAnimation(.snappy) { arranging.toggle() }
                 } label: {
-                    Text(arranging ? "Done" : "Arrange").padding(.horizontal, 4)
+                    Text(arranging ? "Done" : "Arrange").lineLimit(1).fixedSize().padding(.horizontal, 4)
                 }
                 .disabled(todos.deskItems.count < 2 && !arranging)
                 clearMenu

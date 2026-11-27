@@ -122,14 +122,14 @@ extension PaiFixtures {
         }
         func view(
             _ n: Int, _ name: String, builtin: Any = null, layout: String = "list", query: String, pinned: Bool,
-            groupBy: String = "none"
+            groupBy: String = "none", defaults: [String: Any] = [:]
         ) -> [String: Any] {
             [
                 "id": String(format: "0190f000-0000-7000-8000-00000000b%03d", n), "name": name, "icon": null,
                 "builtin": builtin, "layout": layout, "query": query, "group_by": groupBy, "sort": "hand",
                 "tree": "fold",
                 "display": [String: Any](), "pinned": pinned, "rank": String(format: "a%03d", n),
-                "defaults": [String: Any](),
+                "defaults": defaults,
             ]
         }
         return [
@@ -143,6 +143,10 @@ extension PaiFixtures {
             "prefs": [
                 "timezone": "Europe/Berlin", "day_rollover": "03:30", "deadline_lead_days": 3,
                 "default_list_id": todosPersonalList, "scopes": [], "active_scope": null, "seen_seq": 0,
+                "default_nudges": [
+                    "timed": [["minutes": 15, "days": null, "time": null]],
+                    "day": [["minutes": null, "days": 1, "time": "17:00"]], "deadline": [],
+                ],
             ],
             "tags": [
                 tag(1, "home"), tag(2, "home/garden"), tag(3, "errand"), tag(4, "family"),
@@ -150,7 +154,9 @@ extension PaiFixtures {
                 tag(6, "paperwork"), tag(7, "travel"), tag(8, "kitchen"),
             ],
             "views": [
-                view(1, "Today", builtin: "today", layout: "today", query: "is:today -is:desk", pinned: true),
+                view(
+                    1, "Today", builtin: "today", layout: "today", query: "is:today -is:desk", pinned: true,
+                    defaults: ["when": "today"]),
                 view(
                     2, "Upcoming", builtin: "upcoming", layout: "agenda",
                     query: "is:open (when:>today OR deadline:>today)", pinned: true),
@@ -253,6 +259,7 @@ extension PaiFixtures {
             }
             return (200, todosJSON(todosQueryAnswer(todosCorpus)))
         case ("POST", "/parse"): return (200, todosJSON(todosParse(request?["text"] as? String ?? "")))
+        case ("POST", "/compose"): return (200, todosJSON(todosCompose(request?["text"] as? String ?? "")))
         case ("POST", "/apply"): return (200, todosJSON(todosApplied(request ?? [:])))
         default: break
         }
@@ -275,7 +282,7 @@ extension PaiFixtures {
             return (
                 200,
                 todosJSON([
-                    "todo": todo.json, "children": children, "nudges": ref == todosParent ? [todosNudge(for: ref)] : [],
+                    "todo": todo.json, "children": children, "nudges": ref == todosParent ? todosNudges(for: ref) : [],
                     "history": todosHistory(for: todo),
                 ])
             )
@@ -283,9 +290,21 @@ extension PaiFixtures {
         return nil
     }
 
-    /// The fixture's reading of a capture line: `#tags`, `tomorrow`, `now`/`p1` and `*` for the
-    /// desk, enough to photograph the add sheet's chips; the rest stays in the title.
+    /// The fixture's reading of a capture line: `#tags`, `tomorrow`, `now`/`p1`, `*` for the desk
+    /// and a closing "no date", enough to photograph the add sheet's chips; the rest stays in the
+    /// title.
     static func todosParse(_ text: String) -> [String: Any] {
+        var text = text
+        var clears: [String] = []
+        var clearToken: [[String: Any]] = []
+        if text.lowercased().hasSuffix(" no date") {
+            let start = text.utf16.count - "no date".utf16.count
+            clears = ["when"]
+            clearToken = [
+                ["start": start, "end": text.utf16.count, "kind": "clear", "value": "when", "display": "No date"]
+            ]
+            text = String(text.dropLast(" no date".count))
+        }
         var title: [Substring] = []
         var tags: [String] = []
         var tokens: [[String: Any]] = []
@@ -324,7 +343,7 @@ extension PaiFixtures {
                 "tags": tags, "horizon": horizon, "when": when, "deadline": null, "repeat": null, "parent": null,
                 "list": null, "desk": desk, "nudges": [],
             ],
-            "tokens": tokens, "issues": [],
+            "tokens": tokens + clearToken, "issues": [], "clears": clears,
             "create_op": [
                 "op": "todo.create", "id": UUID().uuidString.lowercased(), "title": words, "list": null, "tags": tags,
                 "horizon": horizon, "when": when, "desk": desk ? true : null,
@@ -352,12 +371,34 @@ extension PaiFixtures {
         ]
     }
 
-    static func todosNudge(for ref: String) -> [String: Any] {
+    /// One nudge added by hand and one the person's default nudges made, days before at 17:00.
+    static func todosNudges(for ref: String) -> [[String: Any]] {
         [
-            "id": "0190f000-0000-7000-8000-00000000f101", "todo_id": ref, "kind": "before", "date": NSNull(),
-            "time": NSNull(), "basis": "when", "offset_minutes": 60, "fire_at": "2026-11-28T08:00:00.000001+00:00",
-            "state": "armed",
+            [
+                "id": "0190f000-0000-7000-8000-00000000f101", "todo_id": ref, "kind": "before", "date": NSNull(),
+                "time": NSNull(), "basis": "when", "offset_minutes": 60, "days": NSNull(), "origin": NSNull(),
+                "fire_at": "2026-11-28T08:00:00.000001+00:00", "state": "armed",
+            ],
+            [
+                "id": "0190f000-0000-7000-8000-00000000f102", "todo_id": ref, "kind": "before", "date": NSNull(),
+                "time": "17:00", "basis": "when", "offset_minutes": NSNull(), "days": 1, "origin": "default",
+                "fire_at": "2026-11-27T16:00:00.000001+00:00", "state": "armed",
+            ],
         ]
+    }
+
+    /// The fixture's model: each sentence (split at ". " and " and then ") is one todo, the
+    /// parser's fixture reading its words, so the add sheet's describe mode can be photographed.
+    static func todosCompose(_ text: String) -> [String: Any] {
+        let sentences = text.components(separatedBy: " and then ").flatMap { $0.components(separatedBy: ". ") }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "."))) }
+            .filter { !$0.isEmpty }
+        let ops = sentences.map { sentence -> [String: Any] in
+            var op = (todosParse(sentence)["create_op"] as? [String: Any]) ?? [:]
+            if (op["title"] as? String ?? "").isEmpty { op["title"] = sentence }
+            return op
+        }
+        return ["ops": ops, "model": "fixture"]
     }
 
     static func todosHistory(for todo: FixtureTodo) -> [[String: Any]] {

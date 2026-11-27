@@ -428,6 +428,8 @@ public struct TodoPrefs: Codable, Equatable, Sendable {
     public let defaultListId: String?
     public let scopes: [TodoSavedScope]
     public let activeScope: String?
+    /// Nil in a cached `/me` from before the server carried them.
+    public let defaultNudges: TodoDefaultNudges?
     public let seenSeq: Int
 
     enum CodingKeys: String, CodingKey {
@@ -436,8 +438,26 @@ public struct TodoPrefs: Codable, Equatable, Sendable {
         case deadlineLeadDays = "deadline_lead_days"
         case defaultListId = "default_list_id"
         case activeScope = "active_scope"
+        case defaultNudges = "default_nudges"
         case seenSeq = "seen_seq"
     }
+}
+
+/// The nudges a todo gets when its person gives it a day or a deadline, set in the web's
+/// Settings: `timed` for a day with a time, `day` for a day without one, `deadline` for a deadline.
+public struct TodoDefaultNudges: Codable, Equatable, Sendable {
+    /// Exactly one of `minutes` (before the day's time) and `days` with `time`.
+    public struct Entry: Codable, Equatable, Sendable {
+        public let minutes: Int?
+        public let days: Int?
+        public let time: String?
+    }
+
+    public let timed: [Entry]
+    public let day: [Entry]
+    public let deadline: [Entry]
+
+    public var isEmpty: Bool { timed.isEmpty && day.isEmpty && deadline.isEmpty }
 }
 
 public struct TodoActor: Codable, Equatable, Sendable {
@@ -632,8 +652,9 @@ public enum TodoNudgeState: TodosWireEnum {
     }
 }
 
-/// One of the caller's nudges on a todo: at a moment (`at`), or an offset before its time or
-/// deadline (`before`, minutes; negative is after).
+/// One of the caller's nudges on a todo: at a moment (`at`), or before its day or deadline
+/// (`before`): `offsetMinutes` before its time, or `days` before the day at `time` (negative is
+/// after either way). `origin` is `default` for one the person's default nudges made.
 public struct TodoNudge: Codable, Equatable, Sendable, Identifiable {
     public var id: String
     public var todoId: String
@@ -642,11 +663,34 @@ public struct TodoNudge: Codable, Equatable, Sendable, Identifiable {
     public var time: String?
     public var basis: String?
     public var offsetMinutes: Int?
+    public var days: Int?
+    public var origin: String?
     public var fireAt: String?
     public var state: TodoNudgeState
 
+    public init(
+        id: String, todoId: String, kind: String, date: String? = nil, time: String? = nil, basis: String? = nil,
+        offsetMinutes: Int? = nil, days: Int? = nil, origin: String? = nil, fireAt: String? = nil,
+        state: TodoNudgeState
+    ) {
+        self.id = id
+        self.todoId = todoId
+        self.kind = kind
+        self.date = date
+        self.time = time
+        self.basis = basis
+        self.offsetMinutes = offsetMinutes
+        self.days = days
+        self.origin = origin
+        self.fireAt = fireAt
+        self.state = state
+    }
+
+    /// Made by the person's default nudges rather than added by hand.
+    public var isDefault: Bool { origin == "default" }
+
     enum CodingKeys: String, CodingKey {
-        case id, kind, date, time, basis, state
+        case id, kind, date, time, basis, days, origin, state
         case todoId = "todo_id"
         case offsetMinutes = "offset_minutes"
         case fireAt = "fire_at"
@@ -906,9 +950,12 @@ public struct TodosParseAnswer: Codable, Equatable, Sendable {
     public let tokens: [TodoParseToken]
     public let createOp: TodoOp
     public let issues: [TodoParseIssue]
+    /// Fields the line said to leave empty (`when` for "no date"), which a view's default for
+    /// them must not fill.
+    public let clears: [String]
 
     enum CodingKeys: String, CodingKey {
-        case title, fields, tokens, issues
+        case title, fields, tokens, issues, clears
         case createOp = "create_op"
     }
 
@@ -919,5 +966,20 @@ public struct TodosParseAnswer: Codable, Equatable, Sendable {
         tokens = try container.decode([TodoParseToken].self, forKey: .tokens)
         createOp = try container.decode(TodoOp.self, forKey: .createOp)
         issues = try container.decodeIfPresent([TodoParseIssue].self, forKey: .issues) ?? []
+        clears = try container.decodeIfPresent([String].self, forKey: .clears) ?? []
     }
+}
+
+/// `POST /compose`: plain words, typed or dictated, for a model to read into todos.
+public struct TodosComposeRequest: Codable, Equatable, Sendable {
+    public let text: String
+    /// The list the open page is: the model files into it unless the words name another.
+    public let list: String?
+}
+
+/// What the model read, as `todo.create` ops sent as one change; a subtask names its parent's
+/// id. The route writes nothing.
+public struct TodosComposeAnswer: Codable, Equatable, Sendable {
+    public let ops: [TodoOp]
+    public let model: String
 }

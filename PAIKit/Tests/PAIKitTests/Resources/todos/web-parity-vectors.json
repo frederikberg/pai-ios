@@ -1,0 +1,1102 @@
+{
+  "horizons": [
+    {
+      "horizon": "now",
+      "label": "Now",
+      "color": "rose"
+    },
+    {
+      "horizon": "week",
+      "label": "This week",
+      "color": "amber"
+    },
+    {
+      "horizon": "soon",
+      "label": "Soon",
+      "color": "sky"
+    },
+    {
+      "horizon": "whenever",
+      "label": "Whenever",
+      "color": "slate"
+    }
+  ],
+  "leaves": [
+    {
+      "name": "home",
+      "leaf": "home"
+    },
+    {
+      "name": "home/garden",
+      "leaf": "garden"
+    },
+    {
+      "name": "area/project/part",
+      "leaf": "part"
+    },
+    {
+      "name": "trailing/",
+      "leaf": "trailing/"
+    },
+    {
+      "name": "/lead",
+      "leaf": "lead"
+    },
+    {
+      "name": "a//b",
+      "leaf": "b"
+    },
+    {
+      "name": "",
+      "leaf": ""
+    },
+    {
+      "name": "work/ops",
+      "leaf": "ops"
+    }
+  ],
+  "nudges": [
+    {
+      "nudge": {
+        "kind": "at",
+        "date": "2026-11-30",
+        "time": "08:15:00",
+        "basis": "when",
+        "offset_minutes": null,
+        "days": null
+      },
+      "describe": "At 2026-11-30 08:15",
+      "short": "at 08:15 on Mon, 30 Nov"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": 0,
+        "days": null
+      },
+      "describe": "At the time",
+      "short": "at the time"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "deadline",
+        "offset_minutes": 0,
+        "days": null
+      },
+      "describe": "At the deadline",
+      "short": "at the deadline"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": 15,
+        "days": null
+      },
+      "describe": "15 minutes before the time",
+      "short": "15 min before"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": 90,
+        "days": null
+      },
+      "describe": "90 minutes before the time",
+      "short": "90 min before"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "deadline",
+        "offset_minutes": 120,
+        "days": null
+      },
+      "describe": "2 hours before the deadline",
+      "short": "2 h before the deadline"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": 1440,
+        "days": null
+      },
+      "describe": "1 day before the time",
+      "short": "1 day before"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": 2880,
+        "days": null
+      },
+      "describe": "2 days before the time",
+      "short": "2 days before"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": null,
+        "basis": "when",
+        "offset_minutes": -60,
+        "days": null
+      },
+      "describe": "1 hour after the time",
+      "short": "1 h after"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": "17:00",
+        "basis": "when",
+        "offset_minutes": null,
+        "days": 1
+      },
+      "describe": "1 day before the day at 17:00",
+      "short": "1 day before at 17:00"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": "17:00",
+        "basis": "deadline",
+        "offset_minutes": null,
+        "days": 2
+      },
+      "describe": "2 days before the deadline at 17:00",
+      "short": "2 days before the deadline at 17:00"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": "09:30",
+        "basis": "when",
+        "offset_minutes": null,
+        "days": 0
+      },
+      "describe": "On the day at 09:30",
+      "short": "at 09:30 on the day"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": "18:00",
+        "basis": "deadline",
+        "offset_minutes": null,
+        "days": 0
+      },
+      "describe": "On the deadline at 18:00",
+      "short": "at 18:00 on the deadline day"
+    },
+    {
+      "nudge": {
+        "kind": "before",
+        "date": null,
+        "time": "08:00",
+        "basis": "when",
+        "offset_minutes": null,
+        "days": -1
+      },
+      "describe": "1 day after the day at 08:00",
+      "short": "1 day after at 08:00"
+    }
+  ],
+  "ops": [
+    {
+      "choice": {
+        "kind": "days",
+        "basis": "when",
+        "days": 1,
+        "time": "17:00"
+      },
+      "op": {
+        "op": "nudge.set",
+        "id": "N1",
+        "todo": "T1",
+        "before": {
+          "basis": "when",
+          "days": 1,
+          "time": "17:00"
+        }
+      },
+      "spec": {
+        "before": {
+          "basis": "when",
+          "days": 1,
+          "time": "17:00"
+        }
+      }
+    },
+    {
+      "choice": {
+        "kind": "days",
+        "basis": "deadline",
+        "days": 0,
+        "time": "09:00"
+      },
+      "op": {
+        "op": "nudge.set",
+        "id": "N1",
+        "todo": "T1",
+        "before": {
+          "basis": "deadline",
+          "days": 0,
+          "time": "09:00"
+        }
+      },
+      "spec": {
+        "before": {
+          "basis": "deadline",
+          "days": 0,
+          "time": "09:00"
+        }
+      }
+    },
+    {
+      "choice": {
+        "kind": "before",
+        "basis": "when",
+        "minutes": 30
+      },
+      "op": {
+        "op": "nudge.set",
+        "id": "N1",
+        "todo": "T1",
+        "before": {
+          "basis": "when",
+          "minutes": 30
+        }
+      },
+      "spec": {
+        "before": {
+          "basis": "when",
+          "minutes": 30
+        }
+      }
+    },
+    {
+      "choice": {
+        "kind": "at",
+        "date": "2026-12-01",
+        "time": "07:00"
+      },
+      "op": {
+        "op": "nudge.set",
+        "id": "N1",
+        "todo": "T1",
+        "at": {
+          "date": "2026-12-01",
+          "time": "07:00"
+        }
+      },
+      "spec": {
+        "at": {
+          "date": "2026-12-01",
+          "time": "07:00"
+        }
+      }
+    }
+  ],
+  "overlay": [
+    {
+      "id": "N1",
+      "todo_id": "T1",
+      "kind": "before",
+      "date": null,
+      "time": "17:00",
+      "basis": "when",
+      "offset_minutes": null,
+      "days": 1,
+      "origin": null,
+      "fire_at": null,
+      "state": "armed"
+    }
+  ],
+  "chips": [
+    {
+      "answer": {
+        "title": "Dune",
+        "tokens": [
+          {
+            "start": 0,
+            "end": 3,
+            "kind": "clear",
+            "value": null,
+            "display": "clear"
+          }
+        ],
+        "issues": [],
+        "clears": [
+          "when"
+        ],
+        "fields": {
+          "tags": [],
+          "horizon": null,
+          "when": null,
+          "deadline": null,
+          "repeat": null,
+          "parent": null,
+          "list": null,
+          "desk": false,
+          "nudges": []
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "chips": [
+        {
+          "key": "clear:when",
+          "kind": "clear",
+          "label": "No date"
+        }
+      ]
+    },
+    {
+      "answer": {
+        "title": "Dune",
+        "tokens": [
+          {
+            "start": 0,
+            "end": 3,
+            "kind": "when",
+            "value": null,
+            "display": "when"
+          },
+          {
+            "start": 4,
+            "end": 7,
+            "kind": "horizon",
+            "value": null,
+            "display": "horizon"
+          },
+          {
+            "start": 8,
+            "end": 11,
+            "kind": "tag",
+            "value": null,
+            "display": "tag"
+          },
+          {
+            "start": 12,
+            "end": 15,
+            "kind": "desk",
+            "value": null,
+            "display": "desk"
+          }
+        ],
+        "issues": [],
+        "clears": [],
+        "fields": {
+          "tags": [
+            "home/garden"
+          ],
+          "horizon": "soon",
+          "when": {
+            "date": "2026-11-28",
+            "time": "17:00"
+          },
+          "deadline": null,
+          "repeat": null,
+          "parent": null,
+          "list": null,
+          "desk": true,
+          "nudges": []
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "chips": [
+        {
+          "key": "when",
+          "kind": "when",
+          "label": "Tomorrow 17:00"
+        },
+        {
+          "key": "horizon",
+          "kind": "horizon",
+          "label": "Soon",
+          "color": "sky"
+        },
+        {
+          "key": "tag:home/garden",
+          "kind": "tag",
+          "label": "home/garden"
+        },
+        {
+          "key": "desk",
+          "kind": "desk",
+          "label": "Desk"
+        }
+      ]
+    },
+    {
+      "answer": {
+        "title": "Dune",
+        "tokens": [],
+        "issues": [],
+        "clears": [],
+        "fields": {
+          "tags": [],
+          "horizon": null,
+          "when": null,
+          "deadline": {
+            "date": "2026-12-24",
+            "lead_days": null
+          },
+          "repeat": {
+            "mode": "schedule",
+            "every": 2,
+            "unit": "week",
+            "on": null,
+            "skip_missed": false
+          },
+          "parent": "T-4",
+          "list": "Groceries",
+          "desk": false,
+          "nudges": []
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "chips": [
+        {
+          "key": "deadline",
+          "kind": "deadline",
+          "label": "Deadline 24 Dec"
+        },
+        {
+          "key": "repeat",
+          "kind": "repeat",
+          "label": "Every 2 weeks"
+        },
+        {
+          "key": "list",
+          "kind": "list",
+          "label": "Groceries"
+        },
+        {
+          "key": "parent",
+          "kind": "parent",
+          "label": "Under T-4"
+        }
+      ]
+    },
+    {
+      "answer": {
+        "title": "Dune",
+        "tokens": [],
+        "issues": [],
+        "clears": [],
+        "fields": {
+          "tags": [],
+          "horizon": null,
+          "when": null,
+          "deadline": null,
+          "repeat": null,
+          "parent": null,
+          "list": null,
+          "desk": false,
+          "nudges": [
+            {
+              "id": "a",
+              "at": {
+                "date": "2026-11-28",
+                "time": "08:00"
+              }
+            },
+            {
+              "id": "b",
+              "before": {
+                "basis": "when",
+                "minutes": -30
+              }
+            },
+            {
+              "id": "c",
+              "before": {
+                "basis": "deadline",
+                "days": 2,
+                "time": "17:00"
+              }
+            }
+          ]
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "chips": [
+        {
+          "key": "nudge:a",
+          "kind": "nudge",
+          "label": "Nudge 08:00"
+        },
+        {
+          "key": "nudge:b",
+          "kind": "nudge",
+          "label": "Nudge 30 min after"
+        },
+        {
+          "key": "nudge:c",
+          "kind": "nudge",
+          "label": "Nudge 2 d before 17:00"
+        }
+      ]
+    }
+  ],
+  "defaults": [
+    {
+      "defaults": {
+        "tags": [
+          "work/ops",
+          "home"
+        ],
+        "horizon": "now",
+        "when": "today",
+        "desk": true,
+        "list": "L1",
+        "parent": "P1"
+      },
+      "dismissed": [],
+      "chips": [
+        {
+          "key": "view:tag:work/ops",
+          "kind": "tag",
+          "label": "work/ops",
+          "fromView": {
+            "dismissKey": "tag:work/ops"
+          }
+        },
+        {
+          "key": "view:tag:home",
+          "kind": "tag",
+          "label": "home",
+          "fromView": {
+            "dismissKey": "tag:home"
+          }
+        },
+        {
+          "key": "view:horizon",
+          "kind": "horizon",
+          "label": "Now",
+          "color": "rose",
+          "fromView": {
+            "dismissKey": "horizon"
+          }
+        },
+        {
+          "key": "view:when",
+          "kind": "when",
+          "label": "Today",
+          "fromView": {
+            "dismissKey": "when"
+          }
+        },
+        {
+          "key": "view:desk",
+          "kind": "desk",
+          "label": "Desk",
+          "fromView": {
+            "dismissKey": "desk"
+          }
+        },
+        {
+          "key": "view:list",
+          "kind": "list",
+          "label": "Personal",
+          "fromView": {
+            "dismissKey": "list"
+          }
+        },
+        {
+          "key": "view:parent",
+          "kind": "parent",
+          "label": "Subtask",
+          "fromView": {
+            "dismissKey": "parent"
+          }
+        }
+      ]
+    },
+    {
+      "defaults": {
+        "tags": [
+          "work/ops",
+          "home"
+        ],
+        "horizon": "now",
+        "when": "today",
+        "desk": true,
+        "list": "L1",
+        "parent": "P1"
+      },
+      "dismissed": [
+        "when",
+        "tag:home",
+        "list"
+      ],
+      "chips": [
+        {
+          "key": "view:tag:work/ops",
+          "kind": "tag",
+          "label": "work/ops",
+          "fromView": {
+            "dismissKey": "tag:work/ops"
+          }
+        },
+        {
+          "key": "view:horizon",
+          "kind": "horizon",
+          "label": "Now",
+          "color": "rose",
+          "fromView": {
+            "dismissKey": "horizon"
+          }
+        },
+        {
+          "key": "view:desk",
+          "kind": "desk",
+          "label": "Desk",
+          "fromView": {
+            "dismissKey": "desk"
+          }
+        },
+        {
+          "key": "view:parent",
+          "kind": "parent",
+          "label": "Subtask",
+          "fromView": {
+            "dismissKey": "parent"
+          }
+        }
+      ]
+    },
+    {
+      "defaults": {
+        "when": "none",
+        "list": "L9"
+      },
+      "dismissed": [],
+      "chips": [
+        {
+          "key": "view:list",
+          "kind": "list",
+          "label": "List",
+          "fromView": {
+            "dismissKey": "list"
+          }
+        }
+      ]
+    },
+    {
+      "defaults": null,
+      "dismissed": [],
+      "chips": []
+    }
+  ],
+  "cleared": [
+    {
+      "dismissed": [],
+      "answer": {
+        "title": "Dune",
+        "tokens": [
+          {
+            "start": 0,
+            "end": 3,
+            "kind": "clear",
+            "value": null,
+            "display": "clear"
+          }
+        ],
+        "issues": [],
+        "clears": [
+          "when"
+        ],
+        "fields": {
+          "tags": [],
+          "horizon": null,
+          "when": null,
+          "deadline": null,
+          "repeat": null,
+          "parent": null,
+          "list": null,
+          "desk": false,
+          "nudges": []
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "gone": [
+        "fixed-when",
+        "when"
+      ]
+    },
+    {
+      "dismissed": [
+        "desk"
+      ],
+      "answer": {
+        "title": "Dune",
+        "tokens": [
+          {
+            "start": 0,
+            "end": 3,
+            "kind": "clear",
+            "value": null,
+            "display": "clear"
+          }
+        ],
+        "issues": [],
+        "clears": [
+          "when"
+        ],
+        "fields": {
+          "tags": [],
+          "horizon": null,
+          "when": null,
+          "deadline": null,
+          "repeat": null,
+          "parent": null,
+          "list": null,
+          "desk": false,
+          "nudges": []
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "gone": [
+        "desk",
+        "fixed-when",
+        "when"
+      ]
+    },
+    {
+      "dismissed": [
+        "desk"
+      ],
+      "answer": {
+        "title": "Dune",
+        "tokens": [
+          {
+            "start": 0,
+            "end": 3,
+            "kind": "when",
+            "value": null,
+            "display": "when"
+          },
+          {
+            "start": 4,
+            "end": 7,
+            "kind": "horizon",
+            "value": null,
+            "display": "horizon"
+          },
+          {
+            "start": 8,
+            "end": 11,
+            "kind": "tag",
+            "value": null,
+            "display": "tag"
+          },
+          {
+            "start": 12,
+            "end": 15,
+            "kind": "desk",
+            "value": null,
+            "display": "desk"
+          }
+        ],
+        "issues": [],
+        "clears": [],
+        "fields": {
+          "tags": [
+            "home/garden"
+          ],
+          "horizon": "soon",
+          "when": {
+            "date": "2026-11-28",
+            "time": "17:00"
+          },
+          "deadline": null,
+          "repeat": null,
+          "parent": null,
+          "list": null,
+          "desk": true,
+          "nudges": []
+        },
+        "create_op": {
+          "op": "todo.create",
+          "id": "x",
+          "title": "Dune"
+        }
+      },
+      "gone": [
+        "desk"
+      ]
+    },
+    {
+      "dismissed": [
+        "desk"
+      ],
+      "answer": null,
+      "gone": [
+        "desk"
+      ]
+    }
+  ],
+  "creates": [
+    {
+      "input": {
+        "id": "n1",
+        "title": "Dune",
+        "listId": null,
+        "today": "2026-11-27",
+        "defaults": {
+          "when": "today",
+          "horizon": "week",
+          "tags": [
+            "a",
+            "b"
+          ],
+          "desk": true,
+          "list": "L1",
+          "parent": "P1"
+        },
+        "dismissed": [
+          "when",
+          "fixed-when",
+          "tag:a",
+          "desk",
+          "list",
+          "parent",
+          "horizon"
+        ]
+      },
+      "op": {
+        "tags": [
+          "b"
+        ],
+        "op": "todo.create",
+        "id": "n1",
+        "title": "Dune"
+      }
+    },
+    {
+      "input": {
+        "id": "n1",
+        "title": "Dune",
+        "listId": "PAGE",
+        "today": "2026-11-27",
+        "defaults": {
+          "when": "today"
+        },
+        "dismissed": [
+          "list"
+        ]
+      },
+      "op": {
+        "when": {
+          "date": "2026-11-27"
+        },
+        "op": "todo.create",
+        "id": "n1",
+        "title": "Dune"
+      }
+    },
+    {
+      "input": {
+        "id": "n1",
+        "title": "Dune",
+        "listId": null,
+        "today": "2026-11-27",
+        "defaults": {
+          "when": "today",
+          "tags": [
+            "a"
+          ]
+        },
+        "dismissed": [
+          "when"
+        ],
+        "typed": {
+          "title": "Dune",
+          "tags": [
+            "c"
+          ]
+        }
+      },
+      "op": {
+        "tags": [
+          "a",
+          "c"
+        ],
+        "title": "Dune",
+        "op": "todo.create",
+        "id": "n1"
+      }
+    }
+  ],
+  "composed": [
+    {
+      "ops": [
+        {
+          "op": "todo.create",
+          "id": "a",
+          "title": "Call the plumber",
+          "when": {
+            "date": "2026-11-28",
+            "time": "10:00"
+          },
+          "tags": [],
+          "horizon": null,
+          "desk": false,
+          "list": null,
+          "nudges": null,
+          "deadline": null,
+          "repeat": null,
+          "body": null,
+          "parent": null
+        },
+        {
+          "op": "todo.create",
+          "id": "b",
+          "title": "Ask about the boiler",
+          "parent": "a",
+          "tags": []
+        },
+        {
+          "op": "todo.create",
+          "id": "c",
+          "title": "Buy stamps",
+          "tags": [
+            "errand"
+          ],
+          "horizon": "soon"
+        }
+      ],
+      "input": {
+        "defaults": {
+          "when": "today",
+          "tags": [
+            "home"
+          ],
+          "horizon": "week",
+          "desk": true
+        },
+        "listId": "L1",
+        "today": "2026-11-27"
+      },
+      "out": [
+        {
+          "list": "L1",
+          "tags": [
+            "home"
+          ],
+          "horizon": "week",
+          "when": {
+            "date": "2026-11-28",
+            "time": "10:00"
+          },
+          "desk": true,
+          "op": "todo.create",
+          "id": "a",
+          "title": "Call the plumber"
+        },
+        {
+          "op": "todo.create",
+          "id": "b",
+          "title": "Ask about the boiler",
+          "parent": "a",
+          "tags": []
+        },
+        {
+          "list": "L1",
+          "tags": [
+            "home",
+            "errand"
+          ],
+          "horizon": "soon",
+          "when": {
+            "date": "2026-11-27"
+          },
+          "desk": true,
+          "op": "todo.create",
+          "id": "c",
+          "title": "Buy stamps"
+        }
+      ]
+    },
+    {
+      "ops": [
+        {
+          "op": "todo.create",
+          "id": "a",
+          "title": "Read",
+          "body": "Chapter two",
+          "deadline": {
+            "date": "2026-12-01",
+            "lead_days": null
+          }
+        }
+      ],
+      "input": {
+        "defaults": null,
+        "listId": null,
+        "today": "2026-11-27"
+      },
+      "out": [
+        {
+          "body": "Chapter two",
+          "deadline": {
+            "date": "2026-12-01",
+            "lead_days": null
+          },
+          "op": "todo.create",
+          "id": "a",
+          "title": "Read"
+        }
+      ]
+    }
+  ]
+}

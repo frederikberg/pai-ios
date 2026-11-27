@@ -193,6 +193,13 @@ public struct TodoIdentity: Equatable, Sendable {
         return TodoColor.derived(parts.first ?? "")
     }
 
+    /// A tag's last path part: what a chip shows for `area/project/part`, the whole path being
+    /// what a long press tells.
+    public static func tagLeaf(_ name: String) -> String {
+        guard let cut = name.lastIndex(of: "/"), name.index(after: cut) < name.endIndex else { return name }
+        return String(name[name.index(after: cut)...])
+    }
+
     static let builtins: [String: TodoIdentity] = [
         "today": TodoIdentity(icon: .sun, color: .amber), "upcoming": TodoIdentity(icon: .calendar, color: .rose),
         "all": TodoIdentity(icon: .layers, color: .sky), "chrono": TodoIdentity(icon: .clock, color: .slate),
@@ -243,20 +250,20 @@ public struct TodoIdentity: Equatable, Sendable {
     }
 }
 
-/// How a horizon is shown: its name and its mark, a ring in its colour that warms as a todo comes
-/// closer; `whenever` is dashed and `now` carries a dot, so the four differ by shape too.
+/// How a horizon is shown: its name and its mark, a ring in its colour that warms from grey
+/// through blue and yellow to red as a todo comes closer. `whenever` is the plain grey ring of a
+/// todo never marked, and `now` carries a dot.
 public struct TodoHorizonMark: Equatable, Sendable {
     public let label: String
     public let color: TodoColor
-    public let dashed: Bool
     public let dot: Bool
 
     public static func of(_ horizon: TodoHorizon) -> TodoHorizonMark {
         switch horizon {
-        case .now: TodoHorizonMark(label: "Now", color: .orange, dashed: false, dot: true)
-        case .week: TodoHorizonMark(label: "This week", color: .amber, dashed: false, dot: false)
-        case .soon: TodoHorizonMark(label: "Soon", color: .teal, dashed: false, dot: false)
-        case .whenever, .unrecognized: TodoHorizonMark(label: "Whenever", color: .slate, dashed: true, dot: false)
+        case .now: TodoHorizonMark(label: "Now", color: .rose, dot: true)
+        case .week: TodoHorizonMark(label: "This week", color: .amber, dot: false)
+        case .soon: TodoHorizonMark(label: "Soon", color: .sky, dot: false)
+        case .whenever, .unrecognized: TodoHorizonMark(label: "Whenever", color: .slate, dot: false)
         }
     }
 }

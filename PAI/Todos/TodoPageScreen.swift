@@ -14,6 +14,7 @@ struct TodoPageScreen: View {
     @State private var deskMode: TodoDeskMode = .bar
     @State private var adding = false
     @State private var addText: String?
+    @State private var addMode: TodoAddMode = .line
     @State private var ticks = 0
     @State private var opened: TodoSheetTarget?
 
@@ -129,7 +130,8 @@ struct TodoPageScreen: View {
                     guard let client else { throw PaiError.transport("Not signed in") }
                     return try await client.todosParse(text: text, list: listId, source: .ios)
                 },
-                place: place, initialText: addText, onAdded: reportAdded)
+                place: place, initialText: addText, initialMode: addMode, onAdded: reportAdded,
+                onComposed: openComposed)
         }
         .sheet(item: $opened) { target in TodoSheetView(todoId: target.id) }
         .sensoryFeedback(.success, trigger: ticks)
@@ -245,10 +247,10 @@ struct TodoPageScreen: View {
         Color.clear.frame(height: 72)
     }
 
+    /// A tap adds one line; a long press also offers describing it in plain words.
     private var addButton: some View {
         Button {
-            addText = nil
-            adding = true
+            startAdding(.line)
         } label: {
             Image(systemName: "plus")
                 .font(.title2.weight(.semibold))
@@ -257,8 +259,36 @@ struct TodoPageScreen: View {
                 .background(Circle().fill(PaiPalette.primary500))
                 .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
         }
+        .contextMenu {
+            Button("New todo", systemImage: "plus") { startAdding(.line) }
+            Button("Describe it", systemImage: "sparkles") { startAdding(.describe) }
+        }
         .padding(20)
         .accessibilityLabel("New todo")
+    }
+
+    private func startAdding(_ mode: TodoAddMode, text: String? = nil) {
+        addText = text
+        addMode = mode
+        adding = true
+    }
+
+    /// Plain words became todos: once the server has them, the first one opens, so a guess the
+    /// model made is one tap from being changed. Several say how many came in.
+    private func openComposed(_ composed: TodosComposed) {
+        Task {
+            // The add sheet is still leaving; a sheet asked for meanwhile is dropped.
+            try? await Task.sleep(for: .milliseconds(700))
+            switch await store.settled(composed.changeId, timeout: 15) {
+            case .applied:
+                if composed.count > 1 { toasts.show("Added \(composed.count) todos", kind: .success) }
+                open(composed.firstTodoId)
+            case .refused(let refusal):
+                toasts.show("Not added: \(refusal.message)", kind: .error)
+            case .waiting:
+                toasts.show("Saved on this iPhone. It is added once there is a connection.", kind: .info)
+            }
+        }
     }
 
     private func tick(_ id: String) {
@@ -316,10 +346,8 @@ struct TodoPageScreen: View {
         #if DEBUG
             if PaiFixtureLaunch.expandsTodosParent() { toggleExpanded(PaiFixtures.todosParent) }
             if PaiFixtureLaunch.opensTodosSheet() { open(PaiFixtures.todosParent) }
-            if let text = PaiFixtureLaunch.requestedTodosAdd() {
-                addText = text
-                adding = true
-            }
+            if let text = PaiFixtureLaunch.requestedTodosAdd() { startAdding(.line, text: text) }
+            if let text = PaiFixtureLaunch.requestedTodosDescribe() { startAdding(.describe, text: text) }
         #endif
     }
 }
