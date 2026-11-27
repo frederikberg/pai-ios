@@ -136,7 +136,7 @@ struct TodoPageScreen: View {
             }
         }
         .sheet(isPresented: $switching) {
-            TodoSwitcherSheet(onPick: go, initialQuery: switchQuery ?? "")
+            TodoSwitcherSheet(onPick: go, initialQuery: switchQuery ?? fixtureSwitch ?? "")
         }
         .navigationDestination(isPresented: $showsSettings) { TodoSettingsScreen() }
         .sheet(isPresented: $adding) {
@@ -301,6 +301,16 @@ struct TodoPageScreen: View {
     /// A pick in the switcher: its page, or Todos' settings.
     private func go(_ page: TodoPage?) {
         if let page { environment.router.push(.todosPage(page)) } else { showsSettings = true }
+    }
+
+    /// The switcher's query a fixture launch asks for, read from the launch arguments each time,
+    /// like `fixtureAdd`: a page built again while the sheet is up hands it the same words.
+    private var fixtureSwitch: String? {
+        #if DEBUG
+            return PaiFixtureLaunch.requestedTodosSwitch()
+        #else
+            return nil
+        #endif
     }
 
     private func startAdding(_ mode: TodoAddMode, text: String? = nil) {
