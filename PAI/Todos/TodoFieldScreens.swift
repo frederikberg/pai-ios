@@ -213,15 +213,30 @@ struct TodoWhenScreen: View {
     private var current: Todo { store.todos[todo.id] ?? todo }
 
     var body: some View {
-        List {
-            if canEdit { daySection }
-            if canEdit, current.when != nil { timeSection }
-            if canEdit { repeatSection }
-            nudgeSection
+        ScrollViewReader { proxy in
+            List {
+                if canEdit { daySection }
+                if canEdit, current.when != nil { timeSection }
+                if canEdit { repeatSection }
+                nudgeSection.id(Self.nudgesAnchor)
+            }
+            .task { await scrollToNudgesForFixture(proxy) }
         }
         .fixtureFact("todosDefaultNudges", String(store.nudges(of: todo.id).filter(\.isDefault).count))
         .navigationTitle("When")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private static let nudgesAnchor = "nudges"
+
+    /// A fixture launch that opens this screen photographs its nudges, below the day and time.
+    private func scrollToNudgesForFixture(_ proxy: ScrollViewProxy) async {
+        #if DEBUG
+            guard PaiFixtureLaunch.opensTodosWhen() else { return }
+            // The list lays its rows out after the push; a scroll asked before that lands nowhere.
+            try? await Task.sleep(for: .milliseconds(600))
+            proxy.scrollTo(Self.nudgesAnchor, anchor: .top)
+        #endif
     }
 
     private var daySection: some View {

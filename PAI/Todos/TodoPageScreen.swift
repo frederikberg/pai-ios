@@ -125,12 +125,14 @@ struct TodoPageScreen: View {
         .sheet(isPresented: $adding) {
             TodoAddSheet(
                 todos: store,
-                draft: TodoCaptureDraft(text: addText ?? "") {
+                draft: TodoCaptureDraft(text: addText ?? fixtureAdd?.text ?? "") {
                     [client = environment.connection?.apiClient, listId = list?.id] text in
                     guard let client else { throw PaiError.transport("Not signed in") }
                     return try await client.todosParse(text: text, list: listId, source: .ios)
                 },
-                place: place, initialText: addText, initialMode: addMode, onAdded: reportAdded,
+                place: place, initialText: addText ?? fixtureAdd?.text,
+                initialMode: addText == nil
+                    ? (fixtureAdd?.mode ?? addMode) : addMode, onAdded: reportAdded,
                 onComposed: openComposed)
         }
         .sheet(item: $opened) { target in TodoSheetView(todoId: target.id) }
@@ -265,6 +267,17 @@ struct TodoPageScreen: View {
         }
         .padding(20)
         .accessibilityLabel("New todo")
+    }
+
+    /// The add sheet a fixture launch asks for, read from the launch arguments each time: the
+    /// page can be built again while its sheet is up (the home resolves once `/me` is read), and
+    /// the sheet then still gets the same words and mode.
+    private var fixtureAdd: (text: String, mode: TodoAddMode)? {
+        #if DEBUG
+            if let text = PaiFixtureLaunch.requestedTodosDescribe() { return (text, .describe) }
+            if let text = PaiFixtureLaunch.requestedTodosAdd() { return (text, .line) }
+        #endif
+        return nil
     }
 
     private func startAdding(_ mode: TodoAddMode, text: String? = nil) {

@@ -562,12 +562,13 @@ if want todos-screens; then
   # keyboard's first-use tip is marked seen for any sheet that does raise it.
   xcrun simctl spawn "$udid" defaults write com.apple.Preferences DidShowContinuousPathIntroduction -bool true || true
   todos_screen() {
-    name=$1 facts=$2
+    # `screenshot` sets the global `name`; a name of this function's own keeps the dark shot's.
+    local shot=$1 facts=$2
     shift 2
     for look in light dark; do
       xcrun simctl ui "$udid" appearance "$look"
-      screenshot "todos-$name-$look" "$@"
-      for fact in $facts; do fact_assert "todos-$name-$look" "${fact%%=*}" "${fact#*=}"; done
+      screenshot "todos-$shot-$look" "$@"
+      for fact in $facts; do fact_assert "todos-$shot-$look" "${fact%%=*}" "${fact#*=}"; done
       xcrun simctl terminate "$udid" "$bundle" || true
     done
   }

@@ -60,8 +60,11 @@ struct TodoDeskPanel<ListContent: View>: View {
             HStack(spacing: 8) {
                 Image(systemName: "pin").foregroundStyle(PaiPalette.primary500)
                 Text("Desk").font(.subheadline.weight(.semibold)).foregroundStyle(PaiPalette.Semantic.textStrong)
+                    .fixedSize()
                 Text("\(cards.count)").font(.subheadline).monospacedDigit().foregroundStyle(
-                    PaiPalette.Semantic.textFaint)
+                    PaiPalette.Semantic.textFaint
+                )
+                .fixedSize()
                 Text(barLine).font(.subheadline).foregroundStyle(PaiPalette.Semantic.textMuted).lineLimit(1)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.down").font(.caption).foregroundStyle(PaiPalette.Semantic.textFaint)
@@ -86,23 +89,18 @@ struct TodoDeskPanel<ListContent: View>: View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 Image(systemName: "pin").foregroundStyle(PaiPalette.primary500)
+                // The bar sits beside the side rail on a phone: the name and count never give up
+                // their width, and the less used actions live in one menu.
                 Text("Desk").font(.subheadline.weight(.semibold)).foregroundStyle(PaiPalette.Semantic.textStrong)
+                    .lineLimit(1).fixedSize()
                 Text("\(cards.count)").font(.caption).monospacedDigit().foregroundStyle(PaiPalette.Semantic.textFaint)
-                Spacer()
-                Button {
-                    naming = (nil, "")
-                } label: {
-                    // The bar is narrow beside the desk's own buttons; the words never wrap.
-                    Label("Section", systemImage: "plus").labelStyle(.titleAndIcon).lineLimit(1)
-                        .fixedSize().padding(.horizontal, 4)
+                    .lineLimit(1).fixedSize()
+                Spacer(minLength: 4)
+                if arranging {
+                    Button("Done") { withAnimation(.snappy) { arranging = false } }
+                        .lineLimit(1).fixedSize()
                 }
-                Button {
-                    withAnimation(.snappy) { arranging.toggle() }
-                } label: {
-                    Text(arranging ? "Done" : "Arrange").lineLimit(1).fixedSize().padding(.horizontal, 4)
-                }
-                .disabled(todos.deskItems.count < 2 && !arranging)
-                clearMenu
+                actionsMenu
                 Button {
                     withAnimation(.snappy) { mode = mode == .desk ? .split : .desk }
                 } label: {
@@ -159,18 +157,24 @@ struct TodoDeskPanel<ListContent: View>: View {
         #endif
     }
 
-    private var clearMenu: some View {
+    /// New section, Arrange and the two clears: the desk's less used actions.
+    private var actionsMenu: some View {
         Menu {
-            Button("Clear done") {
+            Button("New section", systemImage: "plus") { naming = (nil, "") }
+            Button("Arrange", systemImage: "arrow.up.arrow.down") { withAnimation(.snappy) { arranging = true } }
+                .disabled(todos.deskItems.count < 2 || arranging)
+            Button("Clear done", systemImage: "checkmark.circle") {
                 todos.submit([TodoOp(fields: ["op": .string("desk.clear"), "what": .string("done")])])
             }
-            Button("Clear all", role: .destructive) {
+            .disabled(todos.deskItems.isEmpty)
+            Button("Clear all", systemImage: "xmark.circle", role: .destructive) {
                 todos.submit([TodoOp(fields: ["op": .string("desk.clear"), "what": .string("all")])])
             }
+            .disabled(todos.deskItems.isEmpty)
         } label: {
-            Text("Clear").padding(.horizontal, 6)
+            Image(systemName: "ellipsis.circle").frame(width: 36, height: 32)
         }
-        .disabled(todos.deskItems.isEmpty)
+        .accessibilityLabel("Desk actions")
     }
 
     private var deskList: some View {
