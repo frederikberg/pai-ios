@@ -252,18 +252,17 @@ public struct TodoIdentity: Equatable, Sendable {
 
 /// How a horizon is shown: its name and its mark, a ring in its colour that warms from grey
 /// through blue and yellow to red as a todo comes closer. `whenever` is the plain grey ring of a
-/// todo never marked, and `now` carries a dot.
+/// todo never marked. `now` reads "Next": the desk is what is done now.
 public struct TodoHorizonMark: Equatable, Sendable {
     public let label: String
     public let color: TodoColor
-    public let dot: Bool
 
     public static func of(_ horizon: TodoHorizon) -> TodoHorizonMark {
         switch horizon {
-        case .now: TodoHorizonMark(label: "Now", color: .rose, dot: true)
-        case .week: TodoHorizonMark(label: "This week", color: .amber, dot: false)
-        case .soon: TodoHorizonMark(label: "Soon", color: .sky, dot: false)
-        case .whenever, .unrecognized: TodoHorizonMark(label: "Whenever", color: .slate, dot: false)
+        case .now: TodoHorizonMark(label: "Next", color: .rose)
+        case .week: TodoHorizonMark(label: "This week", color: .amber)
+        case .soon: TodoHorizonMark(label: "Soon", color: .sky)
+        case .whenever, .unrecognized: TodoHorizonMark(label: "Whenever", color: .slate)
         }
     }
 }

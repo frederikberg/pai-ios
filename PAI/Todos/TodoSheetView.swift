@@ -17,7 +17,6 @@ struct TodoSheetView: View {
     @Environment(ToastCenter.self) private var toasts
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
-    @State private var newSubtask = ""
     @State private var backdating = false
     /// The When screen pushed without a tap, for a screenshot of the nudges.
     @State private var showsWhen = false
@@ -100,6 +99,23 @@ struct TodoSheetView: View {
     }
 
     @ViewBuilder private func content(_ todo: Todo) -> some View {
+        ScrollViewReader { proxy in
+            sheetList(todo).task { await scrollToSubtasksForFixture(proxy) }
+        }
+    }
+
+    private static let subtasksAnchor = "subtasks"
+
+    /// A fixture launch with a subtask line photographs that line, below the fields.
+    private func scrollToSubtasksForFixture(_ proxy: ScrollViewProxy) async {
+        #if DEBUG
+            guard PaiFixtureLaunch.requestedTodosSubtask() != nil else { return }
+            try? await Task.sleep(for: .milliseconds(600))
+            proxy.scrollTo(Self.subtasksAnchor, anchor: .top)
+        #endif
+    }
+
+    @ViewBuilder private func sheetList(_ todo: Todo) -> some View {
         List {
             statusBanner(todo)
             Section {
@@ -109,7 +125,7 @@ struct TodoSheetView: View {
             // past its seven field rows.
             description(todo)
             TodoFieldSections(todo: todo, today: today, canEdit: blocked == nil, submit: submit)
-            subtasks(todo)
+            subtasks(todo).id(Self.subtasksAnchor)
             files(todo)
             links(todo)
             history
@@ -230,22 +246,13 @@ struct TodoSheetView: View {
                 }
             }
             if blocked == nil && todo.status == .open {
-                TextField("Add a subtask", text: $newSubtask)
-                    .submitLabel(.done)
-                    .onSubmit(addSubtask)
+                TodoSubtaskLine(parentId: todo.id, today: today)
             }
         }
     }
 
     private func childFromDetail(_ id: String) -> Todo? {
         store.details[todoId]?.children?.first { $0.id == id }
-    }
-
-    private func addSubtask() {
-        let words = newSubtask.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !words.isEmpty else { return }
-        submit([TodoFieldOps.subtask(id: TodosStore.uuidv7(), parent: todoId, title: words)])
-        newSubtask = ""
     }
 
     @ViewBuilder private func description(_ todo: Todo) -> some View {

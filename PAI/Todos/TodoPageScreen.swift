@@ -70,7 +70,7 @@ struct TodoPageScreen: View {
     private var rows: [TodoListRow] {
         TodoRows.build(
             result: result, pending: resolved.map { store.pendingRows(on: $0) } ?? [], todos: store.todos,
-            expanded: expanded, children: store.childIds)
+            expanded: expanded, children: store.childIds, groupBy: view?.groupBy)
     }
 
     /// The page's rows span more than one list, so each row names its own.

@@ -123,6 +123,7 @@ struct TodoAddSheet: View {
         }
         .fixtureFact("todosAddMode", mode == .line ? "line" : "describe")
         .fixtureFact("todosAddChips", String(chips.count))
+        .fixtureFact("todosAddHorizon", chips.first { $0.kind == "horizon" }?.label ?? "")
         .fixtureFact("todosAddDefaults", String(chips.filter { $0.dismissKey != nil }.count))
         .fixtureFact("todosAddWords", String(words.wrappedValue.split(separator: " ").count))
     }

@@ -35,6 +35,14 @@ final class TodosParityTests: XCTestCase {
     }
 
     /// The chip as the web's vector writes it.
+    /// A horizon chip without its words: the phone names `now` "Next"; its key and colour are
+    /// what the two clients share.
+    private func namelessHorizon(_ chip: PaiJSONValue) -> PaiJSONValue {
+        var fields = object(chip)
+        if fields["kind"] == .string("horizon") { fields["label"] = nil }
+        return .object(fields)
+    }
+
     private func web(_ chip: TodoAddChip) -> PaiJSONValue {
         var fields: [String: PaiJSONValue] = [
             "key": .string(chip.key), "kind": .string(chip.kind), "label": .string(chip.label),
@@ -52,7 +60,6 @@ final class TodosParityTests: XCTestCase {
             let fields = object(case_)
             let horizon = try XCTUnwrap(TodoHorizon.knownValues[fields["horizon"]?.stringValue ?? ""])
             let mark = TodoHorizonMark.of(horizon)
-            XCTAssertEqual(mark.label, fields["label"]?.stringValue)
             XCTAssertEqual(mark.color.rawValue, fields["color"]?.stringValue)
         }
         for case_ in array(vectors["leaves"]) {
@@ -113,7 +120,9 @@ final class TodosParityTests: XCTestCase {
         for case_ in read {
             let fields = object(case_)
             let answer = try model(TodosParseAnswer.self, fields["answer"])
-            XCTAssertEqual(TodoAddChip.read(answer, today: "2026-11-27").map(web), array(fields["chips"]))
+            XCTAssertEqual(
+                TodoAddChip.read(answer, today: "2026-11-27").map(web).map(namelessHorizon),
+                array(fields["chips"]).map(namelessHorizon))
         }
         for case_ in array(vectors["defaults"]) {
             let fields = object(case_)
@@ -121,7 +130,7 @@ final class TodosParityTests: XCTestCase {
                 fields["defaults"] == .null ? nil : try model(TodoViewDefaults.self, fields["defaults"])
             let chips = TodoAddChip.defaults(
                 defaults, dismissed: Set(strings(fields["dismissed"])), listName: { $0 == "L1" ? "Personal" : nil })
-            XCTAssertEqual(chips.map(web), array(fields["chips"]))
+            XCTAssertEqual(chips.map(web).map(namelessHorizon), array(fields["chips"]).map(namelessHorizon))
         }
     }
 

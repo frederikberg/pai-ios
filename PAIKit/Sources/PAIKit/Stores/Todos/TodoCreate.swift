@@ -22,6 +22,15 @@ public struct TodoCreatePlace: Codable, Equatable, Sendable {
     }
 
     public static let anywhere = TodoCreatePlace(defaults: nil, listId: nil)
+
+    /// A subtask's place: under its parent and nothing else, so the line alone says what it is
+    /// (the parent's tags, day or horizon are its own, not defaults); it lands in its parent's
+    /// list.
+    public static func under(parent: String) -> TodoCreatePlace {
+        TodoCreatePlace(
+            defaults: TodoViewDefaults(tags: nil, horizon: nil, list: nil, when: nil, desk: nil, parent: parent),
+            listId: nil)
+    }
 }
 
 /// How a typed line becomes a `todo.create`, the web's `typedFromParse` (`quickadd/chips.ts`) and
@@ -128,7 +137,8 @@ public enum TodoAddWords {
 
     public static let taps: [Tap] = [
         Tap(label: "Today", insert: "today"), Tap(label: "Tomorrow", insert: "tomorrow"),
-        Tap(label: "@ Tag", insert: "@"), Tap(label: "Now", insert: "p1"), Tap(label: "Desk", insert: "*"),
+        Tap(label: "@ Tag", insert: "@"), Tap(label: TodoHorizonMark.of(.now).label, insert: "p1"),
+        Tap(label: "Desk", insert: "*"),
         Tap(label: "Deadline", insert: "by "),
     ]
 
