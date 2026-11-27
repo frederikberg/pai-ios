@@ -212,37 +212,97 @@ public final class TodosStore {
     /// `/List`, `*` for the desk). `parsed` is the parser's answer for exactly `text` when one is
     /// at hand (the add sheet asks while typing); otherwise the words are read when the change goes
     /// out. `place` is the page it was typed on: its view's defaults and its list apply as on the
-    /// web; `dismissed` names the ones left off this todo. Returns the change's id.
+    /// web; `dismissed` names the ones left off this todo. `description` goes under whatever
+    /// the words themselves put in the body, `picks` are a sheet's pickers' choices, and
+    /// `deskPosition` puts the new todo on the desk at that place. Returns the change's id.
     @discardableResult
     public func capture(
         text: String, place: TodoCreatePlace = .anywhere, dismissed: Set<String> = [], links: [TodoLinkSpec] = [],
-        parsed: TodosParseAnswer? = nil, source: TodosSource = .ios
+        parsed: TodosParseAnswer? = nil, description: String = "", picks: TodoAddDraft = TodoAddDraft(),
+        deskPosition: TodoPosition? = nil, source: TodosSource = .ios
     ) -> String {
-        let (words, body) = Self.split(text)
+        let (words, rest) = Self.split(text)
+        let body = [rest, description.trimmingCharacters(in: .whitespacesAndNewlines)]
+            .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n\n")
         let capture = TodosCapture(
-            text: words, body: body, todoId: makeId(), list: place.listId, place: place, links: links,
-            day: currentDay(), dismissed: dismissed.sorted())
-        let ops = parsed.map { [createOp(capture, from: $0)] } ?? []
+            text: words, body: body.isEmpty ? nil : body, todoId: makeId(), list: place.listId, place: place,
+            links: links, day: currentDay(), dismissed: dismissed.sorted(), picks: picks.isEmpty ? nil : picks,
+            deskPosition: deskPosition?.json)
+        let ops = parsed.map { Self.ops(of: capture, create: createOp(capture, from: $0)) } ?? []
         return enqueue(
             TodosQueuedChange(
                 changeId: makeId(), summary: nil, ops: ops, capture: capture, source: source.rawValue,
                 principal: confirmedPrincipal, queuedAt: IsoTimestamp.utcString(from: now())))
     }
 
-    /// The longest first line kept as the words; a title may hold 500 characters, and the parser
-    /// reads the line before the server counts it.
-    static let wordsLimit = 400
-
-    /// A capture's words and what does not fit in them: the first non-empty line, with the
-    /// lines after it as the body; a first line too long for a title is cut, and the whole text
-    /// becomes the body.
+    /// A capture's words and what comes after them: the first non-empty line, with the lines
+    /// after it as the body. However long the line is, it goes out whole: the server keeps what
+    /// fits in a title and moves the rest to the description (`TodoTitles`).
     static func split(_ text: String) -> (words: String, body: String?) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let lines = trimmed.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: true)
         let first = lines.first.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
         let rest = lines.count > 1 ? lines[1].trimmingCharacters(in: .whitespacesAndNewlines) : ""
-        guard first.count <= wordsLimit else { return (String(first.prefix(wordsLimit)), trimmed) }
         return (first, rest.isEmpty ? nil : rest)
+    }
+
+    /// A capture's change: its `todo.create`, and the `desk.add` that places it on the desk when
+    /// it was added into a section.
+    static func ops(of capture: TodosCapture, create: TodoOp) -> [TodoOp] {
+        guard let position = capture.deskPosition else { return [create] }
+        return [
+            create, TodoOp(fields: ["op": .string("desk.add"), "todo": .string(capture.todoId), "position": position]),
+        ]
+    }
+
+    /// Attach a file to a todo, one the queue is still to create included: the bytes are kept
+    /// on the phone, sent under their hash, and then named by one `attachment.add`. Returns the
+    /// change's id, or nil when the bytes could not be kept.
+    @discardableResult
+    public func attach(todoId: String, name: String, contentType: String, data: Data) -> String? {
+        let sha256 = TodoBlobs.sha256Hex(data)
+        guard storage.saveBlob(data, sha256: sha256) else { return nil }
+        let blob = TodosQueuedBlob(
+            id: makeId(), todoId: todoId, sha256: sha256, name: TodoBlobs.name(name), contentType: contentType,
+            size: data.count)
+        let op = TodoOp(fields: [
+            "op": .string("attachment.add"), "id": .string(blob.id), "todo": .string(todoId),
+            "blob": .string(sha256), "name": .string(blob.name),
+        ])
+        return enqueue(
+            TodosQueuedChange(
+                changeId: makeId(), summary: nil, ops: [op], source: TodosSource.ios.rawValue,
+                principal: confirmedPrincipal, queuedAt: IsoTimestamp.utcString(from: now()), blobs: [blob]))
+    }
+
+    /// The files queued for a todo that the server has not attached yet.
+    public func queuedFiles(of todoId: String) -> [TodosQueuedBlob] {
+        queue.flatMap { $0.blobs ?? [] }.filter { $0.todoId == todoId }
+    }
+
+    /// Takes a change's file bytes off the phone once no queued change names them.
+    private func releaseBlobs(of change: TodosQueuedChange) {
+        for blob in change.blobs ?? []
+        where !queue.contains(where: { $0.blobs?.contains { $0.sha256 == blob.sha256 } == true }) {
+            storage.removeBlob(sha256: blob.sha256)
+        }
+    }
+
+    /// Sends a change's files ahead of it. Nil when they are all there; else what stops it.
+    private func sendBlobs(of change: TodosQueuedChange, backend: any TodosBackend) async -> Error? {
+        for blob in change.blobs ?? [] {
+            guard let data = storage.loadBlob(sha256: blob.sha256) else {
+                return TodosApiError(
+                    statusCode: 422,
+                    body: .plain("blob", "The file \u{201C}\(blob.name)\u{201D} is no longer on this iPhone."))
+            }
+            do {
+                try await backend.todosPutBlob(sha256: blob.sha256, data: data, contentType: blob.contentType)
+            } catch {
+                return error
+            }
+        }
+        return nil
     }
 
     /// Capture, then wait up to `timeout` seconds for the server's verdict, for a door that
@@ -304,6 +364,7 @@ public final class TodosStore {
     public func withdraw(changeId: String) {
         guard let change = queue.first(where: { $0.changeId == changeId }) else { return }
         remove(change)
+        releaseBlobs(of: change)
     }
 
     /// Takes a change back, the web outbox's `undoChange`: one the server applied is undone as a
@@ -488,11 +549,12 @@ public final class TodosStore {
             var head = queue[index]
             if head.ops.isEmpty, let capture = head.capture {
                 guard let op = await readCapture(capture, of: head, backend: backend) else { return }
-                head.ops = [op]
+                head.ops = Self.ops(of: capture, create: op)
                 replace(head)
             }
             let result: TodosApplyResult
             do {
+                if let stopped = await sendBlobs(of: head, backend: backend) { throw stopped }
                 result = try await backend.todosApply(
                     TodosChangeRequest(changeId: head.changeId, summary: head.summary, ops: head.ops),
                     source: TodosSource(rawValue: head.source) ?? .ios)
@@ -635,7 +697,11 @@ public final class TodosStore {
 
     private static func finish(_ op: TodoOp, _ capture: TodosCapture) -> TodoOp {
         var op = op
-        if op.string("body") == nil, let body = capture.body { op = op.setting("body", .string(body)) }
+        if let picks = capture.picks { op = TodoCreate.withDraft(op, picks) }
+        if let body = capture.body {
+            let typed = op.string("body") ?? ""
+            op = op.setting("body", .string(typed.isEmpty ? body : "\(typed)\n\n\(body)"))
+        }
         return capture.links.isEmpty ? op : op.setting("links", .array(capture.links.map(\.json)))
     }
 
@@ -702,6 +768,7 @@ public final class TodosStore {
         }
         readTick += 1
         remove(head)
+        releaseBlobs(of: head)
         let told = isAwaited(head.changeId)
         settle(head.changeId, .applied(result))
         let failed = result?.results.filter { !$0.ok } ?? []
@@ -730,6 +797,7 @@ public final class TodosStore {
         }
         serverErrors[head.changeId] = nil
         remove(head)
+        releaseBlobs(of: head)
         let told = isAwaited(head.changeId)
         settle(head.changeId, .refused(refusal))
         if !told { onRefusal?(refusal, Self.wordsOf(head)) }
@@ -1155,6 +1223,18 @@ public final class TodosStore {
     public var personsToday: String {
         if let day { return day }
         return currentDay() ?? IsoTimestamp.utcString(from: now()).prefix(10).description
+    }
+
+    /// The person's time of day (`HH:mm`), by which a time of today counts as passed. After
+    /// midnight and before their day turns, the whole of "today" lies behind them.
+    public var personsClock: String? {
+        guard let prefs = me?.prefs, let zone = TimeZone(identifier: prefs.timezone) else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = zone
+        let parts = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: now())
+        let date = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+        guard date == personsToday else { return "24:00" }
+        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
     }
 
     /// The lists the person may see.

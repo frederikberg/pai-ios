@@ -157,8 +157,9 @@ public enum TodoAddWords {
     }
 }
 
-/// One chip under the add sheet's line: what the parser read, or a default of the open view
-/// (`dismissKey` set, a tap leaves it off this todo). The web's `Chip` (`quickadd/chips.ts`).
+/// One chip under the add sheet's line: what the parser read, a default of the open view
+/// (`dismissKey` set, a tap leaves it off this todo), or a picker's choice (`pickKey`). The web's
+/// `Chip` (`quickadd/chips.ts`).
 public struct TodoAddChip: Equatable, Sendable, Identifiable {
     public let key: String
     public let kind: String
@@ -166,15 +167,21 @@ public struct TodoAddChip: Equatable, Sendable, Identifiable {
     /// A chip that wears a palette colour of its own (a horizon's) instead of its kind's tone.
     public let color: TodoColor?
     public let dismissKey: String?
+    /// Set on a chip a picker chose: the name `TodoAddDraft.without` takes the choice back by.
+    public let pickKey: String?
 
     public var id: String { key }
 
-    public init(key: String, kind: String, label: String, color: TodoColor? = nil, dismissKey: String? = nil) {
+    public init(
+        key: String, kind: String, label: String, color: TodoColor? = nil, dismissKey: String? = nil,
+        pickKey: String? = nil
+    ) {
         self.key = key
         self.kind = kind
         self.label = label
         self.color = color
         self.dismissKey = dismissKey
+        self.pickKey = pickKey
     }
 
     /// The chips for what the parser read in a line: one per field, in a fixed order, named from
@@ -300,30 +307,40 @@ public enum TodoDates {
         return format(at, date.prefix(4) == today.prefix(4) ? "d MMM" : "d MMM yyyy")
     }
 
-    public enum Tone: String, Equatable, Sendable { case neutral, today, soon, late }
+    /// How near a date is, which is the colour it is written in: red once it is past, yellow on
+    /// the day, blue within the next seven days, plain beyond. A day and a deadline are read by
+    /// the same scale.
+    public enum Light: String, Equatable, Sendable { case late, today, week, later }
 
-    public struct Chip: Equatable, Sendable {
-        public let isDeadline: Bool
+    /// A date as a row writes it: its words and how near it is.
+    public struct Mark: Equatable, Sendable {
         public let label: String
-        public let tone: Tone
+        public let light: Light
     }
 
-    /// The date a row shows: its deadline when it is near or past, else its `when`; a deadline far
-    /// off still shows, quietly, when the todo has no `when`.
-    public static func chip(when: TodoWhen?, deadline: TodoDeadline?, today: String, leadDays: Int) -> Chip? {
-        if let deadline {
-            let diff = dayDiff(today, deadline.date)
-            let lead = deadline.leadDays ?? leadDays
-            let label = relativeDay(deadline.date, today: today)
-            if diff < 0 { return Chip(isDeadline: true, label: label, tone: .late) }
-            if diff <= lead { return Chip(isDeadline: true, label: label, tone: .soon) }
-            if when == nil { return Chip(isDeadline: true, label: label, tone: .neutral) }
+    /// `clock` is the person's time of day (`HH:mm`): a time of today that has passed is late.
+    public static func light(date: String, time: String? = nil, today: String, clock: String? = nil) -> Light {
+        let diff = dayDiff(today, date)
+        if diff < 0 { return .late }
+        if diff == 0 {
+            if let time, let clock, time.prefix(5) < clock.prefix(5) { return .late }
+            return .today
         }
-        if let when {
-            let diff = dayDiff(today, when.date)
-            let label = relativeDay(when.date, today: today) + (when.time.map { " \($0)" } ?? "")
-            return Chip(isDeadline: false, label: label, tone: diff <= 0 ? .today : .neutral)
-        }
-        return nil
+        return diff <= 7 ? .week : .later
+    }
+
+    /// The day a todo is planned for, with its time.
+    public static func dayMark(_ when: TodoWhen?, today: String, clock: String? = nil) -> Mark? {
+        guard let when else { return nil }
+        let label = relativeDay(when.date, today: today) + (when.time.map { " \($0.prefix(5))" } ?? "")
+        return Mark(label: label, light: light(date: when.date, time: when.time, today: today, clock: clock))
+    }
+
+    /// The day a todo is owed, in its short form: a deadline days back counts them ("3 d ago").
+    public static func deadlineMark(_ deadline: TodoDeadline?, today: String) -> Mark? {
+        guard let deadline else { return nil }
+        let diff = dayDiff(today, deadline.date)
+        let label = diff < -1 ? "\(-diff) d ago" : relativeDay(deadline.date, today: today)
+        return Mark(label: label, light: light(date: deadline.date, today: today))
     }
 }

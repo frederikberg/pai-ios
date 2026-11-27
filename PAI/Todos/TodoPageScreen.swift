@@ -90,7 +90,7 @@ struct TodoPageScreen: View {
     private func rowModel(_ todo: Todo) -> TodoRowModel {
         let ownList = spansLists ? store.lists.first { $0.id == todo.listId } : nil
         return TodoRowModel.make(
-            todo, today: store.day, leadDays: store.me?.prefs?.deadlineLeadDays ?? 0, tagColor: tagColor, list: ownList)
+            todo, today: store.day, clock: store.personsClock, tagColor: tagColor, list: ownList)
     }
 
     private var place: TodoCreatePlace {
