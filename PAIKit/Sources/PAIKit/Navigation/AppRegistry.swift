@@ -59,6 +59,9 @@ public enum AppRegistry {
             id: decisionsID, title: "Decisions", systemImage: "checklist", route: .decisions,
             isAvailable: { $0.canOpenDecisions }),
         AppEntry(
+            id: "reports", title: "Reports", systemImage: "doc.richtext", route: .reports,
+            isAvailable: { $0.canOpenReports }),
+        AppEntry(
             id: "browser", title: "Browser", systemImage: "globe", route: .browserList,
             isAvailable: { $0.canOpenBrowser }),
     ]

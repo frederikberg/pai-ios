@@ -490,6 +490,13 @@ struct RootView: View {
             UsageView()
         case .decisions:
             DecisionsView()
+        case .reports:
+            ReportListScreen()
+        case .report(let id):
+            // Keyed on the report, like `.browser`: a link to another report replaces this
+            // destination in place, and the page and its answers belong to one report each.
+            ReportViewerScreen(reportID: id)
+                .id(id)
         case .browserList:
             BrowserListScreen()
         case .browser(let name):

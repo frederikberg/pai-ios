@@ -1,7 +1,8 @@
 import PAIKit
 import SwiftUI
 
-/// Opens a link into the backend's own Browser app as its native screen (see ``BrowserLink``),
+/// Opens a link into the backend's own Browser or Reports app as its native screen (see
+/// ``BrowserLink``, ``ReportLink``),
 /// and asks before leaving the app for any other `http`/`https` link — a touchscreen tap can land on a link
 /// by accident where a mouse click rarely does, so an https link gets the same confirmation
 /// style a note-to-note wikilink already has in ``NoteBodyView``, rather than opening immediately.
@@ -33,6 +34,17 @@ struct ConfirmedLinkOpening: ViewModifier {
                         switch link {
                         case .list: AppEnvironment.shared.router.surface(.browserList)
                         case .session(let name): AppEnvironment.shared.router.surface(.browser(name: name))
+                        }
+                        return .handled
+                    }
+                    if let link = ReportLink.parse(url, backendHost: AppEnvironment.shared.backendHost),
+                        AppEnvironment.shared.router.gate == .ready
+                    {
+                        // A report an agent linked in its reply opens on top of the session it was
+                        // tapped in, so Back returns there. Surfaced, not pushed, like the browser.
+                        switch link {
+                        case .list: AppEnvironment.shared.router.surface(.reports)
+                        case .report(let id): AppEnvironment.shared.router.surface(.report(id: id))
                         }
                         return .handled
                     }

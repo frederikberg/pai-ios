@@ -58,6 +58,9 @@ public struct Capabilities: Sendable, Equatable {
 
     /// The Weather app and the location it is answered for: person routes, open to a guest.
     public var canOpenWeather: Bool { isPerson }
+    /// Reports: every person, guests too — `/api/dynamic-reports` is open to them, and which
+    /// reports a caller reaches follows from their namespaces on the server.
+    public var canOpenReports: Bool { isPerson }
     /// Todos: every person, guests too (`/api/todos` is open to them).
     public var canOpenTodos: Bool { isPerson }
 

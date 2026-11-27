@@ -29,6 +29,8 @@ public enum DeepLink: Equatable, Sendable, Hashable {
     case notification(id: String)
     /// The agent's browser sessions; `name` is one session's live view, `nil` the list.
     case browser(name: String?)
+    /// The Reports app; `id` is one report's page, `nil` the list.
+    case reports(id: String?)
     /// The Alarm app. A tapped alarm push names its alarm (`id`), which opening the link also
     /// dismisses; the Control Center control and a universal link name none.
     case alarm(id: String?)
@@ -61,6 +63,8 @@ public enum DeepLink: Equatable, Sendable, Hashable {
         case .notification: return [.notifications]
         case .browser(let name?): return [.browserList, .browser(name: name)]
         case .browser(nil): return [.browserList]
+        case .reports(let id?): return [.reports, .report(id: id)]
+        case .reports(nil): return [.reports]
         case .alarm: return [.alarm]
         case .weather: return [.weather]
         case .newTodo, .describeTodo: return []
@@ -82,7 +86,8 @@ public enum DeepLink: Equatable, Sendable, Hashable {
         case .quickActions, .alarm, .newTodo, .describeTodo: return true
         // The todo opens as a sheet of its own, which another one presented would hide.
         case .todos(_, .some): return true
-        case .session, .note, .notesList, .createSession, .notification, .browser, .weather, .todos: return false
+        case .session, .note, .notesList, .createSession, .notification, .browser, .reports, .weather, .todos:
+            return false
         }
     }
 }
@@ -141,7 +146,7 @@ extension DeepLink {
     /// through an App Intent.
     ///
     /// `pai://session/<id>`, `pai://note/<id>`, `pai://notes`, `pai://createsession`,
-    /// `pai://quickactions`, `pai://alarm`, `pai://weather`, `pai://browser` and `pai://browser/<name>`. Rejects
+    /// `pai://quickactions`, `pai://alarm`, `pai://weather`, `pai://browser`, `pai://browser/<name>`, `pai://reports` and `pai://reports/<id>`. Rejects
     /// anything else rather than guessing, including a well-formed URL with an unknown host — a
     /// link the app does not understand must not silently open some other screen.
     public static func from(url: URL) -> DeepLink? {
@@ -192,6 +197,11 @@ extension DeepLink {
         case "todos":
             guard segments.count == 1 else { return nil }
             return .todosHome
+        case "reports":
+            guard segments.count <= 2 else { return nil }
+            guard segments.count == 2 else { return .reports(id: nil) }
+            let id = segments[1].removingPercentEncoding ?? segments[1]
+            return ReportLink.isValidID(id) ? .reports(id: id) : nil
         case "browser":
             guard segments.count <= 2 else { return nil }
             guard segments.count == 2 else { return .browser(name: nil) }
@@ -216,7 +226,7 @@ extension DeepLink {
     ///
     /// `/session/<id>` (with the web's `?m=<message id>` jump, or `?n=<notification id>` for a
     /// notification whose anchor resolves on read), `/apps/notes` (the list), `/apps/notes/<id>`, including the
-    /// note's `/preview` subpaths, `/apps/alarm`, `/apps/weather` and `/apps/browser[/<name>]`. Anything else is no link: the domain's association file claims
+    /// note's `/preview` subpaths, `/apps/alarm`, `/apps/weather`, `/apps/browser[/<name>]` and `/apps/reports[/<id>]`. Anything else is no link: the domain's association file claims
     /// paths this parser does not know, and those open the app where it already is.
     ///
     /// The host is not checked. iOS delivers a browsing activity only for a domain the app's
@@ -248,6 +258,13 @@ extension DeepLink {
                 switch BrowserLink.parse(percentEncodedPath: components.percentEncodedPath) {
                 case .list?: return .browser(name: nil)
                 case .session(let name)?: return .browser(name: name)
+                case nil: return nil
+                }
+            }
+            if segments.count >= 2, segments[1] == "reports" {
+                switch ReportLink.parse(percentEncodedPath: components.percentEncodedPath) {
+                case .list?: return .reports(id: nil)
+                case .report(let id)?: return .reports(id: id)
                 case nil: return nil
                 }
             }
@@ -303,6 +320,8 @@ extension DeepLink {
         case .notification(let id): return URL(string: "pai://notification/\(Self.escape(id))")
         case .browser(let name?): return URL(string: "pai://browser/\(Self.escape(name))")
         case .browser(nil): return URL(string: "pai://browser")
+        case .reports(let id?): return URL(string: "pai://reports/\(Self.escape(id))")
+        case .reports(nil): return URL(string: "pai://reports")
         case .alarm: return URL(string: "pai://alarm")
         case .weather: return URL(string: "pai://weather")
         case .newTodo: return URL(string: "pai://newtodo")

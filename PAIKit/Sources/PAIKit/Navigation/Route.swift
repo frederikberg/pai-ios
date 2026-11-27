@@ -131,6 +131,13 @@ public enum Route: Hashable, Sendable {
     /// One agent browser session, live — reached from the list and from the link the agent drops
     /// in chat. The name is the session's identity; nothing else about it is worth carrying.
     case browser(name: String)
+    /// The Reports app: every dynamic report the agents published for this person, newest first —
+    /// reached from Apps' "Reports" row and `/apps/reports`. Carries no identity concern of its
+    /// own, the same reason `.browserList` does not.
+    case reports
+    /// One report's page — reached from the list and from the link an agent puts in its reply,
+    /// which pushes it onto the session's own screen so Back returns to that session.
+    case report(id: String)
     /// The Alarm app — reached from Apps' "Alarm" row, the Control Center control and a tapped
     /// alarm push. Carries no identity concern of its own, the same reason `.canteen` does not.
     case alarm
@@ -182,6 +189,8 @@ public enum Route: Hashable, Sendable {
         case (.decisions, .decisions): return true
         case (.browserList, .browserList): return true
         case (.browser(let a), .browser(let b)): return a == b
+        case (.reports, .reports): return true
+        case (.report(let a), .report(let b)): return a == b
         case (.alarm, .alarm): return true
         case (.weather, .weather): return true
         case (.cameraImport, .cameraImport): return true
@@ -259,6 +268,11 @@ public enum Route: Hashable, Sendable {
         case .browser(let name):
             hasher.combine(25)
             hasher.combine(name)
+        case .reports:
+            hasher.combine(35)
+        case .report(let id):
+            hasher.combine(36)
+            hasher.combine(id)
         case .alarm:
             hasher.combine(26)
         case .weather:
@@ -293,7 +307,7 @@ extension Route {
         switch self {
         case .session, .terminal, .createSession, .subagents, .notifications, .recordings, .arcSpec, .arcSpecList,
             .arcReport, .arcOverview, .schedulerList, .schedulerTask, .reminder, .computerCall, .usage,
-            .decisions, .browserList, .browser:
+            .decisions, .browserList, .browser, .reports, .report:
             true
         case .settings, .notes, .note, .noteContainers, .notePreview, .apps, .quickActions, .canteen, .alarm,
             .weather, .cameraImport, .me, .todos, .todosBrowse, .todosPage, .todosSearch:
@@ -314,7 +328,8 @@ extension Route {
         "session", "terminal", "settings", "createSession", "subagents", "notes", "note", "noteUncached", "noteLarge",
         "noteContainers", "notePreview", "notifications", "recordings", "arcSpec", "apps", "arcSpecList", "arcReport",
         "arcOverview",
-        "schedulerList", "schedulerTask", "reminder", "quickActions", "computerCall", "canteen", "usage", "decisions",
+        "reports", "report", "schedulerList", "schedulerTask", "reminder", "quickActions", "computerCall", "canteen",
+        "usage", "decisions",
         "subagentSession", "alarm", "weather", "cameraImport", "me", "todos", "todosBrowse", "todosView", "todosList",
         "todosGroceries", "todosUpcoming", "todosLogbook", "todosSearch",
     ]
@@ -381,6 +396,8 @@ extension Route {
         case "canteen": return .canteen
         case "usage": return .usage
         case "decisions": return .decisions
+        case "reports": return .reports
+        case "report": return .report(id: PaiFixtures.reportFixtureID)
         case "alarm": return .alarm
         case "weather": return .weather
         case "cameraImport": return .cameraImport
@@ -584,7 +601,8 @@ public final class Router {
             case .settings, .createSession, .subagents, .notes, .note, .noteContainers, .notePreview,
                 .notifications, .recordings, .arcSpec, .apps, .arcSpecList, .arcReport, .arcOverview,
                 .schedulerList, .schedulerTask, .reminder, .quickActions, .computerCall, .canteen, .usage,
-                .decisions, .browserList, .browser, .alarm, .weather, .cameraImport, .me, .todos, .todosBrowse,
+                .decisions, .browserList, .browser, .reports, .report, .alarm, .weather, .cameraImport, .me, .todos,
+                .todosBrowse,
                 .todosPage, .todosSearch:
                 continue
             }
@@ -601,7 +619,8 @@ public final class Router {
             case .session, .terminal, .settings, .createSession, .subagents, .notes, .noteContainers,
                 .notifications, .recordings, .arcSpec, .apps, .arcSpecList, .arcReport, .arcOverview,
                 .schedulerList, .schedulerTask, .reminder, .quickActions, .computerCall, .canteen, .usage,
-                .decisions, .browserList, .browser, .alarm, .weather, .cameraImport, .me, .todos, .todosBrowse,
+                .decisions, .browserList, .browser, .reports, .report, .alarm, .weather, .cameraImport, .me, .todos,
+                .todosBrowse,
                 .todosPage, .todosSearch:
                 continue
             }
