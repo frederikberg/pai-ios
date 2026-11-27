@@ -105,14 +105,23 @@ struct TodoSheetView: View {
             Section {
                 titleRow(todo)
             }
+            // Right under the title, so what was written about the todo is read without scrolling
+            // past its seven field rows.
+            description(todo)
             TodoFieldSections(todo: todo, today: today, canEdit: blocked == nil, submit: submit)
             subtasks(todo)
-            description(todo)
             files(todo)
             links(todo)
             history
         }
         .listStyle(.insetGrouped)
+        // Reported by the list, which builds every time, not by the row, which a lazy list may not.
+        .fixtureFact("todosDescriptionBlocks", String(descriptionBlocks(todo)))
+    }
+
+    private func descriptionBlocks(_ todo: Todo) -> Int {
+        let text = store.details[todo.id]?.todo.body ?? todo.body ?? ""
+        return text.isEmpty ? 0 : NotePreviewDocument(body: text, nameToId: [:]).items.count
     }
 
     @ViewBuilder private func statusBanner(_ todo: Todo) -> some View {
@@ -385,6 +394,5 @@ struct TodoDescriptionView: View {
             }
         }
         .environment(\.previewNamesFilesOnly, true)
-        .fixtureFact("todosDescriptionBlocks", String(document.items.count))
     }
 }
