@@ -153,14 +153,41 @@ public enum TodoSettingsOps {
     /// A `view.save` with the three fields the server always wants. On a view that exists the
     /// server keeps every field the op leaves out (symbol, grouping, sorting, defaults); a new
     /// view gets the server's defaults for them.
-    public static func viewSave(id: String, name: String, query: String, layout: String, pinned: Bool? = nil) -> TodoOp
-    {
+    ///
+    /// `defaults` are what a todo made in the view starts with. Left out, the server answers a
+    /// new or default-less view's save with the defaults its query suggests (`proposedDefaults`).
+    public static func viewSave(
+        id: String, name: String, query: String, layout: String, pinned: Bool? = nil,
+        defaults: TodoViewDefaults? = nil
+    ) -> TodoOp {
         var fields: [String: PaiJSONValue] = [
             "id": .string(id), "name": .string(name.trimmingCharacters(in: .whitespacesAndNewlines)),
             "layout": .string(layout), "query": .string(query.trimmingCharacters(in: .whitespacesAndNewlines)),
         ]
         if let pinned { fields["pinned"] = .bool(pinned) }
+        if let defaults, let data = try? JSONEncoder().encode(defaults),
+            let value = try? JSONDecoder().decode(PaiJSONValue.self, from: data)
+        {
+            fields["defaults"] = value
+        }
         return op("view.save", fields)
+    }
+
+    /// The defaults the server suggests in its answer to a `view.save`, when it suggests any.
+    public static func proposedDefaults(_ settlement: TodosSettlement) -> TodoViewDefaults? {
+        guard case .applied(let result?) = settlement, let proposed = result.results.first?.defaults,
+            !proposed.isEmpty
+        else { return nil }
+        return proposed
+    }
+
+    /// What a view's defaults give a new todo, in words: its tags, its horizon, the desk, today.
+    public static func defaultsWords(_ defaults: TodoViewDefaults) -> String {
+        var words = (defaults.tags ?? []).map { "#\($0)" }
+        if let horizon = defaults.horizon { words.append(TodoHorizonMark.of(horizon).label) }
+        if defaults.desk == true { words.append("the desk") }
+        if defaults.when == "today" { words.append("today") }
+        return words.joined(separator: ", ")
     }
 
     public static func viewDelete(_ view: TodoView) -> TodoOp { op("view.delete", ["id": .string(view.id)]) }

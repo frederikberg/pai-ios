@@ -484,8 +484,8 @@ extension PaiFixtures {
         ]
     }
 
-    /// The days ahead from the corpus: each open root by its day or deadline, a repeat's ghost,
-    /// the undated ones under Someday.
+    /// Upcoming from the corpus: each open root by its day or deadline, today and the days behind
+    /// that hold one, a repeat's ghost, the undated ones under Someday.
     static func todosUpcoming() -> [String: Any] {
         let roots = todosCorpus.filter { $0.parent == nil && $0.list != todosGroceriesList }
         var days: [[String: Any]] = []
@@ -497,9 +497,17 @@ extension PaiFixtures {
                 TodoWords.weekday(date) == 1 ? [["todo_id": todosCorpus[13].id, "date": date]] : []
             days.append(["date": date, "todos": planned, "deadlines": due, "ghosts": ghosts])
         }
+        var earlier: [[String: Any]] = []
+        for offset in -6...0 {
+            let date = TodoWords.addDays(todosDay, offset)
+            let planned = roots.filter { $0.when == date }.map(\.id)
+            let due = roots.filter { $0.deadline == date && $0.when != date }.map(\.id)
+            if planned.isEmpty && due.isEmpty { continue }
+            earlier.append(["date": date, "todos": planned, "deadlines": due, "ghosts": [[String: Any]]()])
+        }
         let undated = roots.filter { $0.when == nil && $0.deadline == nil }.prefix(3).map(\.id)
         return [
-            "days": days, "later": [], "someday": Array(undated),
+            "earlier": earlier, "days": days, "later": [], "someday": Array(undated),
             "todos": Dictionary(uniqueKeysWithValues: roots.map { ($0.id, $0.json) }), "seq": 200,
         ]
     }

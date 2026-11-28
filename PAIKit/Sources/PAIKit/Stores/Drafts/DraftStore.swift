@@ -343,6 +343,31 @@ public final class DraftStore {
         Task { await self.requestOp(key, .delete) }
     }
 
+    /// Empties the box a message was just sent from, without writing that to the server: the
+    /// send itself clears the row, and only while the row is still the one this composer knew
+    /// (`OutboxEntry.draftVersion`), so text another device put there since is not replaced by
+    /// this device's empty box. A write already in the air carries an earlier state of the
+    /// message and may land after the send consumed the row; the emptied box is written once it
+    /// settles, so that text does not stay behind for the other devices.
+    public func clearAfterSend(key: String) {
+        pendingDebounce[key]?.cancel()
+        pendingDebounce[key] = nil
+        retryAttempt[key] = nil
+        awaitingListing.remove(key)
+        var entry = draft(for: key)
+        entry.text = ""
+        entry.previousText = nil
+        drafts[key] = entry
+        localRevision[key, default: 0] += 1
+        if currentOp[key] != nil {
+            unwrittenFields[key] = [.text]
+            queuedOp[key] = .write
+        } else {
+            unwrittenFields[key] = nil
+        }
+        diagnosticsLog?.log(.info, .drafts, "sent key=\(key)")
+    }
+
     // MARK: - Flush (debounced write)
 
     private func scheduleFlush(_ key: String, since before: DraftEntry) {
@@ -583,7 +608,7 @@ public final class DraftStore {
     public func recordVersionAfterSend(key: String, version: Int?) {
         guard let version else { return }
         guard pendingDebounce[key] == nil, currentOp[key] == nil else { return }
-        guard var entry = drafts[key], entry.text.isEmpty else { return }
+        guard var entry = drafts[key], entry.text.isEmpty, (entry.knownVersion ?? -1) < version else { return }
         entry.knownVersion = version
         drafts[key] = entry
     }

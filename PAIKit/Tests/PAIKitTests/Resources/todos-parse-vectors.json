@@ -1,0 +1,3162 @@
+{
+ "note": "The capture parser's cases, described in docs/architecture/todos.md (The capture parser). Every reader of quick add runs every one. A case without clears clears nothing, one without someday is not someday, and now (the wall clock, no zone) is given where the text counts from it.",
+ "vectors": [
+  {
+   "name": "en day and time",
+   "text": "Call the dentist tomorrow 9:00",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call the dentist",
+   "when": {
+    "date": "2026-11-26",
+    "time": "09:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "tomorrow 9:00"
+    }
+   ]
+  },
+  {
+   "name": "en a time never nudges by itself",
+   "text": "Standup 17:00",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Standup",
+   "when": {
+    "date": "2026-11-25",
+    "time": "17:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "17:00"
+    }
+   ]
+  },
+  {
+   "name": "en the marker after a time is a nudge",
+   "text": "Call the dentist tomorrow 9:00!",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call the dentist",
+   "when": {
+    "date": "2026-11-26",
+    "time": "09:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": {
+    "date": "2026-11-26",
+    "time": "09:00"
+   },
+   "tokens": [
+    {
+     "kind": "nudge",
+     "text": "tomorrow 9:00!"
+    }
+   ]
+  },
+  {
+   "name": "en a nudge on a time alone is today",
+   "text": "Standup 17:00!",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Standup",
+   "when": {
+    "date": "2026-11-25",
+    "time": "17:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": {
+    "date": "2026-11-25",
+    "time": "17:00"
+   },
+   "tokens": [
+    {
+     "kind": "nudge",
+     "text": "17:00!"
+    }
+   ]
+  },
+  {
+   "name": "en am pm",
+   "text": "Pick up parcel at 5pm",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Pick up parcel",
+   "when": {
+    "date": "2026-11-25",
+    "time": "17:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "at 5pm"
+    }
+   ]
+  },
+  {
+   "name": "en weekday",
+   "text": "Report fri",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Report",
+   "when": {
+    "date": "2026-11-27",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "fri"
+    }
+   ]
+  },
+  {
+   "name": "en weekday is today included",
+   "text": "Report wed",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Report",
+   "when": {
+    "date": "2026-11-25",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "wed"
+    }
+   ]
+  },
+  {
+   "name": "en next weekday skips today",
+   "text": "Report next wed",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Report",
+   "when": {
+    "date": "2026-12-02",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "next wed"
+    }
+   ]
+  },
+  {
+   "name": "en in months",
+   "text": "Renew certificate in 3 months",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Renew certificate",
+   "when": {
+    "date": "2027-02-25",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 3 months"
+    }
+   ]
+  },
+  {
+   "name": "en in month singular",
+   "text": "Dentist in 3 month",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Dentist",
+   "when": {
+    "date": "2027-02-25",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 3 month"
+    }
+   ]
+  },
+  {
+   "name": "en in a week",
+   "text": "Follow up in a week",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Follow up",
+   "when": {
+    "date": "2026-12-02",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in a week"
+    }
+   ]
+  },
+  {
+   "name": "en iso date",
+   "text": "Flight 2027-03-14",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Flight",
+   "when": {
+    "date": "2027-03-14",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "2027-03-14"
+    }
+   ]
+  },
+  {
+   "name": "en month name",
+   "text": "Visit dec 22nd",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Visit",
+   "when": {
+    "date": "2026-12-22",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "dec 22nd"
+    }
+   ]
+  },
+  {
+   "name": "en by is a deadline",
+   "text": "Tax return by fri",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Tax return",
+   "when": null,
+   "deadline": "2026-11-27",
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "deadline",
+     "text": "by fri"
+    }
+   ]
+  },
+  {
+   "name": "en due with a dotted date",
+   "text": "Invoice due 22.12.",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Invoice",
+   "when": null,
+   "deadline": "2026-12-22",
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "deadline",
+     "text": "due 22.12."
+    }
+   ]
+  },
+  {
+   "name": "en every n weeks",
+   "text": "Review every 2 weeks",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Review",
+   "when": {
+    "date": "2026-11-25",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 2,
+    "unit": "week",
+    "on": null,
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "every 2 weeks"
+    }
+   ]
+  },
+  {
+   "name": "en every weekdays listed",
+   "text": "Gym every mon and thu",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Gym",
+   "when": {
+    "date": "2026-11-26",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 1,
+    "unit": "week",
+    "on": {
+     "weekdays": [
+      1,
+      4
+     ]
+    },
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "every mon and thu"
+    }
+   ]
+  },
+  {
+   "name": "en every weekday at a time",
+   "text": "Standup every weekday at 9am",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Standup",
+   "when": {
+    "date": "2026-11-25",
+    "time": "09:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 1,
+    "unit": "week",
+    "on": {
+     "weekdays": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "every weekday"
+    },
+    {
+     "kind": "when",
+     "text": "at 9am"
+    }
+   ]
+  },
+  {
+   "name": "en every day of month",
+   "text": "Rent every 15th",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Rent",
+   "when": {
+    "date": "2026-12-15",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 1,
+    "unit": "month",
+    "on": {
+     "month_day": 15
+    },
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "every 15th"
+    }
+   ]
+  },
+  {
+   "name": "en after counts from the tick",
+   "text": "Replace filter after 14 months",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Replace filter",
+   "when": {
+    "date": "2028-01-25",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "after_done",
+    "every": 14,
+    "unit": "month",
+    "on": null,
+    "anchor_day": 25
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "after 14 months"
+    }
+   ]
+  },
+  {
+   "name": "en every bang counts from the tick",
+   "text": "Haircut every! 6 weeks",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Haircut",
+   "when": {
+    "date": "2027-01-06",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "after_done",
+    "every": 6,
+    "unit": "week",
+    "on": null,
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "every! 6 weeks"
+    }
+   ]
+  },
+  {
+   "name": "en daily",
+   "text": "Water plants daily",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Water plants",
+   "when": {
+    "date": "2026-11-25",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 1,
+    "unit": "day",
+    "on": null,
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "daily"
+    }
+   ]
+  },
+  {
+   "name": "en tags",
+   "text": "Fix router #homelab @private",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Fix router",
+   "when": null,
+   "deadline": null,
+   "tags": [
+    "homelab",
+    "private"
+   ],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "tag",
+     "text": "#homelab"
+    },
+    {
+     "kind": "tag",
+     "text": "@private"
+    }
+   ]
+  },
+  {
+   "name": "en nested tag with a comma after it",
+   "text": "Rule review #sva/soc, quickly",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Rule review quickly",
+   "when": null,
+   "deadline": null,
+   "tags": [
+    "sva/soc"
+   ],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "tag",
+     "text": "#sva/soc,"
+    }
+   ]
+  },
+  {
+   "name": "en p1",
+   "text": "Ship it p1",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Ship it",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": "now",
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "horizon",
+     "text": "p1"
+    }
+   ]
+  },
+  {
+   "name": "en bang horizon",
+   "text": "Read paper !soon",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Read paper",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": "soon",
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "horizon",
+     "text": "!soon"
+    }
+   ]
+  },
+  {
+   "name": "en bang next",
+   "text": "Call the bank !next",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call the bank",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": "now",
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "horizon",
+     "text": "!next"
+    }
+   ]
+  },
+  {
+   "name": "en desk",
+   "text": "Write summary *",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Write summary",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": true,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "desk",
+     "text": "*"
+    }
+   ]
+  },
+  {
+   "name": "en parent",
+   "text": "Draft outline >T-12",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Draft outline",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": "T-12",
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "parent",
+     "text": ">T-12"
+    }
+   ]
+  },
+  {
+   "name": "en list",
+   "text": "milk /Groceries",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "milk",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": "Groceries",
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "list",
+     "text": "/Groceries"
+    }
+   ]
+  },
+  {
+   "name": "en quoted list",
+   "text": "Printer paper /\"Home office\"",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Printer paper",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": "Home office",
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "list",
+     "text": "/\"Home office\""
+    }
+   ]
+  },
+  {
+   "name": "en sun is a word without a cue",
+   "text": "Buy sun cream",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Buy sun cream",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "en sun after a cue",
+   "text": "Picnic on sun",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Picnic",
+   "when": {
+    "date": "2026-11-29",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "on sun"
+    }
+   ]
+  },
+  {
+   "name": "en do is a word",
+   "text": "do laundry",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "do laundry",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "en the last day wins and the first stays text",
+   "text": "Move meeting from fri to mon",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Move meeting from fri to",
+   "when": {
+    "date": "2026-11-30",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "mon"
+    }
+   ]
+  },
+  {
+   "name": "en only a date",
+   "text": "tomorrow",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "",
+   "when": {
+    "date": "2026-11-26",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "tomorrow"
+    }
+   ]
+  },
+  {
+   "name": "en hash and digits is no tag",
+   "text": "Issue #42 again",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Issue #42 again",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "en offsets are utf-16 code units",
+   "text": "🎂 Party tomorrow",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "🎂 Party",
+   "when": {
+    "date": "2026-11-26",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "tomorrow",
+     "start": 9,
+     "end": 17
+    }
+   ]
+  },
+  {
+   "name": "en english only leaves german words",
+   "text": "Steuer morgen",
+   "lang": "en",
+   "today": "2026-11-25",
+   "title": "Steuer morgen",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "de morgen with time",
+   "text": "Zahnarzt morgen 17:00",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Zahnarzt",
+   "when": {
+    "date": "2026-11-26",
+    "time": "17:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "morgen 17:00"
+    }
+   ]
+  },
+  {
+   "name": "de übermorgen",
+   "text": "Paket abholen übermorgen",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Paket abholen",
+   "when": {
+    "date": "2026-11-27",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "übermorgen"
+    }
+   ]
+  },
+  {
+   "name": "de uebermorgen spelled out",
+   "text": "Paket abholen uebermorgen",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Paket abholen",
+   "when": {
+    "date": "2026-11-27",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "uebermorgen"
+    }
+   ]
+  },
+  {
+   "name": "de Uhr",
+   "text": "Anruf heute 15 Uhr",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Anruf",
+   "when": {
+    "date": "2026-11-25",
+    "time": "15:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "heute 15 Uhr"
+    }
+   ]
+  },
+  {
+   "name": "de am and um",
+   "text": "Treffen am Freitag um 10",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Treffen",
+   "when": {
+    "date": "2026-11-27",
+    "time": "10:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "am Freitag um 10"
+    }
+   ]
+  },
+  {
+   "name": "de Uhr with the nudge marker",
+   "text": "Party 22.12. 20 Uhr!",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Party",
+   "when": {
+    "date": "2026-12-22",
+    "time": "20:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": {
+    "date": "2026-12-22",
+    "time": "20:00"
+   },
+   "tokens": [
+    {
+     "kind": "nudge",
+     "text": "22.12. 20 Uhr!"
+    }
+   ]
+  },
+  {
+   "name": "de day of this month",
+   "text": "Miete überweisen 30.",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Miete überweisen",
+   "when": {
+    "date": "2026-11-30",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "30."
+    }
+   ]
+  },
+  {
+   "name": "de day already past goes to next month",
+   "text": "Geburtstag 3.",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Geburtstag",
+   "when": {
+    "date": "2026-12-03",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "3."
+    }
+   ]
+  },
+  {
+   "name": "de day and month",
+   "text": "Weihnachtsfeier 22.12.",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Weihnachtsfeier",
+   "when": {
+    "date": "2026-12-22",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "22.12."
+    }
+   ]
+  },
+  {
+   "name": "de day month year",
+   "text": "Vertrag 1.3.2027",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Vertrag",
+   "when": {
+    "date": "2027-03-01",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "1.3.2027"
+    }
+   ]
+  },
+  {
+   "name": "de month name",
+   "text": "Urlaub 3. Januar",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Urlaub",
+   "when": {
+    "date": "2027-01-03",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "3. Januar"
+    }
+   ]
+  },
+  {
+   "name": "de in Monaten",
+   "text": "Zertifikat erneuern in 3 Monaten",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Zertifikat erneuern",
+   "when": {
+    "date": "2027-02-25",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 3 Monaten"
+    }
+   ]
+  },
+  {
+   "name": "de in Wochen",
+   "text": "Nachfragen in 2 Wochen",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Nachfragen",
+   "when": {
+    "date": "2026-12-09",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 2 Wochen"
+    }
+   ]
+  },
+  {
+   "name": "de nächsten",
+   "text": "Abgabe nächsten Montag",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Abgabe",
+   "when": {
+    "date": "2026-11-30",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "nächsten Montag"
+    }
+   ]
+  },
+  {
+   "name": "de bis Fr",
+   "text": "Steuer bis Fr",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Steuer",
+   "when": null,
+   "deadline": "2026-11-27",
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "deadline",
+     "text": "bis Fr"
+    }
+   ]
+  },
+  {
+   "name": "de fällig",
+   "text": "Rechnung fällig morgen",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Rechnung",
+   "when": null,
+   "deadline": "2026-11-26",
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "deadline",
+     "text": "fällig morgen"
+    }
+   ]
+  },
+  {
+   "name": "de jeden Mo",
+   "text": "Rasen mähen jeden Mo",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Rasen mähen",
+   "when": {
+    "date": "2026-11-30",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 1,
+    "unit": "week",
+    "on": {
+     "weekdays": [
+      1
+     ]
+    },
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "jeden Mo"
+    }
+   ]
+  },
+  {
+   "name": "de jeden 1.",
+   "text": "Miete jeden 1.",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Miete",
+   "when": {
+    "date": "2026-12-01",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 1,
+    "unit": "month",
+    "on": {
+     "month_day": 1
+    },
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "jeden 1."
+    }
+   ]
+  },
+  {
+   "name": "de alle 2 Wochen",
+   "text": "Bettwäsche alle 2 Wochen",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Bettwäsche",
+   "when": {
+    "date": "2026-11-25",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 2,
+    "unit": "week",
+    "on": null,
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "alle 2 Wochen"
+    }
+   ]
+  },
+  {
+   "name": "de nach counts from the tick",
+   "text": "Kontaktlinsen nach 14 Monaten",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Kontaktlinsen",
+   "when": {
+    "date": "2028-01-25",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "after_done",
+    "every": 14,
+    "unit": "month",
+    "on": null,
+    "anchor_day": 25
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "nach 14 Monaten"
+    }
+   ]
+  },
+  {
+   "name": "de werktags",
+   "text": "Standup werktags 9:30",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Standup",
+   "when": {
+    "date": "2026-11-25",
+    "time": "09:30"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 1,
+    "unit": "week",
+    "on": {
+     "weekdays": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "werktags"
+    },
+    {
+     "kind": "when",
+     "text": "9:30"
+    }
+   ]
+  },
+  {
+   "name": "de täglich with a nudge",
+   "text": "Medikament täglich 8 Uhr!",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Medikament",
+   "when": {
+    "date": "2026-11-25",
+    "time": "08:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 1,
+    "unit": "day",
+    "on": null,
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": {
+    "date": "2026-11-25",
+    "time": "08:00"
+   },
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "täglich"
+    },
+    {
+     "kind": "nudge",
+     "text": "8 Uhr!"
+    }
+   ]
+  },
+  {
+   "name": "de jedes Jahr",
+   "text": "Versicherung prüfen jedes Jahr",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Versicherung prüfen",
+   "when": {
+    "date": "2026-11-25",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 1,
+    "unit": "year",
+    "on": null,
+    "anchor_day": 25
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "jedes Jahr"
+    }
+   ]
+  },
+  {
+   "name": "de two-letter weekday needs the language",
+   "text": "Do Präsentation",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Do Präsentation",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "de two-letter weekday in german",
+   "text": "Do Präsentation",
+   "lang": "de",
+   "today": "2026-11-25",
+   "title": "Präsentation",
+   "when": {
+    "date": "2026-11-26",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "Do"
+    }
+   ]
+  },
+  {
+   "name": "month end: in one month clamps",
+   "text": "Report in 1 month",
+   "lang": null,
+   "today": "2026-01-31",
+   "title": "Report",
+   "when": {
+    "date": "2026-02-28",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 1 month"
+    }
+   ]
+  },
+  {
+   "name": "month end: a day past this month skips a month lacking it",
+   "text": "Pay 30.",
+   "lang": null,
+   "today": "2026-01-31",
+   "title": "Pay",
+   "when": {
+    "date": "2026-03-30",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "30."
+    }
+   ]
+  },
+  {
+   "name": "month end: the 31st on the 31st is today",
+   "text": "Pay 31.",
+   "lang": null,
+   "today": "2026-01-31",
+   "title": "Pay",
+   "when": {
+    "date": "2026-01-31",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "31."
+    }
+   ]
+  },
+  {
+   "name": "february: the 29th in a short february",
+   "text": "Backup 29.",
+   "lang": null,
+   "today": "2026-02-28",
+   "title": "Backup",
+   "when": {
+    "date": "2026-03-29",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "29."
+    }
+   ]
+  },
+  {
+   "name": "year end: morgen",
+   "text": "Neujahr morgen",
+   "lang": null,
+   "today": "2026-12-31",
+   "title": "Neujahr",
+   "when": {
+    "date": "2027-01-01",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "morgen"
+    }
+   ]
+  },
+  {
+   "name": "year end: a passed day and month is next year",
+   "text": "Feier 22.12.",
+   "lang": null,
+   "today": "2026-12-31",
+   "title": "Feier",
+   "when": {
+    "date": "2027-12-22",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "22.12."
+    }
+   ]
+  },
+  {
+   "name": "year end: new year",
+   "text": "Kater 1.1.",
+   "lang": null,
+   "today": "2026-12-31",
+   "title": "Kater",
+   "when": {
+    "date": "2027-01-01",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "1.1."
+    }
+   ]
+  },
+  {
+   "name": "year end: today's day and month",
+   "text": "Silvester 31.12.",
+   "lang": null,
+   "today": "2026-12-31",
+   "title": "Silvester",
+   "when": {
+    "date": "2026-12-31",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "31.12."
+    }
+   ]
+  },
+  {
+   "name": "year end: weekday",
+   "text": "Report fri",
+   "lang": null,
+   "today": "2026-12-31",
+   "title": "Report",
+   "when": {
+    "date": "2027-01-01",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "fri"
+    }
+   ]
+  },
+  {
+   "name": "year end: next week is its monday",
+   "text": "Plan next week",
+   "lang": null,
+   "today": "2026-12-31",
+   "title": "Plan",
+   "when": {
+    "date": "2027-01-04",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "next week"
+    }
+   ]
+  },
+  {
+   "name": "year end: in weeks",
+   "text": "Nachfragen in 2 Wochen",
+   "lang": null,
+   "today": "2026-12-31",
+   "title": "Nachfragen",
+   "when": {
+    "date": "2027-01-14",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 2 Wochen"
+    }
+   ]
+  },
+  {
+   "name": "year end: every 15th",
+   "text": "Rent every 15th",
+   "lang": null,
+   "today": "2026-12-31",
+   "title": "Rent",
+   "when": {
+    "date": "2027-01-15",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 1,
+    "unit": "month",
+    "on": {
+     "month_day": 15
+    },
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "every 15th"
+    }
+   ]
+  },
+  {
+   "name": "year end: month name already past",
+   "text": "Trip dec 22",
+   "lang": null,
+   "today": "2026-12-31",
+   "title": "Trip",
+   "when": {
+    "date": "2027-12-22",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "dec 22"
+    }
+   ]
+  },
+  {
+   "name": "leap day: in one year",
+   "text": "Renew in 1 year",
+   "lang": null,
+   "today": "2028-02-29",
+   "title": "Renew",
+   "when": {
+    "date": "2029-02-28",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 1 year"
+    }
+   ]
+  },
+  {
+   "name": "en all together",
+   "text": "Renew TLS cert #homelab p2 by fri in 2 weeks *",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Renew TLS cert",
+   "when": {
+    "date": "2026-12-09",
+    "time": null
+   },
+   "deadline": "2026-11-27",
+   "tags": [
+    "homelab"
+   ],
+   "horizon": "week",
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": true,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "tag",
+     "text": "#homelab"
+    },
+    {
+     "kind": "horizon",
+     "text": "p2"
+    },
+    {
+     "kind": "deadline",
+     "text": "by fri"
+    },
+    {
+     "kind": "when",
+     "text": "in 2 weeks"
+    },
+    {
+     "kind": "desk",
+     "text": "*"
+    }
+   ]
+  },
+  {
+   "name": "de all together",
+   "text": "Zahnarzt anrufen morgen 9:00! @privat >T-7",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Zahnarzt anrufen",
+   "when": {
+    "date": "2026-11-26",
+    "time": "09:00"
+   },
+   "deadline": null,
+   "tags": [
+    "privat"
+   ],
+   "horizon": null,
+   "repeat": null,
+   "parent": "T-7",
+   "list": null,
+   "desk": false,
+   "nudge": {
+    "date": "2026-11-26",
+    "time": "09:00"
+   },
+   "tokens": [
+    {
+     "kind": "nudge",
+     "text": "morgen 9:00!"
+    },
+    {
+     "kind": "tag",
+     "text": "@privat"
+    },
+    {
+     "kind": "parent",
+     "text": ">T-7"
+    }
+   ]
+  },
+  {
+   "name": "en no date clears the day",
+   "text": "Call mum no date",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call mum",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "clear",
+     "text": "no date"
+    }
+   ],
+   "clears": [
+    "when"
+   ]
+  },
+  {
+   "name": "en nodate as one word",
+   "text": "nodate Buy stamps",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Buy stamps",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "clear",
+     "text": "nodate"
+    }
+   ],
+   "clears": [
+    "when"
+   ]
+  },
+  {
+   "name": "de kein Datum clears the day",
+   "text": "Steuer kein Datum",
+   "lang": "de",
+   "today": "2026-11-25",
+   "title": "Steuer",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "clear",
+     "text": "kein Datum"
+    }
+   ],
+   "clears": [
+    "when"
+   ]
+  },
+  {
+   "name": "de ohne Datum clears the day",
+   "text": "Fenster putzen ohne Datum",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Fenster putzen",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "clear",
+     "text": "ohne Datum"
+    }
+   ],
+   "clears": [
+    "when"
+   ]
+  },
+  {
+   "name": "en a day after no date wins",
+   "text": "Plan no date tomorrow",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Plan no date",
+   "when": {
+    "date": "2026-11-26",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "tomorrow"
+    }
+   ]
+  },
+  {
+   "name": "en no-date inside a word is title",
+   "text": "Order no-date stamps",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Order no-date stamps",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [],
+   "clears": []
+  },
+  {
+   "name": "en a lone no is not no date",
+   "text": "Say no to cake",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Say no to cake",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [],
+   "clears": []
+  },
+  {
+   "name": "en tom is tomorrow",
+   "text": "Buy stamps tom",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Buy stamps",
+   "when": {
+    "date": "2026-11-26",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "tom"
+    }
+   ]
+  },
+  {
+   "name": "en tod is today, with a time",
+   "text": "Call the bank tod 17:00",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call the bank",
+   "when": {
+    "date": "2026-11-25",
+    "time": "17:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "tod 17:00"
+    }
+   ]
+  },
+  {
+   "name": "en a capital Tom is a name, not a day",
+   "text": "Call Tom",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call Tom",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "en no date after a day wins",
+   "text": "Call the bank fri no date",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call the bank fri",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "clear",
+     "text": "no date"
+    }
+   ],
+   "clears": [
+    "when"
+   ]
+  },
+  {
+   "name": "en a later day keeps the earlier time",
+   "text": "Standup tomorrow 9:00 fri",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Standup tomorrow",
+   "when": {
+    "date": "2026-11-27",
+    "time": "09:00"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "9:00"
+    },
+    {
+     "kind": "when",
+     "text": "fri"
+    }
+   ]
+  },
+  {
+   "name": "en no date overrules a time",
+   "text": "Call 17:00 no date",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call 17:00",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "clear",
+     "text": "no date"
+    }
+   ],
+   "clears": [
+    "when"
+   ]
+  },
+  {
+   "name": "en the last horizon wins",
+   "text": "Fix the bike p1 p3",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Fix the bike p1",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": "soon",
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "horizon",
+     "text": "p3"
+    }
+   ]
+  },
+  {
+   "name": "en the last deadline wins",
+   "text": "Report by fri by mon",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Report by fri",
+   "when": null,
+   "deadline": "2026-11-30",
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "deadline",
+     "text": "by mon"
+    }
+   ]
+  },
+  {
+   "name": "en in two hours sets the day and the time",
+   "text": "Check the oven in 2 hours",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Check the oven",
+   "when": {
+    "date": "2026-11-25",
+    "time": "16:10"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 2 hours"
+    }
+   ],
+   "now": "2026-11-25T14:10"
+  },
+  {
+   "name": "en in 2h short",
+   "text": "Call back in 2h",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call back",
+   "when": {
+    "date": "2026-11-25",
+    "time": "16:10"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 2h"
+    }
+   ],
+   "now": "2026-11-25T14:10"
+  },
+  {
+   "name": "en in 45min short",
+   "text": "Tea in 45min",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Tea",
+   "when": {
+    "date": "2026-11-25",
+    "time": "14:55"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 45min"
+    }
+   ],
+   "now": "2026-11-25T14:10"
+  },
+  {
+   "name": "en in minutes as words",
+   "text": "Tea in 45 minutes",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Tea",
+   "when": {
+    "date": "2026-11-25",
+    "time": "14:55"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 45 minutes"
+    }
+   ],
+   "now": "2026-11-25T14:10"
+  },
+  {
+   "name": "en hours past midnight land on the next day",
+   "text": "Take the bread out in 11h",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Take the bread out",
+   "when": {
+    "date": "2026-11-26",
+    "time": "01:10"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 11h"
+    }
+   ],
+   "now": "2026-11-25T14:10"
+  },
+  {
+   "name": "en plus hours",
+   "text": "Laundry +3h",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Laundry",
+   "when": {
+    "date": "2026-11-25",
+    "time": "17:10"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "+3h"
+    }
+   ],
+   "now": "2026-11-25T14:10"
+  },
+  {
+   "name": "de in zwei Stunden",
+   "text": "Ofen ausmachen in 2 Stunden",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Ofen ausmachen",
+   "when": {
+    "date": "2026-11-25",
+    "time": "16:10"
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 2 Stunden"
+    }
+   ],
+   "now": "2026-11-25T14:10"
+  },
+  {
+   "name": "en a moment without a clock stays text",
+   "text": "Call back in 2h",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call back in 2h",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "en a later day overrules a moment",
+   "text": "Call back in 2h fri",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Call back in 2h",
+   "when": {
+    "date": "2026-11-27",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "fri"
+    }
+   ],
+   "now": "2026-11-25T14:10"
+  },
+  {
+   "name": "en in 3d short",
+   "text": "Water the plants in 3d",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Water the plants",
+   "when": {
+    "date": "2026-11-28",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 3d"
+    }
+   ]
+  },
+  {
+   "name": "en plus days",
+   "text": "Water the plants +3d",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Water the plants",
+   "when": {
+    "date": "2026-11-28",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "+3d"
+    }
+   ]
+  },
+  {
+   "name": "en plus weeks",
+   "text": "Review +2w",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Review",
+   "when": {
+    "date": "2026-12-09",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "+2w"
+    }
+   ]
+  },
+  {
+   "name": "en in three weeks",
+   "text": "Review in 3 weeks",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Review",
+   "when": {
+    "date": "2026-12-16",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "in 3 weeks"
+    }
+   ]
+  },
+  {
+   "name": "en a bare count with a unit is text",
+   "text": "Buy 3d printer filament",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Buy 3d printer filament",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "en this weekend",
+   "text": "Clean the bike this weekend",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Clean the bike",
+   "when": {
+    "date": "2026-11-28",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "this weekend"
+    }
+   ]
+  },
+  {
+   "name": "de am Wochenende",
+   "text": "Rad putzen am Wochenende",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Rad putzen",
+   "when": {
+    "date": "2026-11-28",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "am Wochenende"
+    }
+   ]
+  },
+  {
+   "name": "en weekend alone is a word",
+   "text": "Plan the weekend",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Plan the weekend",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "en this weekend on a sunday is today",
+   "text": "Rest this weekend",
+   "lang": null,
+   "today": "2026-11-29",
+   "title": "Rest",
+   "when": {
+    "date": "2026-11-29",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "this weekend"
+    }
+   ]
+  },
+  {
+   "name": "en end of month",
+   "text": "Send the invoice end of month",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Send the invoice",
+   "when": {
+    "date": "2026-11-30",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "end of month"
+    }
+   ]
+  },
+  {
+   "name": "en eom",
+   "text": "Send the invoice eom",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Send the invoice",
+   "when": {
+    "date": "2026-11-30",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "eom"
+    }
+   ]
+  },
+  {
+   "name": "de Monatsende",
+   "text": "Rechnung schicken Monatsende",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Rechnung schicken",
+   "when": {
+    "date": "2026-11-30",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "Monatsende"
+    }
+   ]
+  },
+  {
+   "name": "en end of month in february of a leap year",
+   "text": "Close the books eom",
+   "lang": null,
+   "today": "2028-02-10",
+   "title": "Close the books",
+   "when": {
+    "date": "2028-02-29",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "eom"
+    }
+   ]
+  },
+  {
+   "name": "en someday",
+   "text": "Learn to juggle someday",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Learn to juggle",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "someday"
+    }
+   ],
+   "someday": true,
+   "clears": [
+    "when"
+   ]
+  },
+  {
+   "name": "en Someday with a capital is a word",
+   "text": "Someday I will learn it",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Someday I will learn it",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "en a day after someday wins",
+   "text": "Learn to juggle someday fri",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Learn to juggle someday",
+   "when": {
+    "date": "2026-11-27",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "when",
+     "text": "fri"
+    }
+   ]
+  },
+  {
+   "name": "en a deadline in braces",
+   "text": "Hand in the form {fri}",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Hand in the form",
+   "when": null,
+   "deadline": "2026-11-27",
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "deadline",
+     "text": "{fri}"
+    }
+   ]
+  },
+  {
+   "name": "en a deadline of two words in braces",
+   "text": "Hand in the form {next fri}",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Hand in the form",
+   "when": null,
+   "deadline": "2026-11-27",
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "deadline",
+     "text": "{next fri}"
+    }
+   ]
+  },
+  {
+   "name": "en braces around no day are text",
+   "text": "Use {name} in the template",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Use {name} in the template",
+   "when": null,
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": null,
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": []
+  },
+  {
+   "name": "en every other weekday",
+   "text": "Bins every other fri",
+   "lang": null,
+   "today": "2026-11-25",
+   "title": "Bins",
+   "when": {
+    "date": "2026-11-27",
+    "time": null
+   },
+   "deadline": null,
+   "tags": [],
+   "horizon": null,
+   "repeat": {
+    "mode": "schedule",
+    "every": 2,
+    "unit": "week",
+    "on": {
+     "weekdays": [
+      5
+     ]
+    },
+    "anchor_day": null
+   },
+   "parent": null,
+   "list": null,
+   "desk": false,
+   "nudge": null,
+   "tokens": [
+    {
+     "kind": "repeat",
+     "text": "every other fri"
+    }
+   ]
+  }
+ ]
+}

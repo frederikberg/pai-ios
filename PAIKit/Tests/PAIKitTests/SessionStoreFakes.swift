@@ -293,7 +293,7 @@ actor FakeOutboxSending: OutboxSending {
         draftAttachmentIds: [String], supersededUploadIds: [String], sessionType: String?, workingDir: String?,
         agent: String?, model: String?,
         thinking: String?, clientMode: String?, heldTake: HeldTake?, noMemory: Bool?,
-        mailVerdictToken: String?
+        mailVerdictToken: String?, draftVersion: Int?
     ) async throws -> PostMessageResponse {
         postMessageCalls.append(
             (

@@ -84,7 +84,7 @@ private final class ScriptedApi: OutboxSending, OutboxWithdrawing, @unchecked Se
         draftAttachmentIds: [String], supersededUploadIds: [String], sessionType: String?, workingDir: String?,
         agent: String?, model: String?,
         thinking: String?, clientMode: String?, heldTake: HeldTake?, noMemory: Bool?,
-        mailVerdictToken: String?
+        mailVerdictToken: String?, draftVersion: Int?
     ) async throws -> PostMessageResponse {
         let (gate, fails) = lock.withLock { () -> (Rendezvous?, Bool) in
             _postedIds.append(clientMessageId)

@@ -35,6 +35,30 @@ final class TodosFeedTests: XCTestCase {
         XCTAssertEqual(store.todos[id]?.title, "Made on the laptop")
     }
 
+    /// One change made elsewhere is read by the todo it names; the whole open set is not asked
+    /// for again.
+    func testOneChangeElsewhereDoesNotReadEveryOpenTodoAgain() async throws {
+        let server = FakeTodosServer()
+        let store = makeStore()
+        store.connect(server)
+        await store.refresh()
+        let asksBefore = await server.queryAsks
+        XCTAssertGreaterThan(asksBefore, 0)
+
+        let id = "11111111-0000-7000-8000-0000000000ee"
+        try await server.seed(id: id, title: "Ticked on the laptop")
+        let seq = await server.nextSeq()
+        await server.publish(
+            TodoEvent(
+                seq: seq, changeId: "0190a000-0000-7000-8000-0000000000ce", entity: "todo", entityId: id, todoId: id,
+                listId: nil, op: "create", before: nil, after: nil))
+        await store.catchUp()
+
+        XCTAssertEqual(store.todos[id]?.title, "Ticked on the laptop")
+        let asksAfter = await server.queryAsks
+        XCTAssertEqual(asksAfter, asksBefore)
+    }
+
     /// A server that answers the feed at once with nothing is not asked again in a loop.
     func testAServerThatDoesNotHoldTheAskIsNotAskedInALoop() async throws {
         let server = FakeTodosServer()

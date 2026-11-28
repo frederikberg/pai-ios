@@ -50,6 +50,7 @@ public enum TodoCreate {
         if let when = fields.when {
             typed["when"] = .object(["date": .string(when.date), "time": when.time.map(PaiJSONValue.string) ?? .null])
         }
+        if fields.someday == true { typed["someday"] = .bool(true) }
         if let deadline = fields.deadline {
             typed["deadline"] = .object([
                 "date": .string(deadline.date), "lead_days": deadline.leadDays.map { .number(Decimal($0)) } ?? .null,
@@ -202,7 +203,10 @@ public struct TodoAddChip: Equatable, Sendable, Identifiable {
             let mark = TodoHorizonMark.of(horizon)
             chips.append(TodoAddChip(key: "horizon", kind: "horizon", label: mark.label, color: mark.color))
         }
-        if answer.clears.contains("when") {
+        // Someday takes the day away too; its own chip says so, in place of "No date".
+        if fields.someday == true {
+            chips.append(TodoAddChip(key: "someday", kind: "when", label: "Someday"))
+        } else if answer.clears.contains("when") {
             chips.append(TodoAddChip(key: "clear:when", kind: "clear", label: "No date"))
         }
         for name in fields.tags { chips.append(TodoAddChip(key: "tag:\(name)", kind: "tag", label: name)) }

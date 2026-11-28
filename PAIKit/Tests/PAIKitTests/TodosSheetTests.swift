@@ -97,6 +97,52 @@ final class TodosSheetTests: XCTestCase {
         XCTAssertEqual(entries.map(web), array(logbook["rows"]).map(comparable))
     }
 
+    /// The days behind come before the days ahead, with what was meant for them whether ticked
+    /// or not; a deleted todo is not shown and a day left with nothing has no heading.
+    func testUpcomingShowsTheDaysBehindWithTheirClosedTodos() async throws {
+        let day = { (date: String, todos: [String]) in
+            TodosUpcomingAnswer.Day(date: date, todos: todos, deadlines: [], ghosts: [])
+        }
+        let answer = TodosUpcomingAnswer(
+            earlier: [day("2026-11-20", ["gone"]), day("2026-11-24", ["done", "open"])],
+            days: [day("2026-11-27", ["next"])], later: [], someday: [], todos: [:], seq: 1)
+        let known = todos([
+            "gone": .object(["status": .string("deleted")]), "done": .object(["status": .string("done")]),
+            "open": .object([:]), "next": .object([:]),
+        ])
+        let rows = TodoDays.upcomingRows(answer, todos: known, today: "2026-11-26", pending: [])
+        XCTAssertEqual(
+            rows.map(\.id),
+            [
+                TodoDays.dayKey("2026-11-24"), "day:2026-11-24/done", "day:2026-11-24/open",
+                TodoDays.dayKey("2026-11-27"), "day:2026-11-27/next",
+            ])
+    }
+
+    /// Looking further back asks for more days each time and stops asking once a look brings
+    /// no older day.
+    func testLookingFurtherBackInUpcomingStopsWhenNothingOlderComes() async throws {
+        let server = FakeTodosServer()
+        await server.setUpcomingOldestBack(100)
+        let clock = TodosTestClock("2026-11-26T10:00:00+01:00")
+        let store = TodosStore(storage: InMemoryTodosStorage(), scheduler: HeldScheduler(), now: { clock.now })
+        store.connect(server)
+        await store.loadUpcoming()
+        XCTAssertEqual(store.upcoming?.earlier.count, 1)
+
+        await store.loadEarlierUpcoming()
+        XCTAssertEqual(store.upcoming?.earlier.first?.date, "2026-09-01")
+        XCTAssertFalse(store.upcomingBackDone)
+
+        await store.loadEarlierUpcoming()
+        XCTAssertTrue(store.upcomingBackDone)
+        let asked = await server.upcomingAsks
+        await store.loadEarlierUpcoming()
+        let askedAfter = await server.upcomingAsks
+        XCTAssertEqual(asked, [30, 120, 210])
+        XCTAssertEqual(askedAfter, asked)
+    }
+
     func testDaysRepeatsAndNudgesAreSaidAsOnTheWeb() async throws {
         let vectors = try vectors()
         for case_ in array(vectors["headings"]) {

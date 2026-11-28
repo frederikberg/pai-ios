@@ -455,9 +455,13 @@ public enum TodoDayRow: Equatable, Sendable, Identifiable {
 }
 
 public enum TodoDays {
-    /// The days ahead, the web's `upcomingRows`: a heading per day (empty days keep theirs), the
-    /// todos planned for it, those due on it and the ghosts of repeating todos, then Later and
-    /// Someday. A todo created or moved by a queued change shows under its new day.
+    /// The key of a day's heading row, which a screen scrolls to.
+    public static func dayKey(_ date: String) -> String { "day:\(date)" }
+
+    /// Upcoming's rows, the web's `upcomingRows`: first the days behind that hold something, then
+    /// the days ahead with a heading per day (empty days keep theirs), the todos planned for it,
+    /// those due on it and the ghosts of repeating todos, then Later and Someday. A todo created
+    /// or moved by a queued change shows under its new day.
     public static func upcomingRows(
         _ answer: TodosUpcomingAnswer, todos: [String: Todo], today: String, pending: [TodosQueuedChange]
     ) -> [TodoDayRow] {
@@ -498,6 +502,20 @@ public enum TodoDays {
         }
         func visible(_ id: String) -> Bool { todos[id].map { $0.status != .deleted } ?? false }
         var rows: [TodoDayRow] = []
+        // The days behind, as the server answered them: what was meant for a day stays under it,
+        // ticked or not, and a day with nothing left to show has no heading.
+        for day in answer.earlier {
+            let planned = day.todos.filter(visible)
+            let deadlines = day.deadlines.filter { visible($0) && !planned.contains($0) }
+            guard !planned.isEmpty || !deadlines.isEmpty else { continue }
+            let heading = TodoWords.dayHeading(day.date, today: today)
+            rows.append(
+                .heading(
+                    key: "day:\(day.date)", label: heading.label, sub: heading.sub, date: day.date,
+                    count: planned.count + deadlines.count))
+            for id in planned { rows.append(.todo(key: "day:\(day.date)/\(id)", id: id)) }
+            for id in deadlines { rows.append(.todo(key: "day:\(day.date)/due:\(id)", id: id)) }
+        }
         for day in answer.days {
             let planned = (inDay[day.date] ?? []).filter(visible)
             let deadlines = day.deadlines.filter { visible($0) && !planned.contains($0) }

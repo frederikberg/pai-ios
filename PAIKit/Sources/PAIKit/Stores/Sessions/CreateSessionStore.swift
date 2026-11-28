@@ -378,6 +378,6 @@ public final class CreateSessionStore {
                 supersededUploadIds: supersededUploadIds, heldTake: heldTake, noMemory: noMemory ? true : nil
             ),
             inlineFileData: inlineFileData)
-        drafts?.setDraftText(key: DraftKey.newSession, text: "")
+        drafts?.clearAfterSend(key: DraftKey.newSession)
     }
 }

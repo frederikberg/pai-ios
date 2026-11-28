@@ -669,12 +669,16 @@ public struct PaiApiClient: Sendable {
         clientMode: String? = nil,
         heldTake: HeldTake? = nil,
         noMemory: Bool? = nil,
-        mailVerdictToken: String? = nil
+        mailVerdictToken: String? = nil,
+        draftVersion: Int? = nil
     ) async throws -> PostMessageResponse {
         let boundary = "PAIKit-\(UUID().uuidString)"
         var body = Data()
         Self.appendFormField(&body, boundary: boundary, name: "message", value: message)
         Self.appendFormField(&body, boundary: boundary, name: "client_message_id", value: clientMessageId)
+        if let draftVersion {
+            Self.appendFormField(&body, boundary: boundary, name: "draft_version", value: String(draftVersion))
+        }
         for file in files {
             Self.appendFormFile(&body, boundary: boundary, name: "files", file: file)
         }
