@@ -26,6 +26,8 @@ reminders-feed reminders-scheduler me-where todos-screens report-bar"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
+# Which device the pictures come from: its display size decides every layout in them.
+xcrun simctl list devices available | grep "$udid" || true
 bundle=$BUNDLE
 ONLY=${ONLY:-}
 fail=0
@@ -53,6 +55,7 @@ PY
 
 screenshot() {
   name="$1"; shift
+  shot_start=$SECONDS
   xcrun simctl launch "$udid" "$bundle" -PaiFixtureMode "$@" > /dev/null
   ok=0
   for attempt in $(seq 1 10); do
@@ -128,7 +131,7 @@ screenshot() {
       ;;
   esac
   bytes=$(stat -f %z "artifacts/screen-$name.png")
-  echo "$name: ${bytes} bytes"
+  echo "$name: ${bytes} bytes, $((SECONDS - shot_start))s"
   # A wholly blank screen still produces a valid PNG, just a small one — the one thing
   # every other check here can pass while the screen renders nothing.
   #
@@ -1015,4 +1018,5 @@ if [ -n "${PROBE:-}" ]; then
   . "$PROBE"
 fi
 
+echo "sweep took $((SECONDS / 60)) min $((SECONDS % 60)) s"
 [ "$fail" -eq 0 ] || { echo 'one or more screens failed — see the warnings above'; exit 1; }
