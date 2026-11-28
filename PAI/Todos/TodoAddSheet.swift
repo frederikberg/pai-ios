@@ -149,7 +149,7 @@ struct TodoAddSheet: View {
 
     /// The words read as fields, in the colours their chips wear.
     private var marks: [TodoTitleField.Mark] {
-        draft.marks.map { token in
+        draft.marks.map { token -> TodoTitleField.Mark in
             let tone: (fill: Color, ink: Color)
             switch token.kind {
             case "tag":
@@ -338,7 +338,7 @@ struct TodoAddSheet: View {
                 if titleFocused != focused { titleFocused = focused }
                 if focused, picker != nil { withAnimation(.easeOut(duration: 0.2)) { picker = nil } }
             },
-            onReturn: send, onPasteImages: stage)
+            onReturn: send, onPasteImages: { images in stage(images) })
         if !overflow.isEmpty {
             Label("The dimmed part goes to the top of the description", systemImage: "text.alignleft")
                 .font(.caption)
@@ -391,13 +391,8 @@ struct TodoAddSheet: View {
     private var detailsEditor: some View {
         TodoPlainTextEditor(
             text: $details, isFocused: detailsFocused, font: .preferredFont(forTextStyle: .subheadline),
-            showsKeyboardBar: false, onPasteImages: stage,
-            onFocusChange: { focused in
-                if !focused {
-                    detailsFocused = false
-                    editingDetails = false
-                }
-            }
+            showsKeyboardBar: false, onPasteImages: { images in stage(images) },
+            onFocusChange: { focused in detailsFocusChanged(focused) }
         )
         .frame(height: 112)
         .overlay(alignment: .topLeading) {
@@ -412,6 +407,12 @@ struct TodoAddSheet: View {
         .padding(.horizontal, 10)
         .background(RoundedRectangle(cornerRadius: 10).fill(PaiPalette.Semantic.insetBackground))
         .accessibilityLabel("Description")
+    }
+
+    private func detailsFocusChanged(_ focused: Bool) {
+        guard !focused else { return }
+        detailsFocused = false
+        editingDetails = false
     }
 
     private func openDetails() {
