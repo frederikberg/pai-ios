@@ -135,8 +135,14 @@ public final class SessionListStore {
     /// whatever source is active rather than issuing a request, since every session already
     /// carries its own `taskId` once loaded.
     public private(set) var scope: SessionListScope = .manual
-    public private(set) var semanticMode = false
+    /// Search reads meaning unless the person switches it to text.
+    public private(set) var semanticMode = true
     public private(set) var timeWindow: TimeWindow?
+    /// Whether the search field is open.
+    public private(set) var isSearching = false
+    /// Whether `timeWindow` is the one an opened search starts with rather than one the person
+    /// picked: it leaves again with the search.
+    private var windowCameWithSearch = false
 
     // MARK: Sources B/C — server-filtered
 
@@ -505,7 +511,28 @@ public final class SessionListStore {
     /// The time picker's choice, `nil` to clear it. A discrete choice, so it answers immediately.
     public func setTimeWindow(_ window: TimeWindow?) {
         timeWindow = window
+        windowCameWithSearch = false
         refetchServerFiltered()
+    }
+
+    /// The window a search starts in when the person has picked none.
+    public static let searchWindow = TimeWindow.preset(.last30Days)
+
+    /// The search field opened or closed. An opened search looks at the last 30 days unless a
+    /// window is already set; that window is shown as its chip, can be changed or cleared like
+    /// any other, and leaves with the search when it was not touched.
+    public func setSearching(_ searching: Bool) {
+        guard searching != isSearching else { return }
+        isSearching = searching
+        if searching, timeWindow == nil {
+            timeWindow = Self.searchWindow
+            windowCameWithSearch = true
+            refetchServerFiltered()
+        } else if !searching, windowCameWithSearch {
+            timeWindow = nil
+            windowCameWithSearch = false
+            refetchServerFiltered()
+        }
     }
 
     // MARK: - Source A: bootstrap, poll, page

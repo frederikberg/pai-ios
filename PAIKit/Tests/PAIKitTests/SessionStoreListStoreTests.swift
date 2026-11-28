@@ -109,6 +109,7 @@ final class SessionStoreListStoreTests: XCTestCase {
     func testOrdinaryTypingIsDebouncedNotImmediate() async {
         let api = FakeSessionListApi()
         let store = makeStore(api: api)
+        store.setSemanticMode(false)
 
         store.updateFilterText("release notes")
 
@@ -124,6 +125,7 @@ final class SessionStoreListStoreTests: XCTestCase {
     func testRetypingQuicklyCancelsThePendingDebounceAndFiresOnlyOnce() async {
         let api = FakeSessionListApi()
         let store = makeStore(api: api)
+        store.setSemanticMode(false)
 
         store.updateFilterText("r")
         store.updateFilterText("re")
@@ -141,6 +143,7 @@ final class SessionStoreListStoreTests: XCTestCase {
         // bypassed the debounce. Sleeping a couple of milliseconds instead makes the test a claim
         // about how fast the machine schedules a task, which fails under a loaded suite.
         let store = makeStore(api: api, debounceNanos: 600_000_000_000)
+        store.setSemanticMode(false)
         store.updateFilterText("release notes")
 
         store.commitFilterTextNow()
@@ -348,6 +351,7 @@ final class SessionStoreListStoreTests: XCTestCase {
         let api = FakeSessionListApi()
         await answerByMode(api)
         let store = makeStore(api: api)
+        store.setSemanticMode(false)
         store.updateFilterText("match")
 
         await awaitRows(store, ["text-new", "text-old"])
@@ -371,6 +375,7 @@ final class SessionStoreListStoreTests: XCTestCase {
             ])
         }
         let store = makeStore(api: api)
+        store.setSemanticMode(false)
         store.updateFilterText("match")
         _ = await awaitSearchCalls(api, count: 1)
 
