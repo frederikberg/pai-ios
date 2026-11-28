@@ -4,15 +4,29 @@ import UIKit
 
 /// Plain text, typed fast: the system's own text view with nothing between the keys and the
 /// words, so the caret stays where it is, double space makes a full stop and long text does not
-/// lag. A bar above the keyboard hides it.
+/// lag. A bar above the keyboard hides it, unless the screen has a control for that of its own.
+/// With `onPasteImages` a pasted picture is handed on as a file, as a title hands it on.
 struct TodoPlainTextEditor: UIViewRepresentable {
     @Binding var text: String
     var isFocused = false
     var isEditable = true
     var font = UIFont.preferredFont(forTextStyle: .body)
+    var showsKeyboardBar = true
+    var onPasteImages: (([PastedImage]) -> Void)?
+    var onFocusChange: (Bool) -> Void = { _ in }
 
     func makeUIView(context: Context) -> UITextView {
-        let view = UITextView()
+        let view: UITextView
+        if onPasteImages != nil {
+            let pasting = PasteAwareTextView()
+            pasting.onPasteImages = { [weak coordinator = context.coordinator] images in
+                coordinator?.parent.onPasteImages?(images)
+                return nil
+            }
+            view = pasting
+        } else {
+            view = UITextView()
+        }
         view.delegate = context.coordinator
         view.font = font
         view.adjustsFontForContentSizeCategory = true
@@ -22,7 +36,7 @@ struct TodoPlainTextEditor: UIViewRepresentable {
         view.textContainer.lineFragmentPadding = 0
         view.alwaysBounceVertical = true
         view.keyboardDismissMode = .interactive
-        view.inputAccessoryView = context.coordinator.makeKeyboardBar()
+        if showsKeyboardBar { view.inputAccessoryView = context.coordinator.makeKeyboardBar() }
         view.text = text
         return view
     }
@@ -59,6 +73,16 @@ struct TodoPlainTextEditor: UIViewRepresentable {
             parent.text = textView.text
         }
 
+        // Told a turn later, as the title field tells it: the keyboard can move inside a view
+        // update, where changing what the screen shows is not allowed.
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            Task { @MainActor in self.parent.onFocusChange(true) }
+        }
+
+        func textViewDidEndEditing(_ textView: UITextView) {
+            Task { @MainActor in self.parent.onFocusChange(false) }
+        }
+
         func makeKeyboardBar() -> UIToolbar {
             let bar = UIToolbar(frame: CGRect(x: 0, y: 0, width: 0, height: 44))
             let hide = UIBarButtonItem(
@@ -73,29 +97,6 @@ struct TodoPlainTextEditor: UIViewRepresentable {
         @objc private func hideKeyboard() {
             TodoKeyboard.dismiss()
         }
-    }
-}
-
-/// The description of a todo not made yet: written here, kept with the sheet's draft, sent with
-/// the todo.
-struct TodoDraftDescriptionSheet: View {
-    @Binding var text: String
-    /// The todo's title so far, under the heading.
-    let subtitle: String
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            TodoPlainTextEditor(text: $text, isFocused: true)
-                .padding(.horizontal, 16)
-                .toolbar {
-                    ToolbarItem(placement: .principal) { TodoDescriptionHeading(subtitle: subtitle) }
-                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-                }
-                .navigationBarTitleDisplayMode(.inline)
-        }
-        .fixtureFact("todosDescriptionEditor", "draft")
     }
 }
 
@@ -118,16 +119,27 @@ struct TodoDescriptionHeading: View {
 struct TodoDescriptionScreen: View {
     let todo: Todo
     let canEdit: Bool
+    let store: TodosStore
 
-    @Environment(AppEnvironment.self) private var environment
+    @Environment(ToastCenter.self) private var toasts
     @Environment(\.dismiss) private var dismiss
     /// Begun once the whole description has been read.
     @State private var saver: TodoBodySaver?
 
-    /// The todo as last read whole; a row carries only the first line of its description.
-    private var read: Todo? {
-        environment.todos.details[todo.id]?.todo ?? (todo.body != nil ? todo : nil)
+    /// A description already read whole is on screen with the first frame.
+    init(todo: Todo, canEdit: Bool, store: TodosStore) {
+        self.todo = todo
+        self.canEdit = canEdit
+        self.store = store
+        _saver = State(initialValue: Self.read(todo, in: store).flatMap { TodoBodySaver($0, store: store) })
     }
+
+    /// The todo as last read whole; a row carries only the first line of its description.
+    private static func read(_ todo: Todo, in store: TodosStore) -> Todo? {
+        store.details[todo.id]?.todo ?? (todo.body != nil ? todo : nil)
+    }
+
+    private var read: Todo? { Self.read(todo, in: store) }
 
     var body: some View {
         Group {
@@ -166,7 +178,8 @@ struct TodoDescriptionScreen: View {
                 }
             }
             TodoPlainTextEditor(
-                text: Binding(get: { saver.text }, set: { saver.text = $0 }), isFocused: canEdit, isEditable: canEdit)
+                text: Binding(get: { saver.text }, set: { saver.text = $0 }), isFocused: canEdit, isEditable: canEdit,
+                onPasteImages: canEdit ? attach : nil)
         }
         .padding(.horizontal, 16)
         .task(id: saver.text) {
@@ -193,7 +206,25 @@ struct TodoDescriptionScreen: View {
 
     private func begin() {
         guard saver == nil, let read else { return }
-        saver = TodoBodySaver(read, store: environment.todos)
+        saver = TodoBodySaver(read, store: store)
+    }
+
+    /// A pasted picture becomes a file of the todo, listed under Files on its screen.
+    private func attach(_ images: [PastedImage]) {
+        var kept = 0
+        for image in images {
+            let file = AttachmentCompression.stage(data: image.data, filename: image.filename, mimeType: image.mimeType)
+            if store.attach(todoId: todo.id, name: file.filename, contentType: file.mimeType, data: file.data) == nil {
+                toasts.show("Could not keep \u{201C}\(file.filename)\u{201D} on this iPhone to send it.", kind: .error)
+            } else {
+                kept += 1
+            }
+        }
+        if kept > 0 {
+            toasts.show(
+                kept == 1 ? "Picture added to the todo's files" : "\(kept) pictures added to the todo's files",
+                kind: .success)
+        }
     }
 }
 

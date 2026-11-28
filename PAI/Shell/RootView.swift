@@ -30,6 +30,7 @@ struct RootView: View {
     /// A todo opened from outside: a nudge's push, a link to it, or the first of the todos plain
     /// words became in the sheet above.
     @State private var openedTodo: TodoSheetTarget?
+    @State private var landedAtLaunch = false
 
     /// The parked deep link, if one is waiting. Read through the observable inbox rather than
     /// polled, so a notification tapped while the app is already open navigates immediately
@@ -92,7 +93,11 @@ struct RootView: View {
             // Two triggers, because a link and a usable app arrive in either order: tapped while
             // the app is open, the link is last; tapped from cold, the gate opening is last.
             .onChange(of: deepLinks.pending) { _, _ in consumeDeepLink() }
-            .onChange(of: environment.router.gate) { _, _ in consumeDeepLink() }
+            .onChange(of: environment.router.gate) { _, _ in
+                landAtLaunch()
+                consumeDeepLink()
+            }
+            .task { landAtLaunch() }
             // Reaching a session — by any route other than tapping the notification itself,
             // which already marks its own row read on the way in
             // (`resolveAndOpenNotification`) — clears whatever is still waiting for it, once the
@@ -509,6 +514,20 @@ struct RootView: View {
     /// Left in the inbox otherwise rather than dropped: a notification tapped from cold arrives
     /// well before the token has been read and the connection built, and discarding it there is
     /// exactly the case this whole mechanism exists for.
+    /// A start of the app that nothing else steers opens the launcher, the screen every app is
+    /// one tap from; the session list is behind it. A link that brought the app up, a restored
+    /// place and sleep time keep their own screen.
+    private func landAtLaunch() {
+        guard !landedAtLaunch, environment.router.gate == .ready else { return }
+        landedAtLaunch = true
+        guard deepLinks.pending == nil, environment.router.path.isEmpty, !environment.router.isAsleep else { return }
+        #if DEBUG
+            // A fixture run photographs the screen its route names, the root list included.
+            if PaiFixtureLaunch.isEnabled() { return }
+        #endif
+        environment.router.push(.quickActions)
+    }
+
     private func consumeDeepLink() {
         guard environment.router.gate == .ready, let connection = environment.connection else { return }
         guard let link = deepLinks.consume() else { return }

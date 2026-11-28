@@ -201,7 +201,31 @@ actor FakeTodosServer: TodosBackend {
                 }
                 attached.append((todo: op.string("todo")!, blob: blob, name: op.string("name") ?? ""))
             case "desk.remove":
+                guard stagedDesk.contains(where: { $0.todoId == op.string("item") || $0.id == op.string("item") })
+                else { throw try refusal("error-404-not-found", status: 404) }
                 stagedDesk.removeAll { $0.todoId == op.string("item") || $0.id == op.string("item") }
+            case "desk.move":
+                // By position among the other items, as the server places a moved item.
+                guard
+                    let from = stagedDesk.firstIndex(where: {
+                        $0.todoId == op.string("item") || $0.id == op.string("item")
+                    })
+                else { throw try refusal("error-404-not-found", status: 404) }
+                let moved = stagedDesk.remove(at: from)
+                func index(_ ref: String?) -> Int? {
+                    stagedDesk.firstIndex { $0.id == ref || $0.todoId == ref }
+                }
+                var at = stagedDesk.count
+                if case .string("first") = op.fields["position"] { at = 0 }
+                if let ref = op.object("position")?.string("before") {
+                    guard let found = index(ref) else { throw try refusal("error-422-op", status: 422) }
+                    at = found
+                }
+                if let ref = op.object("position")?.string("after") {
+                    guard let found = index(ref) else { throw try refusal("error-422-op", status: 422) }
+                    at = found + 1
+                }
+                stagedDesk.insert(moved, at: at)
             default:
                 break
             }
@@ -422,6 +446,10 @@ actor FakeTodosServer: TodosBackend {
     func todosCompose(_ request: TodosComposeRequest) async throws -> TodosComposeAnswer {
         try reach()
         composed.append(request)
+        if let composeFailure {
+            self.composeFailure = nil
+            throw composeFailure
+        }
         if composeRefuses {
             // The route's own refusal when no model answered: 503 `unavailable`.
             let body = try JSONDecoder().decode(
@@ -452,6 +480,17 @@ actor FakeTodosServer: TodosBackend {
         return Data()
     }
 
+    private var composeFailure: TodosApiError?
+
+    func failNextCompose(_ error: TodosApiError) { composeFailure = error }
+
+    private(set) var remembered: [TodosRecent] = []
+
+    func todosRecent(kind: TodosRecent.Kind, target: String) async throws {
+        try reach()
+        remembered.append(TodosRecent(kind: kind, target: target))
+    }
+
     private(set) var searched: [TodosSearchRequest] = []
 
     func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer {
@@ -460,7 +499,7 @@ actor FakeTodosServer: TodosBackend {
         return TodosSearchAnswer(
             query: .init(corrections: []), top: nil, todos: [], fewer: [],
             counts: .init(open: 0, closed: 0, deleted: 0, capped: false), tags: [], views: [], lists: [], offers: [],
-            nextCursor: nil, examples: nil)
+            nextCursor: nil, recents: nil, repeated: nil, examples: nil)
     }
 }
 

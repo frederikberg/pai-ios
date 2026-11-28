@@ -15,11 +15,14 @@ struct TodoAddDeskSection: Equatable {
 }
 
 /// The sheet a todo is made in: a panel from the bottom that sits on the keyboard. The line is
-/// read by the server's parser while typing; what it reads, the open view's defaults (dashed, a
+/// read by the server's parser while typing: a word it reads as a field is marked in the line and
+/// stays marked while typing goes on, and what it reads, the open view's defaults (dashed, a
 /// tap leaves one off) and what the pickers chose show as chips in one place. A tap on a field's
-/// icon puts its picker where the keyboard was, with the line kept as typed.
+/// icon puts its picker where the keyboard was, with the line kept as typed. The description is
+/// written in the panel itself, under the line.
 ///
-/// Return and the round arrow add the todo and leave the sheet open for the next one, with the
+/// The line's keyboard carries @ and # beside the space bar, in Return's place. The round arrow
+/// (and Return on a keyboard that has it) adds the todo and leaves the sheet open for the next one, with the
 /// view's defaults back in place; a note above the sheet opens the one just made. What is typed
 /// is kept on the device until it is sent or discarded, and closing with words typed asks first.
 ///
@@ -60,6 +63,7 @@ struct TodoAddSheet: View {
     @State private var restored = false
     @State private var shown = false
     @State private var editingDetails = false
+    @State private var detailsFocused = false
     @State private var pickingPhoto = false
     @State private var pickingFile = false
     @State private var reading = false
@@ -108,7 +112,9 @@ struct TodoAddSheet: View {
 
     private var today: String { todos.personsToday }
 
-    private var answer: TodosParseAnswer? { draft.answer(for: draft.text) }
+    /// The parser's last answer, kept while the next one is on its way so nothing under the
+    /// line comes and goes between keystrokes. Sending never uses it for other text (`take`).
+    private var answer: TodosParseAnswer? { draft.answer }
 
     /// What the sheet holds, as it is kept on the device.
     private var entry: TodoEntryDraft {
@@ -139,7 +145,30 @@ struct TodoAddSheet: View {
     }
 
     /// The words that will move to the description, dimmed while typing.
-    private var overflow: [Range<Int>] { TodoTitles.overflow(of: draft.text, tokens: answer?.tokens ?? []) }
+    private var overflow: [Range<Int>] { TodoTitles.overflow(of: draft.text, tokens: draft.marks) }
+
+    /// The words read as fields, in the colours their chips wear.
+    private var marks: [TodoTitleField.Mark] {
+        draft.marks.map { token in
+            let tone: (fill: Color, ink: Color)
+            switch token.kind {
+            case "tag":
+                let color = tagColor(token.value.stringValue ?? String(token.display.drop { $0 == "#" || $0 == "@" }))
+                tone = (color.chip, color.chipText)
+            case "horizon":
+                let color = TodoHorizonMark.of(
+                    token.value.stringValue.flatMap { TodoHorizon.knownValues[$0] } ?? .whenever
+                )
+                .color
+                tone = (color.chip, color.chipText)
+            case "when":
+                tone = (PaiPalette.primary500.opacity(0.16), PaiPalette.primary500)
+            default:
+                tone = (PaiPalette.Semantic.raisedSurface, PaiPalette.Semantic.textPrimary)
+            }
+            return TodoTitleField.Mark(range: token.start..<token.end, fill: UIColor(tone.fill), ink: UIColor(tone.ink))
+        }
+    }
 
     private var canSend: Bool {
         !words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !reading
@@ -174,15 +203,14 @@ struct TodoAddSheet: View {
         } message: {
             Text("What you typed here is not saved as a todo yet.")
         }
-        .sheet(isPresented: $editingDetails) {
-            TodoDraftDescriptionSheet(text: $details, subtitle: draft.text)
-        }
         .sheet(isPresented: $pickingPhoto) { PhotoAttachmentPicker { files += $0 } }
         .sheet(isPresented: $pickingFile) { FileAttachmentPicker { files += $0 } }
         .task(id: draft.text) {
             try? await Task.sleep(for: .seconds(TodoCaptureDraft.debounceSeconds))
             guard !Task.isCancelled else { return }
-            await draft.read()
+            // On its own, so the next keystroke does not cancel it: its answer is placed on the
+            // line as typed since, and the words it read are marked while typing goes on.
+            Task { await draft.read() }
         }
         .task { restore() }
         .task(id: notice?.id) {
@@ -203,6 +231,8 @@ struct TodoAddSheet: View {
         .fixtureFact("todosAddWords", String(words.split(separator: " ").count))
         .fixtureFact("todosAddPicker", picker?.rawValue ?? "")
         .fixtureFact("todosAddDimmed", String(overflow.count))
+        .fixtureFact("todosAddMarks", String(draft.marks.count))
+        .fixtureFact("todosAddDescription", editingDetails ? "open" : "closed")
     }
 
     /// What was kept from last time comes back, unless the sheet was opened with words of its own.
@@ -228,6 +258,11 @@ struct TodoAddSheet: View {
                 } else {
                     picker = TodoPicker(rawValue: name)
                 }
+            }
+            if let text = PaiFixtureLaunch.requestedTodosDetails() {
+                details = text
+                openDetails()
+                return
             }
         #endif
         // A sheet opened with its words already there shows them and their chips whole;
@@ -298,34 +333,33 @@ struct TodoAddSheet: View {
     @ViewBuilder private var lineBlock: some View {
         TodoTitleField(
             text: $draft.text, placeholder: parent == nil ? "What needs doing?" : "Subtask", dimmed: overflow,
-            isFocused: titleFocused,
+            marks: marks, isFocused: titleFocused, keyboardType: .twitter,
             onFocusChange: { focused in
                 if titleFocused != focused { titleFocused = focused }
                 if focused, picker != nil { withAnimation(.easeOut(duration: 0.2)) { picker = nil } }
             },
-            onReturn: send,
-            onPasteImages: { images in
-                files += images.map {
-                    AttachmentCompression.stage(data: $0.data, filename: $0.filename, mimeType: $0.mimeType)
-                }
-            })
+            onReturn: send, onPasteImages: stage)
         if !overflow.isEmpty {
             Label("The dimmed part goes to the top of the description", systemImage: "text.alignleft")
                 .font(.caption)
                 .foregroundStyle(PaiPalette.Semantic.textMuted)
         }
-        Button {
-            editingDetails = true
-        } label: {
-            Label(detailsLine, systemImage: "text.alignleft")
-                .font(.subheadline)
-                .lineLimit(1)
-                .foregroundStyle(details.isEmpty ? PaiPalette.Semantic.textFaint : PaiPalette.Semantic.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+        if editingDetails {
+            detailsEditor
+        } else {
+            Button(action: openDetails) {
+                Label(detailsLine, systemImage: "text.alignleft")
+                    .font(.subheadline)
+                    .lineLimit(1)
+                    .foregroundStyle(
+                        details.isEmpty ? PaiPalette.Semantic.textFaint : PaiPalette.Semantic.textSecondary
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(details.isEmpty ? "Add a description" : "Description: \(detailsLine)")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(details.isEmpty ? "Add a description" : "Description: \(detailsLine)")
         TodoHeldFiles(
             items: files.map { TodoHeldFiles.Item(id: $0.id.uuidString, name: $0.filename, image: $0.previewImage) }
         ) { id in
@@ -349,6 +383,47 @@ struct TodoAddSheet: View {
             TodoRailButton(
                 systemImage: "arrow.up", label: parent == nil ? "Add todo" : "Add subtask", prominent: true,
                 disabled: !canSend, action: send)
+        }
+    }
+
+    /// The description, written where its line was: the keyboard stays up and moves to it, and
+    /// leaving it (the title, a picker, the keyboard put down) folds it back to its first line.
+    private var detailsEditor: some View {
+        TodoPlainTextEditor(
+            text: $details, isFocused: detailsFocused, font: .preferredFont(forTextStyle: .subheadline),
+            showsKeyboardBar: false, onPasteImages: stage,
+            onFocusChange: { focused in
+                if !focused {
+                    detailsFocused = false
+                    editingDetails = false
+                }
+            }
+        )
+        .frame(height: 112)
+        .overlay(alignment: .topLeading) {
+            if details.isEmpty {
+                Text("Description")
+                    .font(.subheadline)
+                    .foregroundStyle(PaiPalette.Semantic.textFaint)
+                    .padding(.top, 8)
+                    .allowsHitTesting(false)
+            }
+        }
+        .padding(.horizontal, 10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(PaiPalette.Semantic.insetBackground))
+        .accessibilityLabel("Description")
+    }
+
+    private func openDetails() {
+        withAnimation(.easeOut(duration: 0.2)) { picker = nil }
+        editingDetails = true
+        detailsFocused = true
+    }
+
+    /// Pictures pasted into the line or the description wait with the todo as its files.
+    private func stage(_ images: [PastedImage]) {
+        files += images.map {
+            AttachmentCompression.stage(data: $0.data, filename: $0.filename, mimeType: $0.mimeType)
         }
     }
 
@@ -387,6 +462,7 @@ struct TodoAddSheet: View {
     private func lowerKeyboard() {
         titleFocused = false
         describeFocused = false
+        detailsFocused = false
         TodoKeyboard.dismiss()
     }
 
@@ -585,7 +661,8 @@ struct TodoAddSheet: View {
             .defaultScrollAnchor(.bottom)
         } else {
             TodoPlainTextEditor(
-                text: plainWords, isFocused: describeFocused, font: .preferredFont(forTextStyle: .title3)
+                text: plainWords, isFocused: describeFocused, font: .preferredFont(forTextStyle: .title3),
+                showsKeyboardBar: false
             )
             .frame(minHeight: 96, maxHeight: 180)
             .overlay(alignment: .topLeading) {
@@ -602,7 +679,7 @@ struct TodoAddSheet: View {
         describeStatus
         HStack(spacing: 2) {
             Button(action: switchMode) {
-                Label("Type one line instead", systemImage: "text.cursor").font(.footnote.weight(.semibold))
+                Label("Back to normal add", systemImage: "arrow.uturn.backward").font(.footnote.weight(.semibold))
             }
             .disabled(reading)
             .accessibilityIdentifier("todo-add-mode")
@@ -636,13 +713,9 @@ struct TodoAddSheet: View {
         }
         if let failure {
             VStack(alignment: .leading, spacing: 6) {
-                Text(
-                    failure == .unread
-                        ? "The model did not answer. Your words are kept."
-                        : "There is no connection to read the words. They are kept."
-                )
-                .font(.footnote)
-                .foregroundStyle(PaiPalette.Semantic.errorText)
+                Text(failure.message)
+                    .font(.footnote)
+                    .foregroundStyle(PaiPalette.Semantic.errorText)
                 HStack(spacing: 16) {
                     Button("Try again", action: send)
                     Button("Add as typed", action: addAsTyped)

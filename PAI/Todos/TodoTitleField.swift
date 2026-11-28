@@ -5,7 +5,8 @@ import UIKit
 /// A todo's title, new or existing, as one field: it grows line by line up to `maxLines` and then
 /// scrolls inside itself with the newest line in view, Return never makes a line (it sends or
 /// saves, whatever `onReturn` does), a pasted picture is handed on as a file instead of refused,
-/// and the words that will not stay in the title are drawn dimmed.
+/// the words read as fields are marked in their field's colour, and the words that will not stay
+/// in the title are drawn dimmed.
 ///
 /// A text view rather than SwiftUI's vertical `TextField`, whose Return key inserts a line break
 /// and never reports a submit.
@@ -14,13 +15,23 @@ struct TodoTitleField: UIViewRepresentable {
     var placeholder: String
     /// UTF-16 ranges of `text` drawn dimmed: the part that moves to the description.
     var dimmed: [Range<Int>] = []
+    /// Words read as fields, marked where they sit.
+    var marks: [Mark] = []
     var isFocused: Bool
     var isEditable = true
     var maxLines = 5
     var returnKey: UIReturnKeyType = .send
+    var keyboardType: UIKeyboardType = .default
     var onFocusChange: (Bool) -> Void = { _ in }
     var onReturn: () -> Void = {}
     var onPasteImages: ([PastedImage]) -> Void = { _ in }
+
+    /// A UTF-16 range of the text with the colours of the field it was read as.
+    struct Mark: Equatable {
+        let range: Range<Int>
+        let fill: UIColor
+        let ink: UIColor
+    }
 
     static let font = UIFont.preferredFont(forTextStyle: .title3).withWeight(.semibold)
 
@@ -56,18 +67,28 @@ struct TodoTitleField: UIViewRepresentable {
         if view.text != text { view.text = text }
         view.isEditable = isEditable
         view.returnKeyType = returnKey
+        if view.keyboardType != keyboardType {
+            view.keyboardType = keyboardType
+            view.reloadInputViews()
+        }
         context.coordinator.placeholder?.text = placeholder
         context.coordinator.placeholder?.isHidden = !text.isEmpty
         context.coordinator.paint(view)
-        if isFocused, !view.isFirstResponder {
-            // A view not yet in a window cannot take the keyboard; ask once it is.
-            if view.window != nil {
-                view.becomeFirstResponder()
-            } else {
-                DispatchQueue.main.async { [weak view] in view?.becomeFirstResponder() }
+        // The keyboard follows a change of `isFocused`, never its standing value: while another
+        // field takes the keyboard this one is told a turn later, and asking again meanwhile
+        // would take it straight back.
+        if isFocused != context.coordinator.appliedFocus {
+            context.coordinator.appliedFocus = isFocused
+            if isFocused, !view.isFirstResponder {
+                // A view not yet in a window cannot take the keyboard; ask once it is.
+                if view.window != nil {
+                    view.becomeFirstResponder()
+                } else {
+                    DispatchQueue.main.async { [weak view] in view?.becomeFirstResponder() }
+                }
+            } else if !isFocused, view.isFirstResponder {
+                view.resignFirstResponder()
             }
-        } else if !isFocused, view.isFirstResponder {
-            view.resignFirstResponder()
         }
         view.invalidateIntrinsicContentSize()
     }
@@ -88,6 +109,8 @@ struct TodoTitleField: UIViewRepresentable {
     final class Coordinator: NSObject, UITextViewDelegate {
         var parent: TodoTitleField
         var placeholder: UILabel?
+        /// The `isFocused` the keyboard was last moved for.
+        var appliedFocus: Bool?
 
         init(parent: TodoTitleField) {
             self.parent = parent
@@ -99,7 +122,13 @@ struct TodoTitleField: UIViewRepresentable {
         }
 
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-            guard text == "\n" else { return true }
+            guard text == "\n" else {
+                // What is typed next to a marked word is plain until the parser says otherwise.
+                textView.typingAttributes = [
+                    .font: TodoTitleField.font, .foregroundColor: UIColor(PaiPalette.Semantic.textStrong),
+                ]
+                return true
+            }
             parent.onReturn()
             return false
         }
@@ -107,15 +136,18 @@ struct TodoTitleField: UIViewRepresentable {
         // Told a turn later: the keyboard can come and go from inside a view update, where
         // changing what the screen shows is not allowed.
         func textViewDidBeginEditing(_ textView: UITextView) {
+            appliedFocus = true
             Task { @MainActor in self.parent.onFocusChange(true) }
         }
 
         func textViewDidEndEditing(_ textView: UITextView) {
+            appliedFocus = false
             Task { @MainActor in self.parent.onFocusChange(false) }
         }
 
-        /// Colours the words: the title's own bright, the part that moves dimmed. Left alone
-        /// while a word is still being composed, which a change of attributes would end.
+        /// Colours the words: the title's own bright, a word read as a field in its field's
+        /// colours, the part that moves dimmed. Left alone while a word is still being composed,
+        /// which a change of attributes would end.
         func paint(_ view: UITextView) {
             guard view.markedTextRange == nil else { return }
             let storage = view.textStorage
@@ -123,6 +155,12 @@ struct TodoTitleField: UIViewRepresentable {
             let bright = UIColor(PaiPalette.Semantic.textStrong)
             storage.beginEditing()
             storage.addAttribute(.foregroundColor, value: bright, range: whole)
+            storage.removeAttribute(.backgroundColor, range: whole)
+            for mark in parent.marks where !mark.range.isEmpty && mark.range.upperBound <= storage.length {
+                let range = NSRange(location: mark.range.lowerBound, length: mark.range.count)
+                storage.addAttribute(.backgroundColor, value: mark.fill, range: range)
+                storage.addAttribute(.foregroundColor, value: mark.ink, range: range)
+            }
             for range in parent.dimmed where range.upperBound <= storage.length {
                 storage.addAttribute(
                     .foregroundColor, value: UIColor(PaiPalette.Semantic.textFaint),

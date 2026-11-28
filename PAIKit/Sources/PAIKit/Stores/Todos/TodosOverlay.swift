@@ -191,7 +191,8 @@ public enum TodosOverlay {
 
     /// The desk with queued desk ops applied, so an add, a drag or a Clear shows before the
     /// server answers. `todos` are the effective todos, used to know which ones are done for
-    /// "clear done". A create with `desk: true` puts its new todo on the desk last.
+    /// "clear done", and to leave a deleted todo out. A create with `desk: true` puts its new
+    /// todo on the desk last.
     public static func applyDeskOps(
         _ items: [TodoDeskItem], changes: [TodosQueuedChange], todos: [String: Todo]
     ) -> [TodoDeskItem] {
@@ -242,7 +243,8 @@ public enum TodosOverlay {
                 }
             }
         }
-        return out
+        // A deleted todo leaves the desk at once, a queued delete included.
+        return out.filter { item in item.todoId.map { todos[$0]?.status != .deleted } ?? true }
     }
 
     // MARK: - The feed

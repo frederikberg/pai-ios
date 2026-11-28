@@ -327,19 +327,17 @@ public final class TodosStore {
         -> TodosComposed
     {
         let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !words.isEmpty else { throw TodosComposeFailure.unread }
+        guard !words.isEmpty else { throw TodosComposeFailure.nothingRead }
         guard let backend else { throw TodosComposeFailure.unreachable }
         let answer: TodosComposeAnswer
         do {
             answer = try await backend.todosCompose(TodosComposeRequest(text: words, list: place.listId))
-        } catch is TodosApiError {
-            throw TodosComposeFailure.unread
         } catch {
-            throw TodosComposeFailure.unreachable
+            throw TodosComposeFailure.of(error)
         }
         let ops = TodoCreate.withViewDefaults(
             answer.ops.filter { $0.name == "todo.create" }, place: place, today: currentDay())
-        guard let first = ops.first?.string("id") else { throw TodosComposeFailure.unread }
+        guard let first = ops.first?.string("id") else { throw TodosComposeFailure.nothingRead }
         let changeId = submit(ops, source: source)
         return TodosComposed(changeId: changeId, firstTodoId: first, count: ops.count)
     }
@@ -1170,6 +1168,13 @@ public final class TodosStore {
         return answer
     }
 
+    /// Tells the server what was opened from search, which its zero state then lists as recent.
+    /// Best effort: a lost call costs one line of that list.
+    public func remember(_ kind: TodosRecent.Kind, target: String) {
+        guard let backend else { return }
+        Task { try? await backend.todosRecent(kind: kind, target: target) }
+    }
+
     /// The numbers beside the views.
     public func refreshViewCounts() async {
         guard let backend, me?.prefs != nil else { return }
@@ -1299,10 +1304,36 @@ public enum TodosUndoOutcome: Equatable, Sendable {
 /// Why plain words did not become todos. Nothing was queued either way; the words stay with
 /// the person.
 public enum TodosComposeFailure: Error, Equatable, Sendable {
-    /// No connection or no sign-in to ask the model with: the words can still be added as typed.
+    /// No answer from the server: the words can still be added as typed.
     case unreachable
-    /// The model did not answer, or read no todo in the words.
+    /// The sign-in is gone.
+    case signedOut
+    /// The server asked its models and none answered (503 `unavailable`).
     case unread
+    /// The model answered and read no todo in the words.
+    case nothingRead
+    /// The server refused the words, in its own sentence.
+    case refused(String)
+
+    static func of(_ error: Error) -> TodosComposeFailure {
+        if let refusal = error as? TodosApiError, refusal.code == "unavailable" { return .unread }
+        switch TodosFailure.of(error) {
+        case .retry: return .unreachable
+        case .signedOut: return .signedOut
+        case .refused(let refusal), .serverError(let refusal): return .refused(refusal.message)
+        }
+    }
+
+    /// What the sheet says; the words are kept in every case.
+    public var message: String {
+        switch self {
+        case .unreachable: "The server could not be reached to read the words. They are kept."
+        case .signedOut: "You are signed out, so the words were not read. They are kept."
+        case .unread: "The model did not answer. Your words are kept."
+        case .nothingRead: "The model found no todo in these words. They are kept."
+        case .refused(let reason): "Not read: \(reason) Your words are kept."
+        }
+    }
 }
 
 /// Plain words queued as todos: the one change, the first todo (the one to open), and how many.

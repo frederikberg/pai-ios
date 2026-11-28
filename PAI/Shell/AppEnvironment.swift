@@ -323,7 +323,11 @@ final class AppEnvironment {
     /// only what the server has and is kept out of the backup. A fixture run keeps nothing.
     private static func makeTodos() -> TodosStore {
         #if DEBUG
-            if PaiFixtureLaunch.isEnabled() { return TodosStore(storage: InMemoryTodosStorage()) }
+            // The corpus is dated: its clock stands at a morning of its own day, so a time later
+            // that day is still ahead.
+            if PaiFixtureLaunch.isEnabled() {
+                return TodosStore(storage: InMemoryTodosStorage(), now: { PaiFixtures.todosNow })
+            }
         #endif
         let support = URL.applicationSupportDirectory
         var cacheRoot = support.appendingPathComponent("TodosCache", isDirectory: true)

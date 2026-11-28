@@ -7,6 +7,8 @@ import Foundation
 extension PaiFixtures {
 
     public static let todosDay = "2026-11-26"
+    /// A morning of `todosDay`, the clock a fixture run's Todos reads.
+    public static let todosNow = Date(timeIntervalSince1970: 1_795_680_000)
     public static let todosPersonalList = "0190f000-0000-7000-8000-00000000a001"
     public static let todosGroceriesList = "0190f000-0000-7000-8000-00000000a002"
     public static let todosFlatList = "0190f000-0000-7000-8000-00000000a003"
@@ -544,7 +546,22 @@ extension PaiFixtures {
         let tags = (todosMe()["tags"] as? [[String: Any]] ?? []).filter { tag in
             words.contains { (tag["name"] as? String ?? "").contains($0) }
         }
-        return [
+        // Before anything is typed: what was opened lately, a search run often, and examples.
+        let views = (todosMe()["views"] as? [[String: Any]]) ?? []
+        let zero: [String: Any] =
+            q.isEmpty
+            ? [
+                "recents": [
+                    ["kind": "todo", "target": todosParent, "last_at": "2026-11-26T08:00:00.000001+00:00", "hits": 3],
+                    [
+                        "kind": "view", "target": views.first?["id"] ?? "",
+                        "last_at": "2026-11-26T07:30:00.000001+00:00", "hits": 2,
+                    ],
+                    ["kind": "query", "target": "kettle", "last_at": "2026-11-25T18:00:00.000001+00:00", "hits": 1],
+                ],
+                "repeated": ["tag:errand"], "examples": ["tag:home", "is:done bike", "deadline:<today"],
+            ] : [:]
+        return zero.merging([
             "query": [
                 "raw": q, "normalized": q, "structured": false, "tokens": [], "issues": [], "pending": NSNull(),
                 "corrections": [], "defaults": [],
@@ -554,6 +571,6 @@ extension PaiFixtures {
             "tags": tags.map { ["tag": $0, "parts": [["t": $0["name"] ?? "", "m": true]]] }, "views": [], "lists": [],
             "offers": [["kind": "create", "label": "Add \u{201C}\(q)\u{201D} as a todo", "q": q]],
             "next_cursor": NSNull(), "seq": 200, "took_ms": 4, "partial": false,
-        ]
+        ]) { _, answer in answer }
     }
 }

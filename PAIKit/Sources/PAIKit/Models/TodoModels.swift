@@ -855,11 +855,43 @@ public struct TodosSearchAnswer: Codable, Equatable, Sendable {
     public let lists: [ListHit]
     public let offers: [Offer]
     public let nextCursor: String?
+    /// The zero state, for an empty `q`: what was opened from search lately, the searches the
+    /// person keeps running, and examples that teach the box.
+    public let recents: [TodosRecent]?
+    public let repeated: [String]?
     public let examples: [String]?
 
     enum CodingKeys: String, CodingKey {
-        case query, top, todos, fewer, counts, tags, views, lists, offers, examples
+        case query, top, todos, fewer, counts, tags, views, lists, offers, recents, repeated, examples
         case nextCursor = "next_cursor"
+    }
+}
+
+/// Something opened from search: a todo, view or list by id, a tag as `<list id>:<name>`, or a
+/// query by its text.
+public struct TodosRecent: Codable, Equatable, Sendable {
+    public enum Kind: String, Codable, Sendable {
+        case todo, view, tag, list, query
+    }
+
+    /// Nil for a kind this build does not know.
+    public let kind: Kind?
+    public let target: String
+
+    public init(kind: Kind?, target: String) {
+        self.kind = kind
+        self.target = target
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        kind = Kind(rawValue: try container.decode(String.self, forKey: .kind))
+        target = try container.decode(String.self, forKey: .target)
+    }
+
+    /// The tag a `tag` recent names, without the list it belongs to.
+    public var tagName: String {
+        target.split(separator: ":", omittingEmptySubsequences: false).dropFirst().joined(separator: ":")
     }
 }
 

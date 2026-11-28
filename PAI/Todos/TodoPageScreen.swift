@@ -1,7 +1,7 @@
 import PAIKit
 import SwiftUI
 
-/// A Todos page: a saved view, a list or a tag, with the desk above it and one header bar. `nil`
+/// A Todos page: a saved view, a list or a tag, with the desk above it and its name in the bar. `nil`
 /// is Todos' home, the first favourite view (Today). Rows tick from their circle or a swipe left,
 /// go on the desk with a swipe right, and open their subtasks from the chevron. Every write is a
 /// change in the outbox, so ticking works without a connection.
@@ -117,7 +117,9 @@ struct TodoPageScreen: View {
         }
         // Above the line the list folds to while the desk takes the whole height.
         .overlay(alignment: .bottomTrailing) { addButton.padding(.bottom, deskMode == .desk ? 44 : 0) }
-        .navigationTitle("Todos")
+        // The bar names the view being shown, which the list's own heading stops doing once it
+        // is scrolled away or folded under the desk.
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -128,15 +130,7 @@ struct TodoPageScreen: View {
                 }
                 .accessibilityLabel("Search")
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    environment.router.push(.todosBrowse)
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .accessibilityLabel("Views and lists")
-            }
-            // The top right: go anywhere in Todos by typing its name.
+            // Go anywhere in Todos by typing its name.
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     switching = true
@@ -144,6 +138,14 @@ struct TodoPageScreen: View {
                     Image(systemName: "text.magnifyingglass")
                 }
                 .accessibilityLabel("Go to a view, list or tag")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    environment.router.push(.todosBrowse)
+                } label: {
+                    Image(systemName: "sidebar.left")
+                }
+                .accessibilityLabel("Views and lists")
             }
         }
         .sheet(isPresented: $switching) {

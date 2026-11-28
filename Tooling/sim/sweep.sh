@@ -559,8 +559,9 @@ if want todos-screens; then
   # subtask read with chips, the toast with Undo after a tick, the switcher with a typed name, Todos'
   # settings and four of its sections, Upcoming, the Logbook, search, and the desk being arranged,
   # each light and dark. The add sheet is also photographed with a picker where the keyboard
-  # sits (when, horizon, tags, the nudges inside when) and with a title long enough to be cut,
-  # and the todo's screen with a picker raised over it.
+  # sits (when, horizon, tags, the nudges inside when), with a title long enough to be cut and
+  # with its description being written, the todo's screen with a picker raised over it, and
+  # search before anything is typed.
   # The fixture's desk has five cards under one section. The add sheets open with their words
   # typed and the keyboard down, so the words and their chips are what is photographed; the
   # keyboard's first-use tip is marked seen for any sheet that does raise it.
@@ -583,7 +584,8 @@ if want todos-screens; then
   todos_screen list "todosPage=Personal todosDeskMode=bar" -PaiFixtureRoute todosList
   todos_screen groceries "todosPage=Groceries" -PaiFixtureRoute todosGroceries
   todos_screen checklist "todosPage=Personal" -PaiFixtureRoute todosList -PaiFixtureTodosExpand
-  todos_screen add "todosPage=Today todosAddMode=line todosAddWords=5 todosAddDefaults=0 todosAddChips=3 todosAddHorizon=Next" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps tomorrow #errand p1"
+  todos_screen add "todosPage=Today todosAddMode=line todosAddWords=5 todosAddDefaults=0 todosAddChips=3 todosAddMarks=3 todosAddHorizon=Next" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps tomorrow #errand p1"
+  todos_screen add-description "todosAddMode=line todosAddDescription=open" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps" -PaiFixtureTodosDetails "Two books of ten, the ones with the lighthouse."
   todos_screen add-no-date "todosAddMode=line todosAddDefaults=0 todosAddChips=1" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Read Dune no date"
   todos_screen describe "todosAddMode=describe todosAddWords=11" -PaiFixtureRoute todos -PaiFixtureTodosDescribe "Buy stamps tomorrow and then call the plumber about the boiler"
   todos_screen add-when "todosAddPicker=when todosPicker=when todosAddChips=3 todosAddDefaults=1" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Buy stamps #errand p1" -PaiFixtureTodosPicker when
@@ -606,6 +608,7 @@ if want todos-screens; then
   todos_screen upcoming "todosPage=Upcoming" -PaiFixtureRoute todosUpcoming
   todos_screen logbook "todosPage=Logbook todosDayRows=7" -PaiFixtureRoute todosLogbook
   todos_screen search "todosSearchHits=1" -PaiFixtureRoute todosSearch -PaiFixtureTodosSearch plumber
+  todos_screen search-empty "todosSearchRecents=3" -PaiFixtureRoute todosSearch
   todos_screen desk-arrange "todosDeskMode=desk" -PaiFixtureRoute todos -PaiFixtureTodosDesk desk -PaiFixtureTodosArrange
   xcrun simctl ui "$udid" appearance dark
 fi

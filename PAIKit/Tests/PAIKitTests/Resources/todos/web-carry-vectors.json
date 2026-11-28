@@ -1,0 +1,540 @@
+{
+ "cases": [
+  {
+   "from": "call mum tomorrow",
+   "to": "call mum tomorrow",
+   "tokens": [
+    {
+     "start": 9,
+     "end": 17,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 9,
+      "end": 17,
+      "kind": "when",
+      "value": "tomorrow",
+      "display": "tomorrow"
+     }
+    ],
+    "complete": true
+   }
+  },
+  {
+   "from": "call mum tomorrow",
+   "to": "call mum tomorrow ",
+   "tokens": [
+    {
+     "start": 9,
+     "end": 17,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 9,
+      "end": 17,
+      "kind": "when",
+      "value": "tomorrow",
+      "display": "tomorrow"
+     }
+    ],
+    "complete": true
+   }
+  },
+  {
+   "from": "call mum tomorrow",
+   "to": "call mum tomorrow a",
+   "tokens": [
+    {
+     "start": 9,
+     "end": 17,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 9,
+      "end": 17,
+      "kind": "when",
+      "value": "tomorrow",
+      "display": "tomorrow"
+     }
+    ],
+    "complete": true
+   }
+  },
+  {
+   "from": "call mum tomorrow",
+   "to": "call mum tomorrows",
+   "tokens": [
+    {
+     "start": 9,
+     "end": 17,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    }
+   ],
+   "out": {
+    "tokens": [],
+    "complete": false
+   }
+  },
+  {
+   "from": "call mum tomorrow",
+   "to": "call mum tomorro",
+   "tokens": [
+    {
+     "start": 9,
+     "end": 17,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    }
+   ],
+   "out": {
+    "tokens": [],
+    "complete": false
+   }
+  },
+  {
+   "from": "tomorrow call mum",
+   "to": "tomorrow call mum @home",
+   "tokens": [
+    {
+     "start": 0,
+     "end": 8,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 0,
+      "end": 8,
+      "kind": "when",
+      "value": "tomorrow",
+      "display": "tomorrow"
+     }
+    ],
+    "complete": true
+   }
+  },
+  {
+   "from": "tomorrow call mum @home",
+   "to": "tomorrow call mum @home and dad",
+   "tokens": [
+    {
+     "start": 0,
+     "end": 8,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    },
+    {
+     "start": 18,
+     "end": 23,
+     "kind": "tag",
+     "value": "@home",
+     "display": "@home"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 0,
+      "end": 8,
+      "kind": "when",
+      "value": "tomorrow",
+      "display": "tomorrow"
+     },
+     {
+      "start": 18,
+      "end": 23,
+      "kind": "tag",
+      "value": "@home",
+      "display": "@home"
+     }
+    ],
+    "complete": true
+   }
+  },
+  {
+   "from": "tomorrow call mum @home",
+   "to": "tomorrow call mu @home",
+   "tokens": [
+    {
+     "start": 0,
+     "end": 8,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    },
+    {
+     "start": 18,
+     "end": 23,
+     "kind": "tag",
+     "value": "@home",
+     "display": "@home"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 0,
+      "end": 8,
+      "kind": "when",
+      "value": "tomorrow",
+      "display": "tomorrow"
+     },
+     {
+      "start": 17,
+      "end": 22,
+      "kind": "tag",
+      "value": "@home",
+      "display": "@home"
+     }
+    ],
+    "complete": true
+   }
+  },
+  {
+   "from": "tomorrow call mum @home",
+   "to": "call mum @home",
+   "tokens": [
+    {
+     "start": 0,
+     "end": 8,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    },
+    {
+     "start": 18,
+     "end": 23,
+     "kind": "tag",
+     "value": "@home",
+     "display": "@home"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 9,
+      "end": 14,
+      "kind": "tag",
+      "value": "@home",
+      "display": "@home"
+     }
+    ],
+    "complete": false
+   }
+  },
+  {
+   "from": "tomorrow call mum @home",
+   "to": "xtomorrow call mum @home",
+   "tokens": [
+    {
+     "start": 0,
+     "end": 8,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    },
+    {
+     "start": 18,
+     "end": 23,
+     "kind": "tag",
+     "value": "@home",
+     "display": "@home"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 19,
+      "end": 24,
+      "kind": "tag",
+      "value": "@home",
+      "display": "@home"
+     }
+    ],
+    "complete": false
+   }
+  },
+  {
+   "from": "tomorrow call mum @home",
+   "to": "Please tomorrow call mum @home",
+   "tokens": [
+    {
+     "start": 0,
+     "end": 8,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    },
+    {
+     "start": 18,
+     "end": 23,
+     "kind": "tag",
+     "value": "@home",
+     "display": "@home"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 7,
+      "end": 15,
+      "kind": "when",
+      "value": "tomorrow",
+      "display": "tomorrow"
+     },
+     {
+      "start": 25,
+      "end": 30,
+      "kind": "tag",
+      "value": "@home",
+      "display": "@home"
+     }
+    ],
+    "complete": true
+   }
+  },
+  {
+   "from": "call mum @home",
+   "to": "call mum x@home",
+   "tokens": [
+    {
+     "start": 9,
+     "end": 14,
+     "kind": "tag",
+     "value": "@home",
+     "display": "@home"
+    }
+   ],
+   "out": {
+    "tokens": [],
+    "complete": false
+   }
+  },
+  {
+   "from": "call mum @home",
+   "to": "call mum  @home",
+   "tokens": [
+    {
+     "start": 9,
+     "end": 14,
+     "kind": "tag",
+     "value": "@home",
+     "display": "@home"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 10,
+      "end": 15,
+      "kind": "tag",
+      "value": "@home",
+      "display": "@home"
+     }
+    ],
+    "complete": true
+   }
+  },
+  {
+   "from": "call mum @home p1",
+   "to": "call mum @home",
+   "tokens": [
+    {
+     "start": 9,
+     "end": 14,
+     "kind": "tag",
+     "value": "@home",
+     "display": "@home"
+    },
+    {
+     "start": 15,
+     "end": 17,
+     "kind": "horizon",
+     "value": "p1",
+     "display": "p1"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 9,
+      "end": 14,
+      "kind": "tag",
+      "value": "@home",
+      "display": "@home"
+     }
+    ],
+    "complete": false
+   }
+  },
+  {
+   "from": "call mum @home p1",
+   "to": "",
+   "tokens": [
+    {
+     "start": 9,
+     "end": 14,
+     "kind": "tag",
+     "value": "@home",
+     "display": "@home"
+    },
+    {
+     "start": 15,
+     "end": 17,
+     "kind": "horizon",
+     "value": "p1",
+     "display": "p1"
+    }
+   ],
+   "out": {
+    "tokens": [],
+    "complete": false
+   }
+  },
+  {
+   "from": "fri buy bread",
+   "to": "friday buy bread",
+   "tokens": [
+    {
+     "start": 0,
+     "end": 3,
+     "kind": "when",
+     "value": "fri",
+     "display": "fri"
+    }
+   ],
+   "out": {
+    "tokens": [],
+    "complete": false
+   }
+  },
+  {
+   "from": "buy bread fri",
+   "to": "buy bread fri ",
+   "tokens": [
+    {
+     "start": 10,
+     "end": 13,
+     "kind": "when",
+     "value": "fri",
+     "display": "fri"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 10,
+      "end": 13,
+      "kind": "when",
+      "value": "fri",
+      "display": "fri"
+     }
+    ],
+    "complete": true
+   }
+  },
+  {
+   "from": "café 😀 tomorrow @home",
+   "to": "café 😀😀 tomorrow @home",
+   "tokens": [
+    {
+     "start": 8,
+     "end": 16,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    },
+    {
+     "start": 17,
+     "end": 22,
+     "kind": "tag",
+     "value": "@home",
+     "display": "@home"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 10,
+      "end": 18,
+      "kind": "when",
+      "value": "tomorrow",
+      "display": "tomorrow"
+     },
+     {
+      "start": 19,
+      "end": 24,
+      "kind": "tag",
+      "value": "@home",
+      "display": "@home"
+     }
+    ],
+    "complete": true
+   }
+  },
+  {
+   "from": "a tomorrow b",
+   "to": "something else entirely",
+   "tokens": [
+    {
+     "start": 2,
+     "end": 10,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    }
+   ],
+   "out": {
+    "tokens": [],
+    "complete": false
+   }
+  },
+  {
+   "from": "tomorrow",
+   "to": "tomorrow tomorrow",
+   "tokens": [
+    {
+     "start": 0,
+     "end": 8,
+     "kind": "when",
+     "value": "tomorrow",
+     "display": "tomorrow"
+    }
+   ],
+   "out": {
+    "tokens": [
+     {
+      "start": 0,
+      "end": 8,
+      "kind": "when",
+      "value": "tomorrow",
+      "display": "tomorrow"
+     }
+    ],
+    "complete": true
+   }
+  }
+ ]
+}
