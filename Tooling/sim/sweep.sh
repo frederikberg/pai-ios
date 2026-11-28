@@ -21,7 +21,7 @@ SECTIONS="none routes measure note-bench auth-rejected fullscreen-image fullscre
 new-session-landing notes-filtering notifications-filter scheduler-task-push settings-notes-cache
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
 watch-keys alarm-facts alarm-sheet weather-states location-settings location-launch watch-key-create watch-key-revoke-ask watch-key-revoke
-camera-import-result me-screens session-filters new-session-usage quick-actions settings-owner settings-guest sleep-mode
+camera-import-result me-screens session-filters new-session-usage quick-actions apps settings-owner settings-guest sleep-mode
 reminders-feed reminders-scheduler me-where todos-screens report-bar"
 
 mkdir -p artifacts
@@ -295,7 +295,7 @@ if want quick-actions; then
   # fifteen tiles by three example shortcuts (top, then scrolled to its end), the Actions Library
   # opened by the fixture flag (top, then scrolled to Hidden), and the add-shortcut sheet over it.
   grid="selfReport,me,more,computer,home,ultrafast,mailverdict,homeCall,ultrafastCamera,findNote,newNote,ultrafastCall,notes,alarm,weather"
-  more="fastSession,fastCall,canteen,scheduler,decisions,usage,cameraImport,todos,newTodo,searchTodos,todosSwitcher,todosDesk"
+  more="fastSession,fastCall,canteen,scheduler,decisions,usage,cameraImport,todos,newTodo,searchTodos,todosSwitcher,todosDesk,pauseNotifications"
   screenshot quick-actions-grid -PaiFixtureRoute quickActions
   fact_assert quick-actions-grid quickActionsGrid "$grid"
   xcrun simctl terminate "$udid" "$bundle" || true
@@ -926,6 +926,22 @@ settings_pages() {
   done
 }
 
+# The start screen with the apps in the fixture person's order (shown directly, then More), the
+# same for a guest, the Apps list over the session list's place in the order, and the list that
+# arranges them in settings.
+if want apps; then
+  screenshot apps-start -PaiFixtureRoute apps
+  fact_assert apps-start appsPinned "sessions,notes,todos,me"
+  fact_assert apps-start appsMore "quick-actions,arc,scheduler,alarm,weather,canteen,camera-import,usage,decisions,reports,browser"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot apps-start-guest -PaiFixtureRoute apps -PaiFixtureRole guest
+  fact_assert apps-start-guest appsPinned "sessions,todos"
+  xcrun simctl terminate "$udid" "$bundle" || true
+  screenshot app-order -PaiFixtureRoute settings -PaiFixtureSettingsCategory appearance -PaiFixtureAppOrder
+  fact_assert app-order appOrder "sessions,notes,todos,me,---,quick-actions,arc,scheduler,alarm,weather,canteen,camera-import,usage,decisions,reports,browser"
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
 if want settings-owner; then
   settings_pages owner "microphone,notifications,voices,appearance,location,devices,history,thisPhone,system,alerts,mail,providers,models,integrations,voiceSound,agents,people,diagnostics"
 fi
@@ -934,15 +950,16 @@ if want settings-guest; then
   settings_pages guest "microphone,notifications,voices,appearance,location,devices,history,thisPhone"
 fi
 
-# Sleep mode: the screen that replaces the session list, Quick Actions inside the window with its
-# layout unchanged and the session actions put away, the setup screen, and the PIN pad.
+# Sleep mode: the screen that replaces the session list (the start screen's order without the
+# apps put away), Quick Actions inside the window with its layout unchanged and the session
+# actions put away, the start screen inside the window, the setup screen, and the PIN pad.
 if want sleep-mode; then
   screenshot sleep-screen -PaiFixtureSleep on
   fact_assert sleep-screen sleepScreen on
-  fact_assert sleep-screen sleepTiles "quick-actions,me,notes,alarm,weather,canteen,camera-import"
+  fact_assert sleep-screen sleepTiles "notes,todos,me,quick-actions,alarm,weather,canteen,camera-import"
   xcrun simctl terminate "$udid" "$bundle" || true
   screenshot sleep-screen-guest -PaiFixtureSleep on -PaiFixtureRole guest
-  fact_assert sleep-screen-guest sleepTiles "quick-actions,alarm,weather,camera-import"
+  fact_assert sleep-screen-guest sleepTiles "todos,quick-actions,alarm,weather,camera-import"
   xcrun simctl terminate "$udid" "$bundle" || true
   screenshot sleep-quick-actions -PaiFixtureSleep on -PaiFixtureRoute quickActions
   fact_assert sleep-quick-actions quickActionsGrid "selfReport,me,more,computer,home,ultrafast,mailverdict,homeCall,ultrafastCamera,findNote,newNote,ultrafastCall,notes,alarm,weather"
