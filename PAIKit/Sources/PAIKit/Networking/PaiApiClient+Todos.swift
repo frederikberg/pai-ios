@@ -45,7 +45,7 @@ public protocol TodosBackend: Sendable {
     func todosQuery(_ request: TodosQueryRequest) async throws -> TodosQueryAnswer
     func todosApply(_ change: TodosChangeRequest, source: TodosSource) async throws -> TodosApplyResult
     func todosParse(text: String, list: String?, source: TodosSource) async throws -> TodosParseAnswer
-    func todosEvents(after: Int) async throws -> TodosEventsAnswer
+    func todosEvents(after: Int, wait: Int) async throws -> TodosEventsAnswer
     func todosRunView(id: String, cursor: String?) async throws -> TodosQueryAnswer
     func todosViewCounts() async throws -> TodosViewCountsAnswer
     func todosDetail(ref: String) async throws -> TodosDetailAnswer
@@ -97,11 +97,11 @@ extension PaiApiClient: TodosBackend {
         return try await todosSend("POST", "/parse", body: Self.jsonBody(Body(text: text, list: list)), source: source)
     }
 
-    /// The feed after `after`, answered at once (`wait=0`).
-    public func todosEvents(after: Int) async throws -> TodosEventsAnswer {
+    /// The feed after `after`; the server holds the answer up to `wait` seconds for an event.
+    public func todosEvents(after: Int, wait: Int) async throws -> TodosEventsAnswer {
         try await todosSend(
             "GET", "/events",
-            query: [URLQueryItem(name: "after", value: String(after)), URLQueryItem(name: "wait", value: "0")])
+            query: [URLQueryItem(name: "after", value: String(after)), URLQueryItem(name: "wait", value: String(wait))])
     }
 
     public func todosRunView(id: String, cursor: String?) async throws -> TodosQueryAnswer {

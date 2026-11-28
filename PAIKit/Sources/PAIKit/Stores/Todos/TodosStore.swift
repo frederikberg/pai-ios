@@ -107,6 +107,9 @@ public final class TodosStore {
     @ObservationIgnored private var drainToken: UUID?
     @ObservationIgnored private var failures = 0
     @ObservationIgnored private var retryTask: Task<Void, Never>?
+    /// The app is in front and wants the feed followed; `followTask` is the loop doing it.
+    @ObservationIgnored private var following = false
+    @ObservationIgnored private var followTask: Task<Void, Never>?
     /// Who the current connection's credential is, once a `/me` through it answered; nil until
     /// then. A change queued by a person goes out only when this is that person.
     @ObservationIgnored private var confirmedPrincipal: String?
@@ -119,6 +122,8 @@ public final class TodosStore {
     public static let retryDelaysSeconds: [TimeInterval] = [1, 2, 5, 15, 30]
     /// How often a queue held back by an expired sign-in tries again.
     public static let signedOutRetrySeconds: TimeInterval = 30
+    /// How long the server holds one ask at the feed; its ceiling.
+    static let feedWaitSeconds = 25
     static let rememberedOutcomes = 30
     static let undoDepth = 50
     static let refusedKept = 50
@@ -170,6 +175,8 @@ public final class TodosStore {
         confirmedPrincipal = nil
         signedOut = false
         Task { await drain() }
+        stopFollowing()
+        startFollowing()
     }
 
     /// The sign-in ended: nothing is sent until the next `connect`, and nothing queued is lost.
@@ -178,6 +185,7 @@ public final class TodosStore {
         confirmedPrincipal = nil
         retryTask?.cancel()
         retryTask = nil
+        stopFollowing()
     }
 
     /// Forget what the server said, for a deliberate sign-out: the next person must not see this
@@ -715,8 +723,7 @@ public final class TodosStore {
     }
 
     private func backOff() {
-        let delays = Self.retryDelaysSeconds
-        let delay = delays[min(failures, delays.count - 1)]
+        let delay = Self.retryDelay(after: failures)
         failures += 1
         scheduleRetry(after: delay)
         releaseWaiters()
@@ -866,26 +873,101 @@ public final class TodosStore {
     public func catchUp() async {
         guard let backend, me != nil else { return }
         do {
-            let answer = try await backend.todosEvents(after: cursor)
-            if answer.reset {
-                await refresh()
-                return
-            }
-            let own = Set(appliedIds)
-            let effect = TodosOverlay.effectOfEvents(answer.events.filter { !own.contains($0.changeId) })
-            // The cursor moves past the events only once what they name was read again, so a
-            // read that failed is asked for again by the next catch-up.
-            var read = true
-            if !effect.todoIds.isEmpty || effect.refreshMe { readTick += 1 }
-            if !effect.todoIds.isEmpty {
-                read = await refresh()
-            } else if effect.refreshMe {
-                read = await refreshMe()
-            }
-            if read { cursor = max(cursor, answer.head) }
+            await take(try await backend.todosEvents(after: cursor, wait: 0))
         } catch {
             note(error)
         }
+    }
+
+    /// Read again what a feed answer names. False when a read it asked for failed: the cursor
+    /// then stays behind its events, so the next ask is answered with them again.
+    @discardableResult
+    private func take(_ answer: TodosEventsAnswer) async -> Bool {
+        if answer.reset { return await refresh() }
+        let own = Set(appliedIds)
+        let effect = TodosOverlay.effectOfEvents(answer.events.filter { !own.contains($0.changeId) })
+        var read = true
+        if !effect.todoIds.isEmpty || effect.refreshMe { readTick += 1 }
+        if !effect.todoIds.isEmpty {
+            read = await refresh()
+        } else if effect.refreshMe {
+            read = await refreshMe()
+        }
+        if read { cursor = max(cursor, answer.head) }
+        return read
+    }
+
+    // MARK: - Following the feed
+
+    /// Keep one ask at the feed open for as long as the app is in front: the server holds it
+    /// until something changes (`feedWaitSeconds` at most), so a change made elsewhere is read
+    /// the moment it is written and an idle app costs one small request per wait. Until
+    /// `unfollow`.
+    public func follow() {
+        following = true
+        startFollowing()
+    }
+
+    /// Stop asking: the app left the front. The next `follow` starts with an ask answered at
+    /// once, which is the catch-up.
+    public func unfollow() {
+        following = false
+        stopFollowing()
+    }
+
+    private func startFollowing() {
+        guard following, followTask == nil, backend != nil else { return }
+        followTask = Task { [weak self] in await self?.followFeed() }
+    }
+
+    private func stopFollowing() {
+        followTask?.cancel()
+        followTask = nil
+    }
+
+    private func followFeed() async {
+        var failures = 0
+        while !Task.isCancelled, let backend {
+            var pause: TimeInterval?
+            if me == nil {
+                // The first read has not answered yet; it is the one that says where the feed starts.
+                pause = Self.retryDelay(after: failures)
+                failures += 1
+            } else {
+                let asked = now()
+                let before = cursor
+                do {
+                    let answer = try await backend.todosEvents(after: cursor, wait: Self.feedWaitSeconds)
+                    if Task.isCancelled { return }
+                    if await take(answer) {
+                        failures = 0
+                        offline = false
+                        // Nothing new, sooner than the wait: this server did not hold the ask.
+                        // Asking again at once would spin, so the rest of the wait is slept here.
+                        let waited = now().timeIntervalSince(asked)
+                        let held = TimeInterval(Self.feedWaitSeconds)
+                        if answer.events.isEmpty, !answer.reset, cursor == before, waited < held / 2 {
+                            pause = held - waited
+                        }
+                    } else {
+                        pause = Self.retryDelay(after: failures)
+                        failures += 1
+                    }
+                } catch {
+                    if Task.isCancelled { return }
+                    note(error)
+                    pause = Self.retryDelay(after: failures)
+                    failures += 1
+                }
+            }
+            if let pause {
+                do { try await scheduler.sleep(seconds: pause) } catch { return }
+            }
+        }
+    }
+
+    static func retryDelay(after failures: Int) -> TimeInterval {
+        retryDelaysSeconds[min(failures, retryDelaysSeconds.count - 1)]
     }
 
     @discardableResult
