@@ -27,10 +27,50 @@ extension PaiFixtures {
                 "intensity": "\(intensity)"}
                 """
         }.joined(separator: ", ")
+        // The forecast beside the rain answer: a filled one wherever a location is known and the
+        // sources answer, an empty one naming why otherwise.
+        let symbols = [
+            "partly", "partly", "cloudy", "rain", "rain", "rain", "cloudy", "cloudy", "clear", "clear", "clear",
+            "fog",
+        ]
+        let temps = [9, 11, 12, 11, 10, 8, 7, 5, 3, 1, 0, -1]
+        let indexes = [1.2, 2.6, 3.4, 2.1, 1.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        let hours = symbols.indices.map { hour in
+            """
+            {"start": "\(at(hour * 60))", "temp": \(temps[hour]), "symbol": "\(symbols[hour])", \
+            "night": \(hour >= 8), "uv": \(indexes[hour])}
+            """
+        }.joined(separator: ", ")
+        let day: (_ offset: Int, _ rest: String) -> String = { offset, rest in
+            let date = AlarmTime.wireString(now.addingTimeInterval(Double(offset) * 86400)).prefix(10)
+            return "{\"date\": \"\(date)\", \(rest)}"
+        }
+        let days = [
+            day(0, #""symbol": "rain", "temp_max": 12, "temp_min": -1, "chance": 80"#),
+            day(1, #""symbol": "thunder", "temp_max": 9, "temp_min": 2, "chance": 65"#),
+            day(2, #""symbol": "snow", "temp_max": 1, "temp_min": -6, "chance": 40"#),
+            day(3, #""symbol": "clear", "temp_max": 4, "temp_min": -4, "chance": null"#),
+        ].joined(separator: ", ")
+        let forecast = """
+            {"reason": null, "symbol": "rain", "night": false, "temp_now": 9, "temp_min": -1, "temp_max": 12, \
+            "hours": [\(hours)], "uv": {"now": 1.2, "peak": 3.4, "peak_at": "\(at(120))"}, "days": [\(days)]}
+            """
+        let noForecast: (_ reason: String) -> String = { reason in
+            """
+            {"reason": "\(reason)", "symbol": null, "night": false, "temp_now": null, "temp_min": null, \
+            "temp_max": null, "hours": [], "uv": null, "days": []}
+            """
+        }
+        let conditions: String
+        switch state {
+        case "noLocation": conditions = noForecast("no_location")
+        case "sourceUnavailable": conditions = noForecast("source_unavailable")
+        default: conditions = forecast
+        }
         let body: (_ location: String, _ now: String, _ later: String) -> String = { location, now, later in
             """
             {"location": \(location), "computed_at": "\(at(0))", "now": \(now), "later": \(later), \
-            "attribution": "\(attribution)"}
+            "attribution": "\(attribution)", "conditions": \(conditions)}
             """
         }
         switch state {
