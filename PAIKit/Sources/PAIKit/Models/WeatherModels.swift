@@ -219,26 +219,139 @@ public struct WeatherLater: Decodable, Sendable, Equatable {
     public var heaviestDate: Date? { heaviestAt.flatMap(IsoTimestamp.date(from:)) }
 }
 
+/// The sky as one of eight classes; `night` beside it picks the moon over the sun.
+public enum WeatherSymbol: LenientWireEnum {
+    case clear, partly, cloudy, fog, rain, sleet, snow, thunder
+    case unrecognized(String)
+
+    public static let knownValues: [String: WeatherSymbol] = [
+        "clear": .clear, "partly": .partly, "cloudy": .cloudy, "fog": .fog,
+        "rain": .rain, "sleet": .sleet, "snow": .snow, "thunder": .thunder,
+    ]
+}
+
+/// One of the forecast's 12 hours, the first being the current full hour. `temp` is whole
+/// degrees Celsius.
+public struct WeatherConditionsHour: Decodable, Sendable, Equatable {
+    public let start: String
+    public let temp: Int
+    public let symbol: WeatherSymbol
+    public let night: Bool
+    public let uv: Double?
+
+    public init(start: String, temp: Int, symbol: WeatherSymbol, night: Bool = false, uv: Double? = nil) {
+        self.start = start
+        self.temp = temp
+        self.symbol = symbol
+        self.night = night
+        self.uv = uv
+    }
+
+    public var startDate: Date? { IsoTimestamp.date(from: start) }
+}
+
+/// The UV index now and its highest of the 12 hours; `peakAt` is nil when the peak rounds to 0.
+public struct WeatherUv: Decodable, Sendable, Equatable {
+    public let now: Double
+    public let peak: Double
+    public let peakAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case now, peak
+        case peakAt = "peak_at"
+    }
+
+    public init(now: Double, peak: Double, peakAt: String? = nil) {
+        self.now = now
+        self.peak = peak
+        self.peakAt = peakAt
+    }
+
+    public var peakDate: Date? { peakAt.flatMap(IsoTimestamp.date(from:)) }
+}
+
+/// One calendar day at the person's location; `date` is that place's own `YYYY-MM-DD`.
+public struct WeatherDay: Decodable, Sendable, Equatable {
+    public let date: String
+    public let symbol: WeatherSymbol
+    public let tempMax: Int
+    public let tempMin: Int
+    /// The highest chance of rain among the day's hours still ahead.
+    public let chance: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case date, symbol, chance
+        case tempMax = "temp_max"
+        case tempMin = "temp_min"
+    }
+
+    public init(date: String, symbol: WeatherSymbol, tempMax: Int, tempMin: Int, chance: Int? = nil) {
+        self.date = date
+        self.symbol = symbol
+        self.tempMax = tempMax
+        self.tempMin = tempMin
+        self.chance = chance
+    }
+}
+
+/// The forecast beside the rain answer. Filled when `reason` is nil; otherwise everything else is
+/// nil, false or empty.
+public struct WeatherConditions: Decodable, Sendable, Equatable {
+    public let reason: WeatherUnknownReason?
+    /// The sky over the next 12 hours, never contradicting the rain rows.
+    public let symbol: WeatherSymbol?
+    public let night: Bool
+    public let tempNow: Int?
+    public let tempMin: Int?
+    public let tempMax: Int?
+    public let hours: [WeatherConditionsHour]
+    public let uv: WeatherUv?
+    public let days: [WeatherDay]
+
+    enum CodingKeys: String, CodingKey {
+        case reason, symbol, night, hours, uv, days
+        case tempNow = "temp_now"
+        case tempMin = "temp_min"
+        case tempMax = "temp_max"
+    }
+
+    public init(
+        reason: WeatherUnknownReason? = nil, symbol: WeatherSymbol? = nil, night: Bool = false,
+        tempNow: Int? = nil, tempMin: Int? = nil, tempMax: Int? = nil,
+        hours: [WeatherConditionsHour] = [], uv: WeatherUv? = nil, days: [WeatherDay] = []
+    ) {
+        self.reason = reason
+        self.symbol = symbol
+        self.night = night
+        self.tempNow = tempNow
+        self.tempMin = tempMin
+        self.tempMax = tempMax
+        self.hours = hours
+        self.uv = uv
+        self.days = days
+    }
+}
+
 /// `GET /api/weather`.
 public struct WeatherResponse: Decodable, Sendable, Equatable {
     public let location: WeatherLocation?
     public let computedAt: String
     public let now: WeatherNow
     public let later: WeatherLater
-    /// When the radar picture's frame is (about 30 min ahead); nil when there is no picture, and
-    /// from a backend that predates it.
     public let radarPictureAt: String?
     public let attribution: String
+    /// Nil from a server that does not send the forecast.
+    public let conditions: WeatherConditions?
 
     enum CodingKeys: String, CodingKey {
-        case location, now, later, attribution
+        case location, now, later, attribution, conditions
         case computedAt = "computed_at"
         case radarPictureAt = "radar_picture_at"
     }
 
     public init(
         location: WeatherLocation?, computedAt: String, now: WeatherNow, later: WeatherLater,
-        radarPictureAt: String? = nil, attribution: String
+        radarPictureAt: String? = nil, attribution: String, conditions: WeatherConditions? = nil
     ) {
         self.location = location
         self.computedAt = computedAt
@@ -246,6 +359,7 @@ public struct WeatherResponse: Decodable, Sendable, Equatable {
         self.later = later
         self.radarPictureAt = radarPictureAt
         self.attribution = attribution
+        self.conditions = conditions
     }
 
     public var radarPictureDate: Date? { radarPictureAt.flatMap(IsoTimestamp.date(from:)) }

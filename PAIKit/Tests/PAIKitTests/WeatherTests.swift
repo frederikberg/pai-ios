@@ -114,6 +114,72 @@ final class WeatherTests: XCTestCase {
         XCTAssertEqual(bars.max { $0.chance < $1.chance }?.chance, weather.later.chance)
     }
 
+    // MARK: Forecast
+
+    func testTheForecastSitsAroundTheRainRows() throws {
+        let conditions = try answer("showersApproaching").conditions
+        let summary = try XCTUnwrap(presenter().summary(conditions))
+        XCTAssertEqual(summary.temperature, "9°")
+        XCTAssertEqual(summary.sky, "Rain")
+        XCTAssertEqual(summary.span, "High 12° · low -1° in the next 12 hours")
+        let bars = presenter().temperatureBars(conditions)
+        XCTAssertEqual(bars.count, 12)
+        XCTAssertEqual(bars.compactMap(\.mark).map(\.hour), ["15", "18", "21", "00"])
+        XCTAssertTrue(bars.allSatisfy { $0.share > 0 && $0.share <= 1 })
+        XCTAssertEqual(bars.filter(\.freezing).count, 2)
+        let uv = try XCTUnwrap(presenter().uv(conditions))
+        XCTAssertEqual(uv.value, "1")
+        XCTAssertEqual(uv.band, .low)
+        XCTAssertEqual(uv.caption, "Peak 3 (moderate) at 17:00")
+        XCTAssertNil(presenter().forecastNote(conditions))
+    }
+
+    func testADayIsNamedFromItsDateAsWrittenWhateverZoneThePhoneIsIn() throws {
+        // The dates are the location's own; a phone far west of them must not name the day before.
+        var honolulu = berlin
+        honolulu.timeZone = TimeZone(identifier: "Pacific/Honolulu")!
+        let days = WeatherPresenter(now: reference, calendar: honolulu)
+            .days(try answer("showersApproaching").conditions)
+        XCTAssertEqual(days.map(\.name), ["Today", "Tue", "Wed", "Thu"])
+        XCTAssertEqual(days.map(\.chance), ["80 %", "65 %", "40 %", nil])
+        XCTAssertEqual(days.map(\.rainLikely), [true, true, true, false])
+    }
+
+    func testAUvIndexIsReadAsTheWholeNumberItsBandsAreKnownBy() {
+        let p = presenter()
+        XCTAssertEqual(
+            [0.4, 0.5, 2.4, 2.5, 5.5, 7.5, 10.5].map(p.uvBand),
+            [.none, .low, .low, .moderate, .high, .veryHigh, .extreme])
+        // A peak that rounds to nothing is no peak, and an hour without a value is a gap.
+        let dark = WeatherConditions(
+            hours: [WeatherConditionsHour(start: "2026-11-16T14:00:00+00:00", temp: 3, symbol: .cloudy)],
+            uv: WeatherUv(now: 0.2, peak: 0.3, peakAt: "2026-11-16T14:00:00+00:00"))
+        XCTAssertEqual(p.uv(dark)?.caption, "No UV in the next 12 hours")
+        XCTAssertNil(p.uv(dark)?.bars.first?.share)
+    }
+
+    func testAForecastThatDidNotAnswerCostsOnlyItsOwnSections() throws {
+        let down = try answer("sourceUnavailable").conditions
+        XCTAssertNil(presenter().summary(down))
+        XCTAssertNotNil(presenter().forecastNote(down))
+        XCTAssertTrue(presenter().temperatureBars(down).isEmpty)
+        XCTAssertNil(presenter().uv(down))
+        XCTAssertTrue(presenter().days(down).isEmpty)
+        // No location is said by the rain rows already.
+        XCTAssertNil(presenter().forecastNote(try answer("noLocation").conditions))
+    }
+
+    func testAnAnswerWithoutTheForecastStillDecodes() throws {
+        let body = PaiFixtures.weather(state: "dry", now: reference)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
+        object.removeValue(forKey: "conditions")
+        let weather = try JSONDecoder().decode(
+            WeatherResponse.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertNil(weather.conditions)
+        XCTAssertNil(presenter().summary(weather.conditions))
+        XCTAssertEqual(presenter().nowRow(weather.now).verdict, .dry)
+    }
+
     func testAnAnswerWithoutHoursDecodesWithAnEmptyStrip() throws {
         let weather = try answer("dry")
         XCTAssertTrue(weather.later.hours.isEmpty)

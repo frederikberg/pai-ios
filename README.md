@@ -80,7 +80,7 @@ The pushes are time-sensitive, so the app declares the Time Sensitive Notificati
 
 ## Weather
 
-The Weather app (Apps, or `pai://weather`) answers two questions in two rows: "Now" is the next hour from the rain radar (a chance, when rain reaches you, how close it is and whether it is closing in) and "Later" is the next twelve hours. The footer names the place, how old the location is and the data sources.
+The Weather app (Apps, or `pai://weather`) answers two questions in two rows: "Now" is the next hour from the rain radar (a chance, when rain reaches you, how close it is and whether it is closing in) and "Later" is the next twelve hours. Around them sits the forecast: the sky and the temperature now with its high and low, the twelve hours' temperature, the UV index with its peak, and today and the next three days. The footer names the place, how old the location is and the data sources.
 
 Where you are comes from one iPhone you choose: Settings, Location, "Use this iPhone for location". That phone asks for location access (while using the app first, then Always) and takes one fix each time the app comes to the front, plus significant-location-change monitoring (low power, moves of about 500 m). On the owner's phone, Always access also records visits (arrival and departure) and watches the named places the server lists (up to 20 geofences), so reminders at a place fire and a day's stays can be read back. Nothing runs continuous updates. Every point goes through an on-disk queue and is sent in batches, so a lost connection loses none; the server keeps the owner's history and only the latest position of anyone else. The two purpose strings live in `Config/Info.plist`; the `Mac` workflow asserts both survive into the built app.
 

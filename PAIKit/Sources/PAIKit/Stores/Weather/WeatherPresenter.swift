@@ -20,6 +20,71 @@ public struct WeatherStripBar: Equatable, Sendable, Identifiable {
     public let label: String?
 }
 
+/// The sky over the next 12 hours beside the temperature now and the span it moves in.
+public struct WeatherSummary: Equatable, Sendable {
+    public let symbol: WeatherSymbol
+    public let night: Bool
+    /// "11°"; nil when the forecast has no temperature for now.
+    public let temperature: String?
+    /// "Partly cloudy".
+    public let sky: String
+    /// "High 14° · low 8° in the next 12 hours".
+    public let span: String
+}
+
+/// One hour's temperature bar. `share` (0...1) is its height in the strip; every third bar
+/// carries its sky, hour and degrees.
+public struct WeatherTemperatureBar: Equatable, Sendable, Identifiable {
+    public let id: String
+    public let share: Double
+    public let freezing: Bool
+    public let mark: Mark?
+
+    public struct Mark: Equatable, Sendable {
+        public let symbol: WeatherSymbol
+        public let night: Bool
+        public let hour: String
+        public let degrees: String
+    }
+}
+
+/// The WHO's bands of the UV index.
+public enum UvBand: String, Equatable, Sendable {
+    case none, low, moderate, high
+    case veryHigh = "very high"
+    case extreme
+}
+
+/// The UV index now, its 12 hours on one fixed scale and when it peaks.
+public struct WeatherUvPanel: Equatable, Sendable {
+    /// The index now as the whole number its bands are known by.
+    public let value: String
+    public let band: UvBand
+    /// "Peak 6 (high) at 13:00", or that there is none.
+    public let caption: String
+    public let bars: [Bar]
+
+    /// `share` is nil for an hour without a value: a gap, not a zero.
+    public struct Bar: Equatable, Sendable, Identifiable {
+        public let id: String
+        public let share: Double?
+        public let band: UvBand
+        public let label: String?
+    }
+}
+
+/// One day of the forecast: "Tue", its sky, "14°", "8°", "80 %".
+public struct WeatherDayRow: Equatable, Sendable, Identifiable {
+    public let id: String
+    public let name: String
+    public let symbol: WeatherSymbol
+    public let high: String
+    public let low: String
+    public let chance: String?
+    /// Whether the chance is worth the eye: the row tints it.
+    public let rainLikely: Bool
+}
+
 /// Turns the server's answer into the words on the Weather screen. Times are the server's UTC
 /// instants shown in `calendar`'s time zone on a 24-hour clock.
 public struct WeatherPresenter: Sendable {
@@ -69,6 +134,118 @@ public struct WeatherPresenter: Sendable {
             let label = index % 3 == 0 ? hour.startDate.map { hourOfDay($0) } : nil
             return WeatherStripBar(id: hour.start, chance: hour.chance, intensity: hour.intensity, label: label)
         }
+    }
+
+    // MARK: Forecast
+
+    /// The top of the UV bars' scale: fixed, so a bar means the same in July and in November.
+    public static let uvScaleMax = 11.0
+    /// The chance of rain from which a day's figure is tinted.
+    public static let rainLikelyChance = 10
+
+    /// Nil when the forecast did not answer.
+    public func summary(_ conditions: WeatherConditions?) -> WeatherSummary? {
+        guard let conditions, let symbol = conditions.symbol, let high = conditions.tempMax,
+            let low = conditions.tempMin
+        else { return nil }
+        return WeatherSummary(
+            symbol: symbol, night: conditions.night, temperature: conditions.tempNow.map(degrees),
+            sky: skyWord(symbol, night: conditions.night),
+            span: "High \(degrees(high)) · low \(degrees(low)) in the next 12 hours")
+    }
+
+    /// One line in place of the forecast when its source failed while a location is known; the
+    /// rain rows stand without it.
+    public func forecastNote(_ conditions: WeatherConditions?) -> String? {
+        conditions?.reason == .sourceUnavailable
+            ? "Forecast unreachable · temperature, UV and the next days are missing" : nil
+    }
+
+    /// The 12 hours between their lowest and highest temperature. The lowest keeps a quarter of
+    /// the height so it still reads as a bar, and a flat day sits at half.
+    public func temperatureBars(_ conditions: WeatherConditions?) -> [WeatherTemperatureBar] {
+        let hours = conditions?.hours ?? []
+        guard let low = hours.map(\.temp).min(), let high = hours.map(\.temp).max() else { return [] }
+        return hours.enumerated().map { index, hour in
+            let share = high == low ? 0.5 : 0.25 + 0.75 * Double(hour.temp - low) / Double(high - low)
+            var mark: WeatherTemperatureBar.Mark?
+            if index % 3 == 0 {
+                mark = WeatherTemperatureBar.Mark(
+                    symbol: hour.symbol, night: hour.night,
+                    hour: hour.startDate.map(hourOfDay) ?? "", degrees: degrees(hour.temp))
+            }
+            return WeatherTemperatureBar(id: hour.start, share: share, freezing: hour.temp <= 0, mark: mark)
+        }
+    }
+
+    /// Nil when the forecast carries no UV index.
+    public func uv(_ conditions: WeatherConditions?) -> WeatherUvPanel? {
+        guard let conditions, let uv = conditions.uv else { return nil }
+        var caption = "No UV in the next 12 hours"
+        if let peak = uv.peakDate, uvWhole(uv.peak) > 0 {
+            caption = "Peak \(uvWhole(uv.peak)) (\(uvBand(uv.peak).rawValue)) at \(dayClock(peak))"
+        }
+        let bars = conditions.hours.enumerated().map { index, hour in
+            WeatherUvPanel.Bar(
+                id: hour.start, share: hour.uv.map { min($0, Self.uvScaleMax) / Self.uvScaleMax },
+                band: hour.uv.map(uvBand) ?? UvBand.none,
+                label: index % 3 == 0 ? hour.startDate.map(hourOfDay) : nil)
+        }
+        return WeatherUvPanel(value: "\(uvWhole(uv.now))", band: uvBand(uv.now), caption: caption, bars: bars)
+    }
+
+    /// Today and the days after it. A day is named from its date as written, which is the
+    /// location's own calendar day, never moved through the phone's time zone.
+    public func days(_ conditions: WeatherConditions?) -> [WeatherDayRow] {
+        (conditions?.days ?? []).enumerated().map { index, day in
+            WeatherDayRow(
+                id: day.date, name: index == 0 ? "Today" : weekday(of: day.date) ?? day.date,
+                symbol: day.symbol, high: degrees(day.tempMax), low: degrees(day.tempMin),
+                chance: day.chance.map(percent), rainLikely: (day.chance ?? 0) >= Self.rainLikelyChance)
+        }
+    }
+
+    /// The index as the whole number its bands are known by: 2.5 is 3, moderate.
+    public func uvBand(_ uv: Double) -> UvBand {
+        switch uvWhole(uv) {
+        case 11...: return .extreme
+        case 8...: return .veryHigh
+        case 6...: return .high
+        case 3...: return .moderate
+        case 1...: return .low
+        default: return UvBand.none
+        }
+    }
+
+    /// The sky's classes in words; a clear night is not sunny.
+    public func skyWord(_ symbol: WeatherSymbol, night: Bool) -> String {
+        switch symbol {
+        case .clear: return night ? "Clear" : "Sunny"
+        case .partly: return "Partly cloudy"
+        case .cloudy: return "Cloudy"
+        case .fog: return "Fog"
+        case .rain: return "Rain"
+        case .sleet: return "Sleet"
+        case .snow: return "Snow"
+        case .thunder: return "Thunderstorm"
+        case let .unrecognized(raw): return raw
+        }
+    }
+
+    private func uvWhole(_ uv: Double) -> Int { Int(uv.rounded()) }
+
+    private func degrees(_ temp: Int) -> String { "\(temp)°" }
+
+    /// "Tue" for "2026-11-17".
+    private func weekday(of date: String) -> String? {
+        let parts = date.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC") ?? utc.timeZone
+        guard let day = utc.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])) else {
+            return nil
+        }
+        return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][utc.component(.weekday, from: day) - 1]
     }
 
     /// An amount of rain as people say it: whole millimetres from 2 up, one decimal below.
