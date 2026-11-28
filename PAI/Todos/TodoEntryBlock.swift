@@ -305,33 +305,57 @@ struct TodoHeldFiles: View {
     }
 
     let items: [Item]
+    /// Opens a file in the viewer, by its id.
+    var onOpen: ((String) -> Void)?
     var onRemove: ((String) -> Void)?
+
+    /// The pixels a thumbnail is made at: the face's points at the densest screen.
+    static let thumbnailPixels = CGSize(width: 162, height: 162)
 
     var body: some View {
         if !items.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(items) { item in
-                        face(item)
-                            .overlay(alignment: .topTrailing) {
-                                if let onRemove {
-                                    Button {
-                                        onRemove(item.id)
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .symbolRenderingMode(.palette)
-                                            .foregroundStyle(.white, PaiPalette.surface600)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .offset(x: 6, y: -6)
-                                    .accessibilityLabel("Leave out \(item.name)")
-                                }
-                            }
-                    }
+            VStack(alignment: .leading, spacing: 2) {
+                if items.count > 3 {
+                    Text("\(items.count) files")
+                        .font(.caption)
+                        .foregroundStyle(PaiPalette.Semantic.textMuted)
                 }
-                .padding(.top, 6)
-                .padding(.trailing, 6)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 10) {
+                        ForEach(items) { item in
+                            Button {
+                                onOpen?(item.id)
+                            } label: {
+                                face(item)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(onOpen == nil)
+                            .accessibilityLabel("Open \(item.name)")
+                            .overlay(alignment: .topTrailing) { remove(item) }
+                        }
+                    }
+                    .padding(.top, 8)
+                    .padding(.trailing, 8)
+                }
+                .frame(height: 62)
             }
+        }
+    }
+
+    @ViewBuilder private func remove(_ item: Item) -> some View {
+        if let onRemove {
+            Button {
+                onRemove(item.id)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, PaiPalette.surface600)
+                    .frame(width: 30, height: 30, alignment: .topTrailing)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .offset(x: 7, y: -7)
+            .accessibilityLabel("Leave out \(item.name)")
         }
     }
 
@@ -342,7 +366,7 @@ struct TodoHeldFiles: View {
                 .scaledToFill()
                 .frame(width: 54, height: 54)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                .accessibilityLabel(item.name)
+                .contentShape(Rectangle())
         } else {
             Label(item.name, systemImage: "paperclip")
                 .font(.footnote)
@@ -351,6 +375,7 @@ struct TodoHeldFiles: View {
                 .frame(height: 54)
                 .frame(maxWidth: 180)
                 .background(RoundedRectangle(cornerRadius: 10).fill(PaiPalette.Semantic.raisedSurface))
+                .contentShape(Rectangle())
         }
     }
 }

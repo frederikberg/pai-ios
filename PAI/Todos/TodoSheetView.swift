@@ -59,6 +59,7 @@ struct TodoScreen: View {
     @State private var picker: TodoPicker?
     @State private var pickerStep: TodoPickerPanel.Step?
     @State private var backdating = false
+    @State private var reparenting = false
     @State private var addingSubtask = false
     @State private var subtaskLine: String?
     @State private var editingDescription = false
@@ -121,6 +122,16 @@ struct TodoScreen: View {
             }
             .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $reparenting) {
+            if let todo {
+                TodoParentPicker(todo: todo) { parent in
+                    reparenting = false
+                    undoable(
+                        [TodoFieldOps.move(todo.id, under: parent.id)],
+                        "Moved \u{201C}\(todo.title)\u{201D} under \u{201C}\(parent.title)\u{201D}")
+                }
+            }
+        }
         .fullScreenCover(isPresented: $addingSubtask) {
             if let todo {
                 TodoAddSheet(
@@ -143,10 +154,18 @@ struct TodoScreen: View {
         .fixtureFact("todosSheet", todo?.ref ?? "")
     }
 
+    /// The parent the todo has now, so a move shows at once; the title handed in covers a parent
+    /// the phone does not hold.
+    private var shownParentTitle: String? {
+        guard let todo else { return parentTitle }
+        guard let parentId = todo.parentId else { return nil }
+        return store.todos[parentId]?.title ?? parentTitle
+    }
+
     private var heading: some View {
         VStack(spacing: 0) {
             Text(todo?.ref ?? "Todo").font(.headline)
-            if let parentTitle {
+            if let parentTitle = shownParentTitle {
                 Text("in \(parentTitle)").font(.caption).foregroundStyle(PaiPalette.Semantic.textMuted).lineLimit(1)
             }
         }
@@ -160,7 +179,7 @@ struct TodoScreen: View {
                 pickerStep = .nudge
                 picker = .when
             } else if let name = PaiFixtureLaunch.requestedTodosPicker() {
-                picker = TodoPicker(rawValue: name)
+                if name == "parent" { reparenting = true } else { picker = TodoPicker(rawValue: name) }
             }
             if let line = PaiFixtureLaunch.requestedTodosSubtask() {
                 subtaskLine = line
@@ -399,6 +418,16 @@ struct TodoScreen: View {
                     }
                 }
             }
+            if todo.status == .open && blocked == nil {
+                Button("Move under another todo\u{2026}") { reparenting = true }
+                if todo.parentId != nil {
+                    Button("Make it a top-level todo") {
+                        undoable(
+                            [TodoFieldOps.move(todo.id, under: nil)],
+                            "\u{201C}\(todo.title)\u{201D} is a top-level todo now")
+                    }
+                }
+            }
             if todo.status != .deleted && blocked == nil {
                 // The screen leaves a deleted todo, so the toast with Undo is the way back.
                 Button("Delete", role: .destructive) {
@@ -602,9 +631,8 @@ struct TodoScreen: View {
         Task {
             do {
                 let data = try await client.todosAttachment(id: file.id)
-                let kind: AttachmentPreviewKind? =
-                    file.contentType.hasPrefix("image/") ? .image : (file.contentType == "application/pdf" ? .pdf : nil)
-                preview = FilePreviewTarget(data: data, filename: file.name, kind: kind)
+                preview = FilePreviewTarget(
+                    data: data, filename: file.name, kind: AttachmentPreviewKind.of(contentType: file.contentType))
             } catch {
                 toasts.show("Could not open \u{201C}\(file.name)\u{201D}.", kind: .error)
             }

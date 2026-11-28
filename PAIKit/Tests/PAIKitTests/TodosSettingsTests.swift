@@ -166,4 +166,38 @@ final class TodosPlacesTests: XCTestCase {
         XCTAssertTrue(place.takeSwitcher())
         XCTAssertFalse(place.takeSwitcher())
     }
+
+    /// A view dragged in the settings list is placed before the row it was dropped above, or
+    /// after the last one; a drop where it already stands sends nothing.
+    func testADraggedViewIsPlacedWhereItWasDropped() async throws {
+        let views = try TodosWireSamples.decode(TodosMeAnswer.self, "me").views.sorted { $0.rank < $1.rank }
+        try XCTSkipIf(views.count < 3, "the sample holds too few views")
+        let down = try XCTUnwrap(TodoSettingsOps.viewMove(views, from: 0, to: 2))
+        XCTAssertEqual(down.string("id"), views[0].id)
+        XCTAssertEqual(down.object("position")?.string("before"), views[2].id)
+        let last = try XCTUnwrap(TodoSettingsOps.viewMove(views, from: 0, to: views.count))
+        XCTAssertEqual(last.object("position")?.string("after"), views[views.count - 1].id)
+        let up = try XCTUnwrap(TodoSettingsOps.viewMove(views, from: 2, to: 0))
+        XCTAssertEqual(up.object("position")?.string("before"), views[0].id)
+        XCTAssertNil(TodoSettingsOps.viewMove(views, from: 1, to: 1))
+        XCTAssertNil(TodoSettingsOps.viewMove(views, from: 1, to: 2))
+    }
+
+    /// A todo cannot be put under itself, its present parent or anything inside it.
+    func testATodoIsNotOfferedAPlaceInsideItself() async throws {
+        let server = FakeTodosServer()
+        try await server.seed(id: "a", title: "A")
+        try await server.seed(id: "b", title: "B", parent: "a")
+        try await server.seed(id: "c", title: "C", parent: "b")
+        try await server.seed(id: "d", title: "D")
+        let todos = await server.todos
+        let b = try XCTUnwrap(todos["b"])
+        func allowed(_ id: String) -> Bool {
+            TodoParentChoice.allowed(todos[id]!, moving: b, todos: todos, lists: [])
+        }
+        XCTAssertTrue(allowed("d"))
+        XCTAssertFalse(allowed("a"), "it is there already")
+        XCTAssertFalse(allowed("b"))
+        XCTAssertFalse(allowed("c"), "its own subtask")
+    }
 }

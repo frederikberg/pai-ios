@@ -293,8 +293,14 @@
             value(for: todosSubtaskFlag, in: arguments)
         }
 
+        /// `-PaiFixtureTodosFiles <n>`: the add sheet holds this many generated pictures.
+        public static func requestedTodosFiles(arguments: [String] = ProcessInfo.processInfo.arguments) -> Int? {
+            value(for: "-PaiFixtureTodosFiles", in: arguments).flatMap { Int($0) }
+        }
+
         /// `-PaiFixtureTodosPicker when|nudge|deadline|tags|horizon|more`: the add sheet, or the
-        /// todo `-PaiFixtureTodosOpen` opens, shows this picker.
+        /// todo `-PaiFixtureTodosOpen` opens, shows this picker. `parent` on the opened todo shows
+        /// the search for the todo to move it under, with `-PaiFixtureTodosSearch` typed.
         public static func requestedTodosPicker(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: "-PaiFixtureTodosPicker", in: arguments)
         }
@@ -305,8 +311,8 @@
         }
 
         /// `-PaiFixtureTodosSettings <section>`: a Todos page opens Todos' settings, at the
-        /// section named (`general`, `nudges`, `lists`, `tags`, `views`), or the section list for
-        /// `all`.
+        /// section named (`general`, `nudges`, `lists`, `tags`, `views`), at the form for a new
+        /// view (`view-new`), or the section list for `all`.
         public static func requestedTodosSettings(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
             value(for: todosSettingsFlag, in: arguments)
         }

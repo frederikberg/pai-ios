@@ -56,6 +56,9 @@ struct TodoAddSheet: View {
     @State private var details = ""
     @State private var picks = TodoAddDraft()
     @State private var files: [StagedAttachment] = []
+    /// A small picture per held image, by the file's id.
+    @State private var thumbnails: [UUID: UIImage] = [:]
+    @State private var preview: FilePreviewTarget?
     @State private var picker: TodoPicker?
     @State private var pickerStep: TodoPickerPanel.Step?
     @State private var notice: Notice?
@@ -203,8 +206,13 @@ struct TodoAddSheet: View {
         } message: {
             Text("What you typed here is not saved as a todo yet.")
         }
-        .sheet(isPresented: $pickingPhoto) { PhotoAttachmentPicker { files += $0 } }
-        .sheet(isPresented: $pickingFile) { FileAttachmentPicker { files += $0 } }
+        .sheet(isPresented: $pickingPhoto) { PhotoAttachmentPicker(onPicked: hold) }
+        .sheet(isPresented: $pickingFile) { FileAttachmentPicker(onPicked: hold) }
+        .filePreview($preview)
+        .onChange(of: preview?.id) { _, shown in
+            // The viewer took the keyboard; the line gets it back.
+            if shown == nil, mode == .line, picker == nil, !editingDetails { titleFocused = true }
+        }
         .task(id: draft.text) {
             try? await Task.sleep(for: .seconds(TodoCaptureDraft.debounceSeconds))
             guard !Task.isCancelled else { return }
@@ -233,6 +241,7 @@ struct TodoAddSheet: View {
         .fixtureFact("todosAddDimmed", String(overflow.count))
         .fixtureFact("todosAddMarks", String(draft.marks.count))
         .fixtureFact("todosAddDescription", editingDetails ? "open" : "closed")
+        .fixtureFact("todosAddFiles", String(files.count))
     }
 
     /// What was kept from last time comes back, unless the sheet was opened with words of its own.
@@ -259,6 +268,7 @@ struct TodoAddSheet: View {
                     picker = TodoPicker(rawValue: name)
                 }
             }
+            if let count = PaiFixtureLaunch.requestedTodosFiles() { hold(Self.fixtureFiles(count)) }
             if let text = PaiFixtureLaunch.requestedTodosDetails() {
                 details = text
                 openDetails()
@@ -361,9 +371,11 @@ struct TodoAddSheet: View {
             .accessibilityLabel(details.isEmpty ? "Add a description" : "Description: \(detailsLine)")
         }
         TodoHeldFiles(
-            items: files.map { TodoHeldFiles.Item(id: $0.id.uuidString, name: $0.filename, image: $0.previewImage) }
+            items: files.map { TodoHeldFiles.Item(id: $0.id.uuidString, name: $0.filename, image: thumbnails[$0.id]) },
+            onOpen: open(file:)
         ) { id in
             files.removeAll { $0.id.uuidString == id }
+            thumbnails = thumbnails.filter { $0.key.uuidString != id }
         }
         TodoFieldChips(chips: chips, tagColor: tagColor, onTap: tapChip)
         ForEach(draft.issues, id: \.self) { issue in
@@ -423,9 +435,46 @@ struct TodoAddSheet: View {
 
     /// Pictures pasted into the line or the description wait with the todo as its files.
     private func stage(_ images: [PastedImage]) {
-        files += images.map {
-            AttachmentCompression.stage(data: $0.data, filename: $0.filename, mimeType: $0.mimeType)
+        hold(
+            images.map {
+                AttachmentCompression.stage(data: $0.data, filename: $0.filename, mimeType: $0.mimeType)
+            })
+    }
+
+    /// Takes picked or pasted files. A picture keeps a small thumbnail in place of its full
+    /// bitmap, which is what lets thirty of them wait here; the viewer reads the bytes.
+    private func hold(_ picked: [StagedAttachment]) {
+        for var file in picked {
+            if let image = file.previewImage {
+                thumbnails[file.id] = image.preparingThumbnail(of: TodoHeldFiles.thumbnailPixels) ?? image
+                file.previewImage = nil
+            }
+            files.append(file)
         }
+    }
+
+    #if DEBUG
+        /// Plain coloured pictures, for a fixture launch that shows the sheet holding many files.
+        private static func fixtureFiles(_ count: Int) -> [StagedAttachment] {
+            let size = CGSize(width: 240, height: 240)
+            return (0..<max(0, count)).map { index in
+                let hue = CGFloat(index % 12) / 12
+                let data = UIGraphicsImageRenderer(size: size).pngData { context in
+                    UIColor(hue: hue, saturation: 0.55, brightness: 0.85, alpha: 1).setFill()
+                    context.fill(CGRect(origin: .zero, size: size))
+                }
+                return AttachmentCompression.stage(
+                    data: data, filename: "picture-\(index + 1).png", mimeType: "image/png")
+            }
+        }
+    #endif
+
+    /// Shows a held file in the app's viewer: a picture or a PDF itself, anything else as a card
+    /// that can hand it on.
+    private func open(file id: String) {
+        guard let file = files.first(where: { $0.id.uuidString == id }) else { return }
+        preview = FilePreviewTarget(
+            data: file.data, filename: file.filename, kind: AttachmentPreviewKind.of(contentType: file.mimeType))
     }
 
     private var detailsLine: String {
@@ -548,6 +597,7 @@ struct TodoAddSheet: View {
         picks = TodoAddDraft()
         dismissed = []
         files = []
+        thumbnails = [:]
         kept.discard(keptKey)
         pickerStep = nil
         withAnimation(.easeOut(duration: 0.2)) { picker = nil }

@@ -145,16 +145,37 @@ public enum TodoSettingsOps {
 
     // MARK: Views
 
-    /// A view in or out of the favourites, the sidebar's `togglePinned`: a `view.save` with the
-    /// view's own name, layout and query.
+    /// A view in or out of the favourites, the sidebar's `togglePinned`.
     public static func favourite(_ view: TodoView, _ pinned: Bool) -> TodoOp {
-        op(
-            "view.save",
-            [
-                "id": .string(view.id), "name": .string(view.name), "layout": .string(view.layout),
-                "query": .string(view.query), "pinned": .bool(pinned),
-            ])
+        viewSave(id: view.id, name: view.name, query: view.query, layout: view.layout, pinned: pinned)
     }
+
+    /// A `view.save` with the three fields the server always wants. On a view that exists the
+    /// server keeps every field the op leaves out (symbol, grouping, sorting, defaults); a new
+    /// view gets the server's defaults for them.
+    public static func viewSave(id: String, name: String, query: String, layout: String, pinned: Bool? = nil) -> TodoOp
+    {
+        var fields: [String: PaiJSONValue] = [
+            "id": .string(id), "name": .string(name.trimmingCharacters(in: .whitespacesAndNewlines)),
+            "layout": .string(layout), "query": .string(query.trimmingCharacters(in: .whitespacesAndNewlines)),
+        ]
+        if let pinned { fields["pinned"] = .bool(pinned) }
+        return op("view.save", fields)
+    }
+
+    public static func viewDelete(_ view: TodoView) -> TodoOp { op("view.delete", ["id": .string(view.id)]) }
+
+    /// The op for a row dragged in the list of views (`views` in the order shown, `source` and
+    /// `destination` as a list's move reports them), or nil when the row stays where it was.
+    public static func viewMove(_ views: [TodoView], from source: Int, to destination: Int) -> TodoOp? {
+        guard views.indices.contains(source), destination != source, destination != source + 1 else { return nil }
+        let position: TodoPosition =
+            destination < views.count ? .before(views[destination].id) : .after(views[views.count - 1].id)
+        return op("view.move", ["id": .string(views[source].id), "position": position.json])
+    }
+
+    /// The layout a view made on the phone starts with.
+    public static let newViewLayout = "list"
 }
 
 /// Who may do what to a list's settings and people, the web's `manage/people.ts` and the

@@ -249,24 +249,7 @@ struct TodoSearchScreen: View {
             store.remember(.todo, target: hit.todo.id)
             opened = TodoSheetTarget(id: hit.todo.id)
         } label: {
-            HStack(alignment: .top, spacing: 10) {
-                TodoTickCircle(mark: TodoHorizonMark.of(hit.todo.horizon), done: hit.todo.status != .open)
-                VStack(alignment: .leading, spacing: 2) {
-                    if !hit.breadcrumb.isEmpty {
-                        Text(hit.breadcrumb.joined(separator: " › "))
-                            .font(.caption)
-                            .foregroundStyle(PaiPalette.Semantic.textFaint)
-                            .lineLimit(1)
-                    }
-                    Self.marked(hit.titleParts).foregroundStyle(PaiPalette.Semantic.textStrong)
-                    if let snippet = hit.snippet {
-                        Self.marked(snippet.parts)
-                            .font(.footnote)
-                            .foregroundStyle(PaiPalette.Semantic.textMuted)
-                            .lineLimit(2)
-                    }
-                }
-            }
+            TodoSearchHitLabel(hit: hit)
         }
         .buttonStyle(.plain)
     }
@@ -298,5 +281,33 @@ struct TodoSearchScreen: View {
         #if DEBUG
             if let q = PaiFixtureLaunch.requestedTodosSearch() { text = q }
         #endif
+    }
+}
+
+/// A found todo: where it sits, its title with what matched in bold, and the matching text.
+struct TodoSearchHitLabel: View {
+    let hit: TodosSearchAnswer.Hit
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            TodoTickCircle(mark: TodoHorizonMark.of(hit.todo.horizon), done: hit.todo.status != .open)
+            VStack(alignment: .leading, spacing: 2) {
+                if !hit.breadcrumb.isEmpty {
+                    Text(hit.breadcrumb.joined(separator: " › "))
+                        .font(.caption)
+                        .foregroundStyle(PaiPalette.Semantic.textFaint)
+                        .lineLimit(1)
+                }
+                TodoSearchScreen.marked(hit.titleParts).foregroundStyle(PaiPalette.Semantic.textStrong)
+                if let snippet = hit.snippet {
+                    TodoSearchScreen.marked(snippet.parts)
+                        .font(.footnote)
+                        .foregroundStyle(PaiPalette.Semantic.textMuted)
+                        .lineLimit(2)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 }

@@ -24,6 +24,12 @@ public enum AttachmentPreviewKind: Equatable, Sendable {
         }
     }
 
+    /// The kind a content type names, or nil when only the filename can say.
+    public static func of(contentType: String) -> AttachmentPreviewKind? {
+        if contentType.hasPrefix("image/") { return .image }
+        return contentType == "application/pdf" ? .pdf : nil
+    }
+
     /// Whether the viewer can show the file itself rather than a "no preview" card.
     public var isPreviewable: Bool { self != .other }
 }
