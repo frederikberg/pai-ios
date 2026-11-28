@@ -214,6 +214,11 @@ struct ModelsSections: View {
         group("Memory", "memory")
         group("Sessions and voice", "sessions")
         RegistryPlaceholder(store: settings.registry)
+        if settings.registry.field("message_review_enabled") != nil {
+            ScopedSection(title: "Message review", registry: settings.registry, keys: ["message_review_enabled"]) {
+                RegistryRows(store: settings.registry, keys: ["message_review_enabled"])
+            }
+        }
         ScopedSection(
             title: "Memory, advanced", registry: settings.registry,
             keys: ["turn_summary_history_count", "turn_summary_history_tokens"],

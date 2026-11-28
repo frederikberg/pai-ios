@@ -376,6 +376,11 @@
             value(for: settingsCategoryFlag, in: arguments)
         }
 
+        /// `-PaiFixtureAppOrder`: the Appearance page opens its App order list at once.
+        public static func opensAppOrder(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+            arguments.contains("-PaiFixtureAppOrder")
+        }
+
         /// `-PaiFixtureQuickMore`: the Quick Actions screen opens its More list at once.
         public static func opensQuickMore(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
             arguments.contains(quickMoreFlag)

@@ -145,6 +145,12 @@ struct RootView: View {
                 CrashReportSheet(record: crash)
                     .onAppear { CrashReporter.markSeen(crash) }
             }
+            // The Apps list of every top bar's Apps button. Presented from here, above the
+            // navigation stack, so the screen that asked for it can be replaced underneath it.
+            .sheet(isPresented: appsListBinding) {
+                AppsHomeSheet()
+                    .environment(environment)
+            }
     }
 
     @ViewBuilder
@@ -379,6 +385,7 @@ struct RootView: View {
         }
     }
 
+    // Every app's first screen carries the Apps button in its top bar.
     @ViewBuilder
     private func destination(for route: Route) -> some View {
         switch route {
@@ -411,6 +418,7 @@ struct RootView: View {
             SubagentListScreen(parentSessionId: parentID)
         case .notes:
             NoteListScreen()
+                .appsButton()
         case .note(let id):
             // Same reasoning and the same fix as `.session` above — `Router.openNote(id:)` is the
             // one path that replaces a `.note(id:)` destination for a *different* note at the same
@@ -457,47 +465,60 @@ struct RootView: View {
             // `ArcSpecView.sessionID`.
             ArcSpecView(specUuid: specUuid, sessionID: environment.router.openSessionID)
         case .apps:
-            AppsRouteScreen()
+            AppsHomeScreen()
         case .arcSpecList:
             ArcSpecListView()
+                .appsButton()
         case .arcReport(let specUuid, let reportUuid):
             ArcReportScreen(specUuid: specUuid, reportUuid: reportUuid)
         case .arcOverview(let specUuid):
             ArcOverviewRouteScreen(specUuid: specUuid)
         case .schedulerList:
             SchedulerListView()
+                .appsButton()
         case .schedulerTask(let id):
             TaskEditorView(taskId: id)
         case .reminder(let id):
             ReminderDetailView(reminderId: id)
         case .quickActions:
             QuickActionsScreen()
+                .appsButton()
         case .computerCall:
             ComputerCallView()
         case .canteen:
             CanteenView()
+                .appsButton()
         case .alarm:
             AlarmView()
+                .appsButton()
         case .weather:
             WeatherView()
+                .appsButton()
         case .me:
             MeView()
+                .appsButton()
         case .todos:
             TodoPageScreen(page: nil)
+                .appsButton()
         case .todosBrowse:
             TodoBrowseScreen()
         case .todosPage(let page):
             TodoPageScreen(page: page)
+                .appsButton()
         case .todosSearch:
             TodoSearchScreen()
         case .cameraImport:
             CameraImportView()
+                .appsButton()
         case .usage:
             UsageView()
+                .appsButton()
         case .decisions:
             DecisionsView()
+                .appsButton()
         case .reports:
             ReportListScreen()
+                .appsButton()
         case .report(let id):
             // Keyed on the report, like `.browser`: a link to another report replaces this
             // destination in place, and the page and its answers belong to one report each.
@@ -505,6 +526,7 @@ struct RootView: View {
                 .id(id)
         case .browserList:
             BrowserListScreen()
+                .appsButton()
         case .browser(let name):
             // Keyed on the session, like `.session`: a link to another session replaces this
             // destination in place, and the stream and zoom belong to one session each.
@@ -518,9 +540,14 @@ struct RootView: View {
     /// Left in the inbox otherwise rather than dropped: a notification tapped from cold arrives
     /// well before the token has been read and the connection built, and discarding it there is
     /// exactly the case this whole mechanism exists for.
-    /// A start of the app that nothing else steers opens the launcher, the screen every app is
-    /// one tap from; the session list is behind it. A link that brought the app up, a restored
-    /// place and sleep time keep their own screen.
+    /// A start of the app that nothing else steers opens the start screen, the apps as tiles in
+    /// the person's order; the session list is behind it. A link that brought the app up, a
+    /// restored place and sleep time keep their own screen.
+    private var appsListBinding: Binding<Bool> {
+        Binding(
+            get: { environment.appPlaces.isShowingApps }, set: { environment.appPlaces.isShowingApps = $0 })
+    }
+
     private func landAtLaunch() {
         guard !landedAtLaunch, environment.router.gate == .ready else { return }
         landedAtLaunch = true
@@ -529,7 +556,7 @@ struct RootView: View {
             // A fixture run photographs the screen its route names, the root list included.
             if PaiFixtureLaunch.isEnabled() { return }
         #endif
-        environment.router.push(.quickActions)
+        environment.router.push(.apps)
     }
 
     private func consumeDeepLink() {
@@ -783,28 +810,6 @@ private struct CreateSessionRouteScreen: View {
             .onChange(of: isPresented) { _, presented in
                 guard !presented else { return }
                 environment.router.removeRoute(.createSession)
-            }
-    }
-}
-
-/// What `.apps` pushes to — reproduces the sheet the session list's "Apps" toolbar button
-/// actually presents, since `AppsHomeSheet` has no screen of its own to navigate to. Real usage
-/// never pushes this route, only the fixture screenshot workflow does — but `AppsHomeSheet.openArc()`/
-/// `openNotes()`/`openScheduler()` push their own destination before dismissing, the same order
-/// `CreateSessionRouteScreen` above has to account for, so this uses the same `removeRoute` fix
-/// rather than the unconditional `pop()` that would otherwise remove whatever was just pushed.
-private struct AppsRouteScreen: View {
-    @Environment(AppEnvironment.self) private var environment
-    @State private var isPresented = true
-
-    var body: some View {
-        Color.clear
-            .sheet(isPresented: $isPresented) {
-                AppsHomeSheet()
-            }
-            .onChange(of: isPresented) { _, presented in
-                guard !presented else { return }
-                environment.router.removeRoute(.apps)
             }
     }
 }

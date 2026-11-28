@@ -660,6 +660,7 @@ extension PaiFixtures {
             "alarm_ring_interval_s": 5,
             "alarm_ring_duration_s": 60,
             "location_sign_in_id": null,
+            "app_order": ["sessions", "notes", "todos", "me", "---"],
             "push_agent_messages": true,
             "push_alerts": true,
             "push_reminders": true,
@@ -939,6 +940,7 @@ extension PaiFixtures {
             "alarm_ring_interval_s": 5,
             "alarm_ring_duration_s": 60,
             "location_sign_in_id": null,
+            "app_order": ["sessions", "notes", "todos", "me", "---"],
             "push_agent_messages": true
           },
           "instance": null

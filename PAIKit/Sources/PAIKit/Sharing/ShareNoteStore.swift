@@ -81,7 +81,8 @@ public final class ShareNoteStore {
     /// The name a note gets before the person types one: the text's first line, cut at a word
     /// within 80 characters, else the link's host, else the first file's name without its ending.
     static func suggestedName(text: String?, link: String?, files: [ShareItem]) -> String {
-        if let line = text?.split(separator: "\n").first.map({ $0.trimmingCharacters(in: .whitespaces) }), !line.isEmpty {
+        if let line = text?.split(separator: "\n").first.map({ $0.trimmingCharacters(in: .whitespaces) }), !line.isEmpty
+        {
             guard line.count > 80 else { return line }
             let head = String(line.prefix(80))
             let cut = head.lastIndex(of: " ").map { String(head[..<$0]) } ?? head
@@ -124,7 +125,8 @@ public final class ShareNoteStore {
                     embedded[file.id] = placed.relPath
                 }
             }
-            let made = try await backend.createNote(name: trimmedName, summary: nil, body: body, containerId: containerId)
+            let made = try await backend.createNote(
+                name: trimmedName, summary: nil, body: body, containerId: containerId)
             phase = .added(name: made.name)
         } catch {
             phase = .failed(message: Self.message(for: error))

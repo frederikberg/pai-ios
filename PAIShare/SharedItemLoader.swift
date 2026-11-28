@@ -12,6 +12,8 @@ enum SharedItemLoader {
 
     struct Loaded {
         let items: [ShareItem]
+        /// The photos and files among `items`: what a todo or a note takes as its files.
+        let files: [ShareItem]
         let refusal: String?
         /// The first shared text and the first shared web link, which can also become a todo.
         let todoText: String?
@@ -43,6 +45,7 @@ enum SharedItemLoader {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         var items: [ShareItem] = []
+        var files: [ShareItem] = []
         var todoText: String?
         var todoLink: String?
         var unreadable: [String] = []
@@ -65,18 +68,19 @@ enum SharedItemLoader {
                     oversize.append(name)
                     continue
                 }
-                items.append(
-                    ShareItem(name: name) {
-                        let data = try Data(contentsOf: url, options: .mappedIfSafe)
-                        guard isImage else {
-                            return PaiFileUpload(filename: name, mimeType: mimeType, data: data)
-                        }
-                        let fitted = AttachmentImageFit.apply(data: data, filename: name, mimeType: mimeType)
-                        guard fitted.data.count <= maxAttachmentBytes else {
-                            throw OversizeImage()
-                        }
-                        return PaiFileUpload(filename: fitted.filename, mimeType: fitted.mimeType, data: fitted.data)
-                    })
+                let item = ShareItem(name: name) {
+                    let data = try Data(contentsOf: url, options: .mappedIfSafe)
+                    guard isImage else {
+                        return PaiFileUpload(filename: name, mimeType: mimeType, data: data)
+                    }
+                    let fitted = AttachmentImageFit.apply(data: data, filename: name, mimeType: mimeType)
+                    guard fitted.data.count <= maxAttachmentBytes else {
+                        throw OversizeImage()
+                    }
+                    return PaiFileUpload(filename: fitted.filename, mimeType: fitted.mimeType, data: fitted.data)
+                }
+                items.append(item)
+                files.append(item)
             case .text(let text, let filename):
                 if filename == linkFilename {
                     todoLink = todoLink ?? text
@@ -90,7 +94,8 @@ enum SharedItemLoader {
             }
         }
         return Loaded(
-            items: items, refusal: refusalMessage(unreadable: unreadable, oversize: oversize), todoText: todoText,
+            items: items, files: files, refusal: refusalMessage(unreadable: unreadable, oversize: oversize),
+            todoText: todoText,
             todoLink: todoLink)
     }
 

@@ -20,7 +20,7 @@ struct SessionListView: View {
     /// genuinely empty but showing "No sessions yet" would be a false claim.
     @State private var hasLoadedInitialSessions = false
     @State private var isPresentingCreateSession = false
-    @State private var isPresentingApps = false
+    @State private var isSearching = false
     @State private var actionsSheetTarget: SessionActionsTarget?
 
     /// How many rows before the end trigger the next page — a screen or so at this row's fixed
@@ -46,7 +46,9 @@ struct SessionListView: View {
         .navigationTitle("Sessions")
         // The system search field: scroll-to-reveal and a Cancel button for free, rather than
         // the hand-rolled field the web needs (it has no such control to reach for).
-        .searchable(text: filterTextBinding, prompt: filterPlaceholder)
+        .searchable(text: filterTextBinding, isPresented: $isSearching, prompt: filterPlaceholder)
+        // An opened search starts with its own defaults, which the store owns.
+        .onChange(of: isSearching) { _, searching in sessions.setSearching(searching) }
         // Semantic search moved here from its own title-bar icon — `.searchScopes` is
         // the native element for exactly this shape (Mail's "Current Mailbox"/"All Mailboxes" is
         // the same primitive), and it appears only while the search field itself is active,
@@ -80,13 +82,7 @@ struct SessionListView: View {
                 .accessibilityIdentifier("new-session")
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isPresentingApps = true
-                } label: {
-                    Image(systemName: "square.grid.2x2")
-                }
-                .accessibilityLabel("Apps")
-                .accessibilityIdentifier("open-apps")
+                AppsButton()
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -108,9 +104,6 @@ struct SessionListView: View {
                 )
                 .accessibilityIdentifier("open-notifications")
             }
-        }
-        .sheet(isPresented: $isPresentingApps) {
-            AppsHomeSheet()
         }
         .task {
             // Guarded, because pushing a session and coming back re-runs this: a second

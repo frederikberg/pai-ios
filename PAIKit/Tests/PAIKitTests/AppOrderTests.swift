@@ -62,9 +62,11 @@ final class AppOrderTests: XCTestCase {
             switchingTo: try app("todos"), start: .todosPage(.view("today")), from: inNote, asleep: false)
         XCTAssertEqual(todos, [.apps, .todosPage(.view("today"))])
 
-        XCTAssertEqual(places.path(switchingTo: try app("notes"), from: todos, asleep: false), [.apps, .notes, .note(id: "n1")])
         XCTAssertEqual(
-            places.path(switchingTo: try app("sessions"), from: [.apps, .notes, .note(id: "n1")], asleep: false), inSession)
+            places.path(switchingTo: try app("notes"), from: todos, asleep: false), [.apps, .notes, .note(id: "n1")])
+        XCTAssertEqual(
+            places.path(switchingTo: try app("sessions"), from: [.apps, .notes, .note(id: "n1")], asleep: false),
+            inSession)
     }
 
     func testPickingTheAppOneIsInChangesNothing() throws {
