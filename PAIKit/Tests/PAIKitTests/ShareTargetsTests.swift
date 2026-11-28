@@ -81,7 +81,8 @@ final class ShareTargetsTests: XCTestCase {
             return NoteAttachmentUploaded(relPath: "attachments/\(filename)", size: data.count)
         }
 
-        func createNote(name: String, summary: String?, body: String?, containerId: String?) async throws -> NoteDetail {
+        func createNote(name: String, summary: String?, body: String?, containerId: String?) async throws -> NoteDetail
+        {
             created.append((name, body, containerId))
             return NoteDetail(
                 id: "n\(created.count)", name: name, summary: nil, containerId: containerId, favourite: false,

@@ -26,6 +26,7 @@ struct QuickActionsScreen: View {
     /// What a tap in the More list asked for. It runs once the list has finished leaving: an
     /// action that presents or navigates from behind a dismissing sheet is dropped silently.
     @State private var afterMore: (() -> Void)?
+    @State private var choosingPushPause = false
 
     private var store: QuickActionsStore { environment.quickActions }
     private var capabilities: Capabilities { environment.connection?.me.capabilities ?? .unknown }
@@ -90,6 +91,18 @@ struct QuickActionsScreen: View {
             }
         #endif
         .sheet(isPresented: $writingEntry) { MeComposerSheet(mode: .new) }
+        // Whether push is paused is the server's to say; read when the action is on show.
+        .task {
+            guard store.placement(of: .action(.pauseNotifications)) != .hidden else { return }
+            await pushDevices?.load()
+        }
+        .confirmationDialog("Pause push to this iPhone", isPresented: $choosingPushPause, titleVisibility: .visible) {
+            ForEach(PushPausePreset.presets(now: Date(), zone: .current)) { preset in
+                Button(preset.label) { Task { await pausePush(until: preset.until) } }
+            }
+        } message: {
+            Text("The inbox keeps everything. Nothing is caught up after a pause.")
+        }
         .sheet(item: $editingShortcut) { shortcut in
             ShortcutEditSheet(
                 shortcut: shortcut,
@@ -200,6 +213,8 @@ struct QuickActionsScreen: View {
         case .selfReport, .fastSession, .fastCall: PaiPalette.amber500
         case .me, .computer, .home, .homeCall, .mailverdict: PaiPalette.primary500
         case .ultrafast, .ultrafastCall, .ultrafastCamera: PaiPalette.green500
+        case .pauseNotifications:
+            pushPausedUntil == nil ? PaiPalette.Semantic.textSecondary : PaiPalette.amber500
         case .findNote, .newNote, .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage,
             .cameraImport, .todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk:
             PaiPalette.Semantic.textSecondary
@@ -222,7 +237,7 @@ struct QuickActionsScreen: View {
         case .findNote: "quick-find-note"
         case .newNote: "quick-new-note"
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport, .todos, .newTodo,
-            .searchTodos, .todosSwitcher, .todosDesk:
+            .searchTodos, .todosSwitcher, .todosDesk, .pauseNotifications:
             "quick-\(action.rawValue)"
         }
     }
@@ -267,6 +282,7 @@ struct QuickActionsScreen: View {
         case .searchTodos: TodosEntry.search(environment)
         case .todosSwitcher: TodosEntry.openSwitcher(environment)
         case .todosDesk: TodosEntry.openDesk(environment)
+        case .pauseNotifications: Task { await togglePushPause() }
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport:
             guard let route = action.appEntry?.route else { return }
             environment.router.push(route)
@@ -278,10 +294,52 @@ struct QuickActionsScreen: View {
         }
     }
 
+    // MARK: Pausing push
+
+    private var pushDevices: PushDevicesStore? { environment.connection?.settings.pushDevices }
+
+    /// When this iPhone's pause ends, while it is paused.
+    private var pushPausedUntil: Date? { pushDevices?.thisDevice?.pausedUntilDate(after: Date()) }
+
+    private func clock(_ date: Date) -> String { date.formatted(date: .omitted, time: .shortened) }
+
+    /// A tap on the pause action: a paused phone resumes, any other is asked for how long.
+    private func togglePushPause() async {
+        guard let devices = pushDevices else { return }
+        if devices.thisDevice == nil { await devices.load() }
+        guard let phone = devices.thisDevice else {
+            toasts.show(
+                devices.errorMessage ?? "This iPhone receives no push yet. Turn it on in Settings, Notifications.")
+            return
+        }
+        guard phone.pausedUntilDate(after: Date()) != nil else {
+            choosingPushPause = true
+            return
+        }
+        await devices.resume(phone)
+        toasts.show(devices.errorMessage ?? "Push to this iPhone is on again")
+    }
+
+    private func pausePush(until: Date) async {
+        guard let devices = pushDevices, let phone = devices.thisDevice else { return }
+        await devices.pause(phone, until: until)
+        toasts.show(devices.errorMessage ?? "Push to this iPhone is paused until \(clock(until))")
+    }
+
+    /// The pause action says what a tap does next, and until when the phone is quiet.
+    private func title(of action: QuickAction) -> String {
+        action == .pauseNotifications && pushPausedUntil != nil ? "Resume push" : action.title
+    }
+
+    private func subtitle(of action: QuickAction) -> String {
+        guard action == .pauseNotifications, let until = pushPausedUntil else { return action.subtitle }
+        return "Paused until \(clock(until))"
+    }
+
     @ViewBuilder
     private func actionTile(_ action: QuickAction, height: CGFloat) -> some View {
         let base = tile(
-            title: action.title, subtitle: action.subtitle, systemImage: action.systemImage,
+            title: title(of: action), subtitle: subtitle(of: action), systemImage: action.systemImage,
             tint: tint(action), height: height, identifier: identifier(action)
         ) {
             perform(action)
@@ -361,7 +419,7 @@ struct QuickActionsScreen: View {
         switch item {
         case .action(let action):
             moreRow(
-                title: action.title, subtitle: action.subtitle, systemImage: action.systemImage,
+                title: title(of: action), subtitle: subtitle(of: action), systemImage: action.systemImage,
                 tint: tint(action), identifier: "\(identifier(action))-row", putAway: isPutAway(item)
             ) {
                 afterClosingMore { perform(action) }

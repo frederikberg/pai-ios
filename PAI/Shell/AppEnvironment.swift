@@ -27,6 +27,9 @@ final class AppEnvironment {
     /// The Quick Actions arrangement. Belongs to the phone like sleep mode, and needs no sign-in.
     let quickActions: QuickActionsStore
 
+    /// Where the person was in each app, and whether the Apps list is open.
+    let appPlaces = AppPlaces()
+
     /// Todos: the cached todos, lists and desk, and the queue of changes not yet sent. Belongs to
     /// the phone rather than the connection, so a todo captured while signed out, or while an
     /// expired sign-in is being renewed, waits instead of being lost; `connect` tells it where to

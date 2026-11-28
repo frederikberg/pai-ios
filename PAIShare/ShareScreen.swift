@@ -1,7 +1,8 @@
 import PAIKit
 import SwiftUI
 
-/// Pick a session or a new one, then watch the files land on its draft.
+/// One screen for everything shared into the app: it becomes a todo, a note, or files waiting on
+/// a session's draft.
 struct ShareScreen: View {
     let providers: [NSItemProvider]
     let credentials: SharedCredentials?
@@ -18,9 +19,10 @@ struct ShareScreen: View {
                             store: ShareStore(
                                 items: loaded.items, refusal: loaded.refusal, backend: client,
                                 attemptMark: .extensionDefaults),
-                            todo: loaded.todoText == nil && loaded.todoLink == nil
-                                ? nil
-                                : ShareTodoStore(sharedText: loaded.todoText, link: loaded.todoLink),
+                            todo: ShareTodoStore(
+                                sharedText: loaded.todoText, link: loaded.todoLink, files: loaded.files),
+                            note: ShareNoteStore(
+                                sharedText: loaded.todoText, link: loaded.todoLink, files: loaded.files),
                             client: client,
                             close: close)
                     } else {
@@ -32,7 +34,7 @@ struct ShareScreen: View {
                         description: Text("Open PAI and sign in, then share again."))
                 }
             }
-            .navigationTitle("Attach to PAI")
+            .navigationTitle("Share to PAI")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -67,17 +69,25 @@ extension ShareAttemptMark {
 
 private struct ShareFlowView: View {
     @State var store: ShareStore
-    /// Offered when text or a web link was shared.
-    @State var todo: ShareTodoStore?
+    @State var todo: ShareTodoStore
+    @State var note: ShareNoteStore
     let client: PaiApiClient
     let close: () -> Void
 
+    /// The targets this person has; empty until the server has said who they are.
+    @State private var offered: [ShareTarget] = []
+    @State private var target = ShareTarget.session
     @State private var query = ""
 
     var body: some View {
         switch store.phase {
         case .choosing:
-            chooser
+            if offered.isEmpty {
+                ProgressView()
+                    .task { await findTargets() }
+            } else {
+                chooser
+            }
         case .sending(let done, let total):
             ProgressView("Attaching \(done + 1) of \(total)", value: Double(done), total: Double(total))
                 .padding()
@@ -100,21 +110,19 @@ private struct ShareFlowView: View {
         }
     }
 
+    /// Who the person is decides what is offered. Without an answer only the session is, the one
+    /// target every signed-in person has.
+    private func findTargets() async {
+        let me = try? await client.getMe()
+        let targets = ShareTarget.offered(to: Capabilities(me: me))
+        todo.start(client)
+        note.start(client)
+        target = targets.first ?? .session
+        offered = targets
+    }
+
     private var chooser: some View {
         List {
-            if let todo {
-                ShareTodoSection(todo: todo, close: close)
-                    .task { todo.start(client) }
-            }
-            if store.previousAttemptDied {
-                Section {
-                    Label(
-                        "The last share stopped before it finished, so its files may be missing.",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .font(.footnote)
-                }
-            }
             Section {
                 ForEach(store.items) { item in
                     Label(item.name, systemImage: "doc").lineLimit(1).truncationMode(.middle)
@@ -122,30 +130,62 @@ private struct ShareFlowView: View {
                 if let refusal = store.refusal {
                     Text(refusal).font(.footnote).foregroundStyle(.secondary)
                 }
+                if offered.count > 1 {
+                    Picker("Share as", selection: $target) {
+                        ForEach(offered) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("share-target")
+                }
             }
-            if !store.items.isEmpty {
-                Section {
-                    Button {
-                        Task { await store.send(to: .newSession) }
-                    } label: {
-                        Label("New session", systemImage: "plus.bubble")
-                    }
-                }
-                Section("Sessions") {
-                    if let error = store.sessionsError {
-                        Text(error).font(.footnote).foregroundStyle(.secondary)
-                    }
-                    ForEach(store.sessions) { session in
-                        sessionRow(session)
-                    }
-                }
+            switch target {
+            case .todo: ShareTodoSection(todo: todo, close: close)
+            case .note: ShareNoteSection(note: note, close: close)
+            case .session: sessionSections
             }
         }
-        .searchable(text: $query, prompt: "Search sessions")
+        // On the list, not on the sessions' section: a section hands a task to each of its rows.
         .task(id: query) {
             if !query.isEmpty { try? await Task.sleep(for: .milliseconds(300)) }
             guard !Task.isCancelled else { return }
             await store.loadSessions(query: query)
+        }
+    }
+
+    @ViewBuilder
+    private var sessionSections: some View {
+        if store.previousAttemptDied {
+            Section {
+                Label(
+                    "The last share stopped before it finished, so its files may be missing.",
+                    systemImage: "exclamationmark.triangle"
+                )
+                .font(.footnote)
+            }
+        }
+        if store.items.isEmpty {
+            Section {
+                Text("Nothing of what was shared can go to a session.").font(.footnote).foregroundStyle(.secondary)
+            }
+        } else {
+            Section {
+                Button {
+                    Task { await store.send(to: .newSession) }
+                } label: {
+                    Label("New session", systemImage: "plus.bubble")
+                }
+            }
+            Section("Sessions") {
+                TextField("Search sessions", text: $query)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                if let error = store.sessionsError {
+                    Text(error).font(.footnote).foregroundStyle(.secondary)
+                }
+                ForEach(store.sessions) { session in
+                    sessionRow(session)
+                }
+            }
         }
     }
 

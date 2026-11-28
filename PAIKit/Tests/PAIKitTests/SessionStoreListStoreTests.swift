@@ -324,6 +324,7 @@ final class SessionStoreListStoreTests: XCTestCase {
         await answerByMode(api)
         await api.setSearchTruncated(true)
         let store = makeStore(api: api)
+        store.setSemanticMode(false)
         store.updateFilterText("match")
         await awaitRows(store, ["text-new", "text-old"])
         XCTAssertEqual(store.truncationNotice, "More matches than shown — narrow the search")

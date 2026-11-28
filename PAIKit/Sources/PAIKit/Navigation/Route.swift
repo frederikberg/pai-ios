@@ -66,10 +66,8 @@ public enum Route: Hashable, Sendable {
     /// concern: nothing ever replaces one `.arcSpec` destination with a different one at the
     /// same stack depth.
     case arcSpec(specUuid: String)
-    /// The Apps section — reached only from the fixture screenshot workflow, the
-    /// same way `.createSession`/`.recordings` are: real usage presents `AppsHomeSheet` from the
-    /// session list's toolbar button, never by pushing a route. `RootView` reproduces that sheet
-    /// presentation here for the same reason those two do.
+    /// The start screen: every app as a tile, in the person's order. Where the app lands when it
+    /// is opened, and what every app but the sessions sits on (``AppPlaces``).
     case apps
     /// Every ARC spec, not just the ones bound to one conversation — reached from Apps' "Arc"
     /// row. Carries no identity concern of its own for the same reason `.arcSpec` does not:

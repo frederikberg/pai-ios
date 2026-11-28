@@ -82,6 +82,12 @@ private struct ReportRow: View {
                 .font(PaiTypography.caption.font)
                 .foregroundStyle(PaiPalette.Semantic.textMuted)
                 .lineLimit(1)
+            if let decisions = report.decisions, let label = decisions.label {
+                Label(label, systemImage: decisions.hasOpen ? "circle.dashed" : "checkmark.circle")
+                    .font(PaiTypography.caption.font)
+                    .foregroundStyle(decisions.hasOpen ? PaiPalette.amber500 : PaiPalette.Semantic.textMuted)
+                    .accessibilityIdentifier("report-decisions")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())

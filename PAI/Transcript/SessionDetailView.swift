@@ -121,30 +121,27 @@ struct SessionDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("session-detail")
         .toolbar {
+            // Search and the terminal open the menu, so the bar keeps room for the title; the
+            // rest of a session's actions are one entry further, in their sheet.
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isPresentingActionsSheet = true
+                Menu {
+                    Button("Search this session", systemImage: "magnifyingglass") { searchState.open() }
+                        .accessibilityIdentifier("open-transcript-search")
+                    Button("Terminal", systemImage: "terminal") {
+                        environment.router.push(.terminal(sessionID: sessionID))
+                    }
+                    .accessibilityIdentifier("open-terminal")
+                    Divider()
+                    Button("More actions\u{2026}", systemImage: "ellipsis.circle") { isPresentingActionsSheet = true }
+                        .accessibilityIdentifier("open-session-actions")
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+                .menuOrder(.fixed)
+                .accessibilityLabel("Session menu")
                 .accessibilityIdentifier("session-actions-button")
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    environment.router.push(.terminal(sessionID: sessionID))
-                } label: {
-                    Image(systemName: "terminal")
-                }
-                .accessibilityIdentifier("open-terminal")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    searchState.open()
-                } label: {
-                    Image(systemName: "magnifyingglass")
-                }
-                .accessibilityIdentifier("open-transcript-search")
-            }
+            ToolbarItem(placement: .topBarTrailing) { AppsButton() }
         }
         .sheet(isPresented: $isPresentingActionsSheet) {
             SessionActionsSheet(sessionId: sessionID)
