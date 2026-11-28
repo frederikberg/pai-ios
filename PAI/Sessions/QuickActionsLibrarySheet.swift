@@ -245,7 +245,7 @@ struct ShortcutEditSheet: View {
                         .accessibilityIdentifier("shortcut-edit-url")
                 } footer: {
                     Text(
-                        "A link another app opens, such as a Todoist view or filter link, or any web address."
+                        "A link another app opens, or any web address."
                     )
                 }
                 if let onDelete {

@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// What Today and the 14-day grid show: the overview, the day picked in the grid, that day's
-/// detail and its Todoist rows. A failed read keeps the answer on screen and says so.
+/// detail and its task rows. A failed read keeps the answer on screen and says so.
 @MainActor
 @Observable
 public final class MeOverviewStore {
@@ -16,7 +16,7 @@ public final class MeOverviewStore {
     public var selectedDate: String?
     public private(set) var detail: MeDay?
     public private(set) var detailDate: String?
-    /// The Todoist rows read so far, by Berlin day. Today's are read again on open, on coming back
+    /// The task rows read so far, by Berlin day. Today's are read again on open, on coming back
     /// to the screen and on the refresh icon, never on a timer.
     public private(set) var tasksByDate: [String: MeTasks] = [:]
     public private(set) var isRefreshingTasks = false
@@ -34,8 +34,8 @@ public final class MeOverviewStore {
         return MePresenter(timeZoneName: overview?.timezone ?? "Europe/Berlin")
     }
 
-    /// Reads the overview and today's Todoist rows side by side, then the picked day's detail.
-    /// `freshTasks` is a pull-to-refresh: it asks the server to read Todoist again even when its last read is recent.
+    /// Reads the overview and today's task rows side by side, then the picked day's detail.
+    /// `freshTasks` is a pull-to-refresh: it asks the server to read Todos again even when its last read is recent.
     public func load(readingTasks: Bool = true, freshTasks: Bool = false) async {
         async let todayTasks: Void = readTodayTasks(readingTasks, fresh: freshTasks)
         await loadOverview()
@@ -111,10 +111,10 @@ public final class MeOverviewStore {
         }
     }
 
-    // MARK: Todoist
+    // MARK: Tasks
 
     /// Today's rows come with ``load()``; another day's are stored ones the server never asks
-    /// Todoist for, read once when the day is picked.
+    /// Todos for, read once when the day is picked.
     private func loadTasksUnlessToday(date: String) async {
         if date == overview?.today || tasksByDate[date] != nil { return }
         await loadTasks(date: date, fresh: false)
@@ -131,7 +131,7 @@ public final class MeOverviewStore {
         }
     }
 
-    /// The refresh icon: asks the server to read Todoist again when its last read is a few
+    /// The refresh icon: asks the server to read Todos again when its last read is a few
     /// seconds old, which the server allows at most every 20 seconds.
     public func refreshTasks() async {
         guard !isRefreshingTasks else { return }

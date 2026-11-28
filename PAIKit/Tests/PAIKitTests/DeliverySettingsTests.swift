@@ -22,7 +22,7 @@ private actor FakeConnectionsApi: ConnectionsApiClient {
         loads += 1
         return [
             ServiceConnection(id: "anthropic", label: "Anthropic", kind: .model, testable: true),
-            ServiceConnection(id: "todoist", label: "Todoist", kind: .integration, testable: true),
+            ServiceConnection(id: "home_assistant", label: "Home Assistant", kind: .integration, testable: true),
         ]
     }
     func testConnection(id: String) async throws -> ConnectionTestResult {
@@ -229,7 +229,7 @@ final class DeliverySettingsTests: XCTestCase {
         await store.test(anthropic)
         XCTAssertNil(store.tests["anthropic"])
         XCTAssertEqual(store.testError["anthropic"], "Anthropic has no key or address to test with")
-        XCTAssertEqual(store.connections(ofKinds: [.integration]).map(\.id), ["todoist"])
+        XCTAssertEqual(store.connections(ofKinds: [.integration]).map(\.id), ["home_assistant"])
     }
 
     func testTheAddressPartIsWrittenAsNullToGoBackToTheDeployments() async throws {

@@ -5,7 +5,7 @@ import Foundation
 extension PaiFixtures {
 
     /// The states a screenshot run can ask for with `-PaiFixtureMe`.
-    /// `tasksDown` is the default with the Todoist read failing, which the Today card says in its footer.
+    /// `tasksDown` is the default with the Todos read failing, which the Today card says in its footer.
     public static let meStates = ["default", "noGarmin", "empty", "tasksDown"]
 
     /// The id every created entry answers under, whatever the client sent.

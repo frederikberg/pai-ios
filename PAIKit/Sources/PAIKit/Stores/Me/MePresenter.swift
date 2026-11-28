@@ -240,7 +240,7 @@ public enum MeLayout {
         case ribbon, body, write, review, tasks, plan, diary, lookingBack, pai, notes
     }
 
-    /// What Today may draw, by what exists: the ribbon, the Todoist card and the plan are left out
+    /// What Today may draw, by what exists: the ribbon, the tasks card and the plan are left out
     /// when there is nothing to put in them.
     public static func todaySections(
         for overview: MeOverview, ribbon: Bool, tasks: Bool, plan: Bool

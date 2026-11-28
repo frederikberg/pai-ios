@@ -413,7 +413,7 @@ fi
 
 if want me-screens; then
   # The three Me views, the composer over a seeded draft, and the states with less data. A Today
-  # screenshot shows its top; `-PaiFixtureScrollTo` brings the Todoist card, the plan and the diary
+  # screenshot shows its top; `-PaiFixtureScrollTo` brings the tasks card, the plan and the diary
   # rows below the fold into view, and the day detail sits under the grid.
   me_screen() {
     name=$1 tab=$2 facts=$3
