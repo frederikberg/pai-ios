@@ -68,7 +68,8 @@ struct AppsHomeSheet: View {
     // iOS trap, and the failure is silent. Reversing the order would leave the user looking at the
     // session list with the Apps sheet merely closed, having to tap the destination a second time.
     private func open(_ entry: AppEntry) {
-        environment.router.push(entry.route)
+        // Todos opens where it was left.
+        environment.router.push(entry.route == .todos ? TodosEntry.route(environment) : entry.route)
         dismiss()
     }
 }

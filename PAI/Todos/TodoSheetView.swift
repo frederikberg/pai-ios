@@ -135,7 +135,7 @@ struct TodoScreen: View {
         .sheet(isPresented: $pickingPhoto) { PhotoAttachmentPicker(onPicked: attach) }
         .sheet(isPresented: $pickingFile) { FileAttachmentPicker(onPicked: attach) }
         .navigationDestination(isPresented: $editingDescription) {
-            if let todo { TodoDescriptionScreen(todo: todo, canEdit: blocked == nil) }
+            if let todo { TodoDescriptionScreen(todo: todo, canEdit: blocked == nil, store: store) }
         }
         .filePreview($preview)
         .task(id: store.readTick) { await store.loadSheet(todoId) }

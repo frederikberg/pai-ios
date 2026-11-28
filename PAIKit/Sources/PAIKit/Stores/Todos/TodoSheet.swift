@@ -103,8 +103,19 @@ public enum TodoFieldOps {
         return TodoOp(fields: fields)
     }
 
-    public static func clearSection(_ dividerId: String) -> TodoOp {
-        TodoOp(fields: ["op": .string("desk.clear"), "what": .object(["section": .string(dividerId)])])
+    /// Clearing a section: its title and the cards `desk` shows under it, each named, so what
+    /// leaves the desk is what the person saw there and never what another order holds in that
+    /// place. Empty when `desk` has no such section.
+    public static func clearSection(_ dividerId: String, in desk: [TodoDeskItem]) -> [TodoOp] {
+        guard let section = TodoDeskSections.sections(desk).first(where: { $0.divider?.id == dividerId }) else {
+            return []
+        }
+        return section.cards.map { TodoOp.deskRemove(item: TodoDeskArrange.ref($0)) } + [removeSectionTitle(dividerId)]
+    }
+
+    /// A section's title alone leaves; the cards under it stay and join the section above.
+    public static func removeSectionTitle(_ dividerId: String) -> TodoOp {
+        .deskRemove(item: dividerId)
     }
 
     public enum NudgeChoice: Equatable, Sendable {

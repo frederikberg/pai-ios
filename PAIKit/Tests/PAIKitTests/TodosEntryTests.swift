@@ -164,6 +164,39 @@ final class TodosEntryTests: XCTestCase {
             TodoDeskSections.end(of: divider, in: store.deskItems), .after("11111111-0000-7000-8000-0000000000a2"))
     }
 
+    /// A section's title moved elsewhere leaves its cards where they were; clearing it then
+    /// takes the cards drawn under it now and no other, and removing a title alone keeps every
+    /// card. The server's desk ends as the phone drew it.
+    func testClearingASectionTakesOnlyTheCardsDrawnUnderIt() async throws {
+        let server = FakeTodosServer()
+        let ids = (1...4).map { "11111111-0000-7000-8000-0000000000a\($0)" }
+        for (index, id) in ids.enumerated() { try await server.seed(id: id, title: "Card \(index + 1)") }
+        let store = makeStore()
+        store.connect(server)
+        await store.refresh()
+        let first = "11111111-0000-7000-8000-0000000000d1"
+        let second = "11111111-0000-7000-8000-0000000000d2"
+        store.submit([
+            TodoFieldOps.deskSection(id: first, title: "Morning"), .deskAdd(todo: ids[0]), .deskAdd(todo: ids[1]),
+            TodoFieldOps.deskSection(id: second, title: "Evening"), .deskAdd(todo: ids[2]), .deskAdd(todo: ids[3]),
+        ])
+        await store.drain()
+        XCTAssertEqual(store.deskItems.map(TodoDeskArrange.ref), [first, ids[0], ids[1], second, ids[2], ids[3]])
+
+        // "Morning" dragged down between the last two cards.
+        store.submit([try XCTUnwrap(TodoDeskArrange.onMove(store.deskItems, from: 0, to: 5))])
+        XCTAssertEqual(store.deskItems.map(TodoDeskArrange.ref), [ids[0], ids[1], second, ids[2], first, ids[3]])
+        store.submit(TodoFieldOps.clearSection(first, in: store.deskItems))
+        XCTAssertEqual(store.deskItems.map(TodoDeskArrange.ref), [ids[0], ids[1], second, ids[2]])
+        store.submit([TodoFieldOps.removeSectionTitle(second)])
+        await store.drain()
+
+        let kept = [ids[0], ids[1], ids[2]]
+        XCTAssertEqual(store.deskItems.map(TodoDeskArrange.ref), kept)
+        let desk = await server.desk.map { $0.todoId ?? $0.id }
+        XCTAssertEqual(desk, kept)
+    }
+
     /// A file picked for a todo the queue is still to create waits with it, on the phone, and
     /// goes up before the change that names it; its bytes leave the phone once the server has them.
     func testAFileOnAQueuedTodoGoesUpAfterTheTodoAndBeforeItsAttachment() async throws {

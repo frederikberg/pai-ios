@@ -61,6 +61,61 @@ final class TodosCaptureTests: XCTestCase {
         XCTAssertFalse(draft.chips.isEmpty)
     }
 
+    /// Typing on does not unmark what was read: the answer for the older line stays, its words
+    /// marked where they sit now, until the next answer lands; and an answer still on its way
+    /// when the line is added never lands on the empty line after it.
+    func testWhatWasReadStaysMarkedWhileTypingGoesOn() async throws {
+        let parser = GatedParser()
+        let draft = TodoCaptureDraft { try await parser.parse($0) }
+        let line = "Call the plumber tomorrow 17:00 #home p1"
+        draft.text = line
+        await parser.release(line)
+        await draft.read()
+        XCTAssertEqual(draft.marks.count, 3)
+
+        draft.text = "Please c" + line.dropFirst()
+        XCTAssertFalse(draft.chips.isEmpty, "the chips stay while the next answer is on its way")
+        XCTAssertEqual(draft.marks.map(\.kind), ["when", "tag", "horizon"])
+        let units = Array(draft.text.utf16)
+        XCTAssertEqual(
+            draft.marks.map { String(decoding: units[$0.start..<$0.end], as: UTF16.self) },
+            ["tomorrow 17:00", "#home", "p1"])
+        XCTAssertNil(draft.answer(for: draft.text), "an add never uses an answer for other text")
+
+        let late = Task { await draft.read() }
+        await parser.waitUntilAsked(draft.text)
+        let asked = draft.text
+        XCTAssertNotNil(draft.take())
+        await parser.release(asked)
+        await late.value
+        XCTAssertNil(draft.answer)
+        XCTAssertTrue(draft.marks.isEmpty)
+    }
+
+    /// The marks land where the web app's own `carryTokens` puts them
+    /// (`Resources/todos/web-carry-vectors.json`).
+    func testTokensAreCarriedAsTheWebCarriesThem() throws {
+        struct Case: Decodable {
+            struct Out: Decodable {
+                let tokens: [TodoParseToken]
+                let complete: Bool
+            }
+
+            let from: String
+            let to: String
+            let tokens: [TodoParseToken]
+            let out: Out
+        }
+        struct Vectors: Decodable { let cases: [Case] }
+        let vectors = try TodosWireSamples.decode(Vectors.self, "web-carry-vectors")
+        XCTAssertGreaterThanOrEqual(vectors.cases.count, 20)
+        for case_ in vectors.cases {
+            let carried = TodoLineTokens.carry(from: case_.from, to: case_.to, tokens: case_.tokens)
+            XCTAssertEqual(carried.tokens, case_.out.tokens, "\(case_.from) -> \(case_.to)")
+            XCTAssertEqual(carried.complete, case_.out.complete, "\(case_.from) -> \(case_.to)")
+        }
+    }
+
     /// What Siri and Shortcuts run: online the answer names the todo the server made; offline
     /// the todo waits on the phone and the answer says so.
     func testADoorThatWaitsSaysWhatBecameOfTheTodo() async throws {

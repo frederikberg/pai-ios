@@ -50,6 +50,9 @@
                 query: [URLQueryItem(name: "closed", value: "1")])
             XCTAssertTrue(sheet.nudges.contains { $0.isDefault && $0.days != nil })
             XCTAssertTrue(sheet.nudges.contains { !$0.isDefault })
+            let zero = try answer(TodosSearchAnswer.self, "POST", "/api/todos/search", body: #"{"q":""}"#)
+            XCTAssertEqual(zero.recents?.compactMap(\.kind), [.todo, .view, .query])
+            XCTAssertFalse(zero.examples?.isEmpty ?? true)
             let composed = try answer(
                 TodosComposeAnswer.self, "POST", "/api/todos/compose",
                 body: #"{"text":"Buy stamps tomorrow and then call the plumber"}"#)

@@ -313,6 +313,8 @@ struct MeDaysView: View {
             .foregroundStyle(color)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
+            // A value as wide as its column (`7:35`) shrinks to leave a gap to its neighbours.
+            .padding(.horizontal, 2)
     }
 
     /// A grey bar against the busiest day on screen, the count printed under it.

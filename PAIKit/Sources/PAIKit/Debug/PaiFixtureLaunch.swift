@@ -56,6 +56,7 @@
         static let todosSearchFlag = "-PaiFixtureTodosSearch"
         static let todosArrangeFlag = "-PaiFixtureTodosArrange"
         static let todosDescribeFlag = "-PaiFixtureTodosDescribe"
+        static let todosDetailsFlag = "-PaiFixtureTodosDetails"
         static let todosWhenFlag = "-PaiFixtureTodosWhen"
         static let todosTickFlag = "-PaiFixtureTodosTick"
         static let todosSubtaskFlag = "-PaiFixtureTodosSubtask"
@@ -261,6 +262,11 @@
         /// `-PaiFixtureTodosArrange`: the desk opens with its cards in arranging mode.
         public static func arrangesTodosDesk(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
             arguments.contains(todosArrangeFlag)
+        }
+
+        /// `-PaiFixtureTodosDetails <text>`: the add sheet opens on its description, holding this.
+        public static func requestedTodosDetails(arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+            value(for: todosDetailsFlag, in: arguments)
         }
 
         /// `-PaiFixtureTodosDescribe <text>`: a Todos page opens its add sheet in the plain-words

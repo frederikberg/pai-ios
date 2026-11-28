@@ -258,7 +258,17 @@ final class TodosParityTests: XCTestCase {
             _ = try await store.compose(text: "hmm", place: place)
             XCTFail("an answer with no todo is a failure")
         } catch let failure as TodosComposeFailure {
-            XCTAssertEqual(failure, .unread)
+            XCTAssertEqual(failure, .nothingRead)
+        }
+        await server.setCompose(nil)
+        await server.failNextCompose(
+            TodosApiError(statusCode: 422, body: .plain("too_long", "The text is too long.")))
+        do {
+            _ = try await store.compose(text: "something", place: place)
+            XCTFail("a refusal is a failure")
+        } catch let failure as TodosComposeFailure {
+            // The server's own reason reaches the person, not "no connection".
+            XCTAssertEqual(failure, .refused("The text is too long."))
         }
         XCTAssertTrue(store.queue.isEmpty)
 

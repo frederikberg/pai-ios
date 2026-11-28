@@ -4,7 +4,8 @@ import SwiftUI
 /// The desk above a page, in one of its three states (`TodoDeskMode`): a bar that says how much is
 /// on it and what comes first; the split, the desk over the list, each with its own scroll and the
 /// desk at most half the height; or the desk alone, with the list folded to one line under it.
-/// Each step is one press. A todo reaches the desk by swiping its row right.
+/// Each step is one press, and a tap on the desk's own bar, anywhere that is not a control,
+/// folds it and opens it again as it was. A todo reaches the desk by swiping its row right.
 struct TodoDeskPanel<ListContent: View>: View {
     let todos: TodosStore
     @Binding var mode: TodoDeskMode
@@ -23,11 +24,24 @@ struct TodoDeskPanel<ListContent: View>: View {
     @State private var arranging = false
     /// The section being named: a new one (nil id) or one renamed.
     @State private var naming: (id: String?, title: String)?
+    /// How the desk was open before it was folded, which a tap on the folded bar brings back.
+    @State private var lastOpen = TodoDeskMode.split
 
-    private var cards: [TodoDeskItem] { todos.deskItems.filter { $0.kind == .todo } }
+    /// The desk as it is drawn: sections, and the cards whose todo is at hand. Every index a
+    /// row is moved by counts these, so a card that cannot be drawn never shifts a move.
+    private var shown: [TodoDeskItem] {
+        todos.deskItems.filter { $0.kind == .divider || todos.todos[$0.todoId ?? ""] != nil }
+    }
+
+    private var cards: [TodoDeskItem] { shown.filter { $0.kind == .todo } }
+
+    private func fold() {
+        lastOpen = mode
+        withAnimation(.snappy) { mode = .bar }
+    }
 
     /// The split's share of the height for the desk: what its items need, at most about half.
-    private var deskShare: CGFloat { min(0.48, 0.12 + CGFloat(todos.deskItems.count) * 0.075) }
+    private var deskShare: CGFloat { min(0.48, 0.12 + CGFloat(shown.count) * 0.075) }
 
     private var firstOpenTitle: String? {
         cards.lazy.compactMap { todos.todos[$0.todoId ?? ""] }.first { $0.status == .open }?.title
@@ -58,7 +72,7 @@ struct TodoDeskPanel<ListContent: View>: View {
 
     private var bar: some View {
         Button {
-            withAnimation(.snappy) { mode = .split }
+            withAnimation(.snappy) { mode = lastOpen }
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "pin").foregroundStyle(PaiPalette.primary500)
@@ -114,9 +128,7 @@ struct TodoDeskPanel<ListContent: View>: View {
                     .frame(width: 36, height: 32)
                 }
                 .accessibilityLabel(mode == .desk ? "Show the list too" : "Only the desk")
-                Button {
-                    withAnimation(.snappy) { mode = .bar }
-                } label: {
+                Button(action: fold) {
                     Image(systemName: "chevron.up").frame(width: 36, height: 32)
                 }
                 .accessibilityLabel("Fold the desk")
@@ -126,6 +138,9 @@ struct TodoDeskPanel<ListContent: View>: View {
             .padding(.leading, 16)
             .padding(.trailing, 6)
             .padding(.vertical, 4)
+            // The name and the empty width fold the desk too; the controls keep their own taps.
+            .contentShape(Rectangle())
+            .onTapGesture { if !arranging { fold() } }
             deskList
         }
         .background(PaiPalette.Semantic.insetBackground)
@@ -173,7 +188,7 @@ struct TodoDeskPanel<ListContent: View>: View {
         Menu {
             Button("New section", systemImage: "plus") { naming = (nil, "") }
             Button("Arrange", systemImage: "arrow.up.arrow.down") { withAnimation(.snappy) { arranging = true } }
-                .disabled(todos.deskItems.count < 2 || arranging)
+                .disabled(shown.count < 2 || arranging)
             Button("Clear done", systemImage: "checkmark.circle") {
                 clear("done", "Cleared the done todos off the desk")
             }
@@ -199,15 +214,22 @@ struct TodoDeskPanel<ListContent: View>: View {
             .onMove { from, destination in
                 // Arranging shows the cards and sections alone, so the indexes are the desk's own.
                 guard arranging, let first = from.first,
-                    let op = TodoDeskArrange.onMove(todos.deskItems, from: first, to: destination)
+                    let op = TodoDeskArrange.onMove(shown, from: first, to: destination)
                 else { return }
                 todos.submit([op])
             }
-            if todos.deskItems.isEmpty, mode != .desk {
+            if shown.isEmpty, mode != .desk {
                 Text("Nothing on the desk. Swipe a todo right to put it here.")
                     .font(.footnote)
                     .foregroundStyle(PaiPalette.Semantic.textMuted)
                     .listRowBackground(Color.clear)
+            }
+            if mode == .desk {
+                // Room to scroll the last row clear of the page's round add button.
+                Color.clear.frame(height: 76)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .moveDisabled(true)
             }
         }
         .listStyle(.plain)
@@ -233,9 +255,9 @@ struct TodoDeskPanel<ListContent: View>: View {
     /// The desk's cards and sections; with the desk alone on screen and not being arranged,
     /// each section, the unnamed top one included, ends in its "Add here".
     private var deskRows: [DeskRow] {
-        guard mode == .desk, !arranging else { return todos.deskItems.map(DeskRow.item) }
+        guard mode == .desk, !arranging else { return shown.map(DeskRow.item) }
         var rows: [DeskRow] = []
-        for section in TodoDeskSections.sections(todos.deskItems) {
+        for section in TodoDeskSections.sections(shown) {
             if let divider = section.divider { rows.append(.item(divider)) }
             rows.append(contentsOf: section.cards.map(DeskRow.item))
             rows.append(
@@ -271,12 +293,18 @@ struct TodoDeskPanel<ListContent: View>: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 .contextMenu {
-                    Button("Rename") { naming = (item.id, item.title ?? "") }
-                    Button("Clear section", role: .destructive) {
+                    Button("Rename", systemImage: "pencil") { naming = (item.id, item.title ?? "") }
+                    Button("Remove title only", systemImage: "text.badge.minus") {
                         TodoUndoToast.show(
-                            "Section cleared", changeId: todos.submit([TodoFieldOps.clearSection(item.id)]),
-                            store: todos,
+                            "Section title removed",
+                            changeId: todos.submit([TodoFieldOps.removeSectionTitle(item.id)]), store: todos,
                             toasts: toasts)
+                    }
+                    Button("Clear section", systemImage: "xmark.circle", role: .destructive) {
+                        let ops = TodoFieldOps.clearSection(item.id, in: shown)
+                        guard !ops.isEmpty else { return }
+                        TodoUndoToast.show(
+                            "Section cleared", changeId: todos.submit(ops), store: todos, toasts: toasts)
                     }
                 }
         } else if let todo = todos.todos[item.todoId ?? ""] {

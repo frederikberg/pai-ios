@@ -54,6 +54,8 @@ public protocol TodosBackend: Sendable {
     func todosUpcoming(days: Int) async throws -> TodosUpcomingAnswer
     func todosLogbook(cursor: String?) async throws -> TodosLogbookAnswer
     func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer
+    /// Records that something was opened from search (`POST /recents`).
+    func todosRecent(kind: TodosRecent.Kind, target: String) async throws
     /// Plain words read into todos by a model; nothing is written.
     func todosCompose(_ request: TodosComposeRequest) async throws -> TodosComposeAnswer
     /// Undoes an applied change as a new change of its own (`request.changeId`).
@@ -138,6 +140,12 @@ extension PaiApiClient: TodosBackend {
 
     public func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer {
         try await todosSend("POST", "/search", body: Self.jsonBody(request))
+    }
+
+    public func todosRecent(kind: TodosRecent.Kind, target: String) async throws {
+        _ = try await todosRaw(
+            "POST", "/recents", body: Self.jsonBody(["kind": kind.rawValue, "target": target]),
+            contentType: "application/json")
     }
 
     public func todosCompose(_ request: TodosComposeRequest) async throws -> TodosComposeAnswer {

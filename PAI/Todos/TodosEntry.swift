@@ -6,9 +6,26 @@ import SwiftUI
 /// a router and lands the same from both.
 @MainActor
 enum TodosEntry {
+    /// The page Todos was on last on this phone, while it still exists; nil is its home.
+    static func lastPage(_ environment: AppEnvironment) -> TodoPage? {
+        guard let page = environment.todosPlace.lastPage, let me = environment.todos.me else {
+            return environment.todosPlace.lastPage
+        }
+        switch page {
+        case .view(let id): return me.views.contains { $0.id == id } ? page : nil
+        case .list(let id): return me.lists.contains { $0.id == id } ? page : nil
+        case .tag: return page
+        }
+    }
+
+    /// Where a door into Todos leads: the page it was on last, or its home.
+    static func route(_ environment: AppEnvironment) -> Route {
+        lastPage(environment).map(Route.todosPage) ?? .todos
+    }
+
     /// Todos on the page it was on last on this phone; its home before any.
     static func open(_ environment: AppEnvironment) {
-        DeepLinkInbox.shared.receive(.todos(page: environment.todosPlace.lastPage, todo: nil))
+        DeepLinkInbox.shared.receive(.todos(page: lastPage(environment), todo: nil))
     }
 
     /// One view or list.
