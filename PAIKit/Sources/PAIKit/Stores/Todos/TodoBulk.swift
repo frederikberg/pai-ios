@@ -74,7 +74,8 @@ public enum TodoBulk {
         case .complete:
             let open = known.filter { todos[$0]?.status == .open }
             if !open.isEmpty {
-                return Change(ops: open.map { TodoOp.complete(todo: $0) }, toast: "Completed \(plural(open.count, "todo"))")
+                return Change(
+                    ops: open.map { TodoOp.complete(todo: $0) }, toast: "Completed \(plural(open.count, "todo"))")
             }
             return Change(ops: known.map { TodoOp.reopen(todo: $0) }, toast: "Reopened \(all)")
         case .desk:
@@ -99,13 +100,15 @@ public enum TodoBulk {
         case .untag(let raw):
             let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             return Change(
-                ops: known.map { TodoFieldOps.tag($0, remove: [name]) }, toast: "Took \u{201C}\(name)\u{201D} off \(all)")
+                ops: known.map { TodoFieldOps.tag($0, remove: [name]) },
+                toast: "Took \u{201C}\(name)\u{201D} off \(all)")
         case .when(let when):
             guard let when else {
                 return Change(ops: known.map { TodoFieldOps.when($0, date: nil) }, toast: "Cleared the day of \(all)")
             }
             let ops = known.map { id in
-                TodoFieldOps.when(id, date: when.date, time: when.time ?? todos[id]?.when?.time.map { String($0.prefix(5)) })
+                TodoFieldOps.when(
+                    id, date: when.date, time: when.time ?? todos[id]?.when?.time.map { String($0.prefix(5)) })
             }
             return Change(ops: ops, toast: "Set the day of \(all)")
         case .someday(let on):

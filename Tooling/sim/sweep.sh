@@ -558,7 +558,8 @@ if want todos-screens; then
   # screen with its rendered description, its nudges with a default one, the sheet that adds a
   # subtask read with chips, the toast with Undo after a tick, the switcher with a typed name, Todos'
   # settings and its sections with the form for a new view, the add sheet holding thirty files, the
-  # search that moves a todo under another, Upcoming, the Logbook, search, and the desk being arranged,
+  # search that moves a todo under another, Upcoming, a list and Upcoming with todos selected and the
+  # selection's bar (once with its tag picker open), the Logbook, search, and the desk being arranged,
   # each light and dark. The add sheet is also photographed with a picker where the keyboard
   # sits (when, horizon, tags, the nudges inside when), with a title long enough to be cut and
   # with its description being written, the todo's screen with a picker raised over it, and
@@ -611,6 +612,9 @@ if want todos-screens; then
   todos_screen sheet-move "todosSheet=T-9" -PaiFixtureRoute todosList -PaiFixtureTodosOpen -PaiFixtureTodosPicker parent -PaiFixtureTodosSearch plumber
   todos_screen tick-undo "todosUndoToast=shown" -PaiFixtureRoute todos -PaiFixtureTodosTick
   todos_screen upcoming "todosPage=Upcoming" -PaiFixtureRoute todosUpcoming
+  todos_screen select "todosPage=Personal todosSelected=3" -PaiFixtureRoute todosList -PaiFixtureTodosSelect 3
+  todos_screen select-tags "todosSelected=2 todosPicker=tags" -PaiFixtureRoute todosList -PaiFixtureTodosSelect 2 -PaiFixtureTodosPicker tags
+  todos_screen select-upcoming "todosPage=Upcoming todosSelected=2" -PaiFixtureRoute todosUpcoming -PaiFixtureTodosSelect 2
   todos_screen logbook "todosPage=Logbook todosDayRows=7" -PaiFixtureRoute todosLogbook
   todos_screen search "todosSearchHits=1" -PaiFixtureRoute todosSearch -PaiFixtureTodosSearch plumber
   todos_screen search-empty "todosSearchRecents=3" -PaiFixtureRoute todosSearch

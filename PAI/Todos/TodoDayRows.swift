@@ -4,15 +4,21 @@ import SwiftUI
 /// Upcoming and the Logbook as day screens, the web's agenda and log layouts: a heading per day
 /// with its date beside it; under it the todos planned for it, the ones due on it and the quiet
 /// ghosts of repeating todos (Upcoming), or one row per completion (the Logbook, where the circle
-/// reopens).
+/// reopens). Upcoming starts with today and the days behind that held something, done and dropped
+/// todos among them, and a row on top looks further back.
 struct TodoDayRows: View {
     /// `agenda` or `log`.
     let layout: String
     let rowModel: (Todo) -> TodoRowModel
     let onTick: (String) -> Void
     let onOpen: (String) -> Void
+    /// The todos being selected, nil outside select mode.
+    var selection: Set<String>?
+    var onSelect: (String) -> Void = { _ in }
+    var onStartSelecting: (String) -> Void = { _ in }
 
     @Environment(AppEnvironment.self) private var environment
+    @State private var lookingBack = false
 
     private var store: TodosStore { environment.todos }
 
@@ -29,6 +35,7 @@ struct TodoDayRows: View {
     private var loaded: Bool { layout == "agenda" ? store.upcoming != nil : store.logbook != nil }
 
     var body: some View {
+        if layout == "agenda", loaded { earlierControl.listRowSeparator(.hidden) }
         ForEach(rows) { row in
             rowView(row)
         }
@@ -48,6 +55,25 @@ struct TodoDayRows: View {
         Color.clear.frame(height: 72).listRowSeparator(.hidden)
     }
 
+    /// Looks further back than the days already read; once a look brings nothing older it says so.
+    @ViewBuilder private var earlierControl: some View {
+        if store.upcomingBackDone {
+            Text("Nothing earlier.").font(.footnote).foregroundStyle(PaiPalette.Semantic.textFaint)
+        } else {
+            Button {
+                lookingBack = true
+                Task {
+                    await store.loadEarlierUpcoming()
+                    lookingBack = false
+                }
+            } label: {
+                Label(lookingBack ? "Looking further back\u{2026}" : "Show earlier days", systemImage: "arrow.up")
+                    .font(.footnote.weight(.semibold))
+            }
+            .disabled(lookingBack)
+        }
+    }
+
     @ViewBuilder private func rowView(_ row: TodoDayRow) -> some View {
         switch row {
         case .heading(_, let label, let sub, _, let count):
@@ -63,7 +89,18 @@ struct TodoDayRows: View {
             .listRowSeparator(.hidden)
         case .todo(_, let id):
             if let todo = store.todos[id] {
-                TodoRowView(model: rowModel(todo), onTick: { onTick(id) }, onOpen: { onOpen(id) })
+                let isSelected: Bool? = selection.map { $0.contains(id) }
+                let highlight: Color? = isSelected == true ? PaiPalette.primary500.opacity(0.12) : nil
+                TodoRowView(
+                    model: rowModel(todo), onTick: { onTick(id) }, onOpen: { onOpen(id) }, selected: isSelected,
+                    onSelect: { onSelect(id) }
+                )
+                .listRowBackground(highlight)
+                .contextMenu {
+                    if selection == nil {
+                        Button("Select", systemImage: "checkmark.circle") { onStartSelecting(id) }
+                    }
+                }
             }
         case .ghost(_, let todoId, _):
             if let todo = store.todos[todoId] {

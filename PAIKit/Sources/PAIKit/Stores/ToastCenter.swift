@@ -42,6 +42,10 @@ public struct ToastMessage: Sendable, Identifiable {
 public final class ToastCenter {
     public private(set) var toasts: [ToastMessage] = []
 
+    /// The height of a bar a screen keeps at the bottom (a selection's actions): toasts stand
+    /// above it, so none covers a control of the bar. Zero when there is none.
+    public var bottomBarHeight: Double = 0
+
     /// How long an ordinary toast stays before it removes itself. The web's `addToast` has no
     /// timeout at all — the user dismisses it by hand — but a phone has no idle mouse hovering over
     /// a corner to notice one sitting there forever, so this gives it a life of its own instead.

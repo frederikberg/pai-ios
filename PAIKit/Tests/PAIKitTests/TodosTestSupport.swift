@@ -247,7 +247,9 @@ actor FakeTodosServer: TodosBackend {
                 sessionId: nil, summary: "", opCount: change.ops.count, undoOf: nil, undoneBy: nil,
                 createdAt: "2026-11-26T10:00:00+00:00", events: nil),
             applied: change.ops.count, of: change.ops.count,
-            results: change.ops.indices.map { TodoOpResult(index: $0, ok: true, ref: nil, id: nil, error: nil, defaults: nil) },
+            results: change.ops.indices.map {
+                TodoOpResult(index: $0, ok: true, ref: nil, id: nil, error: nil, defaults: nil)
+            },
             todos: Array(touched.values), events: [], replayed: false)
         answers[change.changeId] = answer
         if loseNextAnswer {
@@ -289,7 +291,8 @@ actor FakeTodosServer: TodosBackend {
         undoable[changeId] = nil
         undone.append(changeId)
         return TodosApplyResult(
-            change: nil, applied: 1, of: 1, results: [TodoOpResult(index: 0, ok: true, ref: nil, id: nil, error: nil, defaults: nil)],
+            change: nil, applied: 1, of: 1,
+            results: [TodoOpResult(index: 0, ok: true, ref: nil, id: nil, error: nil, defaults: nil)],
             todos: restored, events: [], replayed: false)
     }
 

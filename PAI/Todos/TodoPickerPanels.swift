@@ -734,8 +734,9 @@ struct TodoMoreChoices: View {
         }
     }
 
-    /// A new todo nobody gave a list goes to the person's own.
+    /// A new todo nobody gave a list goes to the person's own. Existing todos in different
+    /// lists have none in common, and no list is marked.
     private var effectiveList: String? {
-        editing.values.listId ?? environment.todos.me?.prefs?.defaultListId
+        editing.values.listId ?? (editing.isNew ? environment.todos.me?.prefs?.defaultListId : nil)
     }
 }

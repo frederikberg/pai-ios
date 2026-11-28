@@ -35,7 +35,7 @@ struct TodoSettingsScreen: View {
                 if let name = store.me?.displayName { Text("Signed in as \(name)") }
             } footer: {
                 Text(
-                    "Scopes, a view's layout, grouping and defaults, and the keyboard shortcuts are in Todos on the web."
+                    "Scopes, a view's layout and grouping, and the keyboard shortcuts are in Todos on the web."
                 )
             }
         }
@@ -898,6 +898,10 @@ struct TodoViewsSettings: View {
 /// One view: its name, its query and whether it is a favourite; deleting it. `viewId` nil is a
 /// view being made. Nothing is sent before Save, and a refusal (a query the server cannot read)
 /// is said under the fields with everything typed still there.
+///
+/// It also says what a todo added in the view starts with. A view without such defaults can take
+/// the ones the server reads from its query (`tag:home` gives the tag): offered in a toast after
+/// a save, and by a button here.
 struct TodoViewSettingsScreen: View {
     let viewId: String?
 
@@ -912,6 +916,8 @@ struct TodoViewSettingsScreen: View {
     @State private var refusal: String?
     @State private var deleting = false
     @State private var discarding = false
+    /// What asking the server for the view's defaults came to, when it gave none.
+    @State private var defaultsNote: String?
 
     private var store: TodosStore { environment.todos }
     private var view: TodoView? { viewId.flatMap { id in store.me?.views.first { $0.id == id } } }
@@ -981,11 +987,72 @@ struct TodoViewSettingsScreen: View {
         Section {
             Toggle("Favourite", isOn: $pinned)
         }
+        if let view { startsWith(view) }
         if let refusal {
             Section {
                 Text(refusal).foregroundStyle(PaiPalette.Semantic.errorText)
             }
         }
+    }
+
+    /// What a todo added in the view gets, or the way to take that from the query.
+    @ViewBuilder private func startsWith(_ view: TodoView) -> some View {
+        Section {
+            if view.defaults.isEmpty {
+                Button("Take them from the query") { suggestDefaults(for: view) }
+                    .disabled(saving || changed)
+            } else {
+                Text(TodoSettingsOps.defaultsWords(view.defaults))
+                    .foregroundStyle(PaiPalette.Semantic.textPrimary)
+            }
+        } header: {
+            Text("New todos here start with")
+        } footer: {
+            if let defaultsNote {
+                Text(defaultsNote)
+            } else if view.defaults.isEmpty {
+                Text(
+                    changed
+                        ? "Save first; the query that is saved is the one that is read."
+                        : "Nothing yet: a todo added in this view gets only what you type.")
+            }
+        }
+    }
+
+    /// Saves the view as it is, which makes the server say what its query suggests, and takes that.
+    private func suggestDefaults(for view: TodoView) {
+        saving = true
+        defaultsNote = nil
+        Task {
+            let asked = TodoSettingsOps.viewSave(id: view.id, name: view.name, query: view.query, layout: view.layout)
+            let proposed = TodoSettingsOps.proposedDefaults(await store.applySettings([asked]))
+            if let proposed {
+                await store.applySettings([
+                    TodoSettingsOps.viewSave(
+                        id: view.id, name: view.name, query: view.query, layout: view.layout, defaults: proposed)
+                ])
+            } else {
+                defaultsNote = "The query names nothing a new todo could start with, or the server could not be asked."
+            }
+            saving = false
+        }
+    }
+
+    /// After a save the server may suggest defaults for a view that has none: offered, not applied.
+    private func offerDefaults(_ proposed: TodoViewDefaults, for op: TodoOp) {
+        let viewName = op.string("name") ?? ""
+        let take = ToastMessage.Action(label: "Use that") { [store] in
+            Task { @MainActor in
+                _ = await store.applySettings([
+                    TodoSettingsOps.viewSave(
+                        id: op.string("id") ?? "", name: viewName, query: op.string("query") ?? "",
+                        layout: op.string("layout") ?? TodoSettingsOps.newViewLayout, defaults: proposed)
+                ])
+            }
+        }
+        toasts.show(
+            "New todos in \(viewName) could start with \(TodoSettingsOps.defaultsWords(proposed)).", kind: .info,
+            action: take, lifetimeNanos: TodoUndoToast.lifetimeNanos)
     }
 
     private func load() {
@@ -1019,6 +1086,11 @@ struct TodoViewSettingsScreen: View {
             saving = false
             switch settlement {
             case .applied:
+                if op.name == "view.save", view?.defaults.isEmpty != false,
+                    let proposed = TodoSettingsOps.proposedDefaults(settlement)
+                {
+                    offerDefaults(proposed, for: op)
+                }
                 dismiss()
             case .refused(let refused):
                 refusal = refused.message
