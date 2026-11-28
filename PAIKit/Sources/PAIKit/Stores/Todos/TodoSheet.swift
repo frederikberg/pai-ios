@@ -55,6 +55,14 @@ public enum TodoFieldOps {
         TodoOp(fields: ["op": .string("todo.move"), "todo": .string(todoId), "list": .string(list)])
     }
 
+    /// Moves a todo, with its subtasks, under another todo (into that todo's list), or out to the
+    /// top level of its own list when `parent` is nil.
+    public static func move(_ todoId: String, under parent: String?) -> TodoOp {
+        TodoOp(fields: [
+            "op": .string("todo.move"), "todo": .string(todoId), "parent": parent.map(PaiJSONValue.string) ?? .null,
+        ])
+    }
+
     public static func body(_ todoId: String, _ text: String, ifBodyHash: String?) -> TodoOp {
         var fields: [String: PaiJSONValue] = [
             "op": .string("todo.body"), "todo": .string(todoId), "set": .string(text),
@@ -562,5 +570,25 @@ public enum TodoDeskArrange {
     public static func onMove(_ desk: [TodoDeskItem], from: Int, to destination: Int) -> TodoOp? {
         let over = destination > from ? destination - 1 : destination
         return move(desk, from: from, over: over)
+    }
+}
+
+/// Which todos one todo can be moved under.
+public enum TodoParentChoice {
+    /// An open todo other than the one moving, its present parent and anything inside it (the
+    /// server refuses a todo under itself), in a list this person may change.
+    public static func allowed(_ candidate: Todo, moving: Todo, todos: [String: Todo], lists: [TodoList]) -> Bool {
+        guard candidate.status == .open, candidate.id != moving.id, candidate.id != moving.parentId else {
+            return false
+        }
+        guard TodoPermissions.tickBlockedReason(lists.first { $0.id == candidate.listId }) == nil else { return false }
+        var above = candidate.parentId
+        var steps = 0
+        while let id = above, steps < 100 {
+            if id == moving.id { return false }
+            above = todos[id]?.parentId
+            steps += 1
+        }
+        return true
     }
 }

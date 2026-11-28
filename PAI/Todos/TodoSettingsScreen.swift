@@ -2,7 +2,7 @@ import PAIKit
 import SwiftUI
 
 /// Todos' settings on the phone, the web's Settings sections that fit a phone: General, Nudges,
-/// Lists (with their people), Tags and the favourite views. Every change is the op the web sends
+/// Lists (with their people), Tags and Views. Every change is the op the web sends
 /// (`TodoSettingsOps`), queued like any change; the screen shows `/me` as read after it.
 struct TodoSettingsScreen: View {
     @Environment(AppEnvironment.self) private var environment
@@ -34,7 +34,9 @@ struct TodoSettingsScreen: View {
             } header: {
                 if let name = store.me?.displayName { Text("Signed in as \(name)") }
             } footer: {
-                Text("Scopes, editing a view's query and the keyboard shortcuts are in Todos on the web.")
+                Text(
+                    "Scopes, a view's layout, grouping and defaults, and the keyboard shortcuts are in Todos on the web."
+                )
             }
         }
         .navigationTitle("Todos settings")
@@ -43,7 +45,7 @@ struct TodoSettingsScreen: View {
         .task {
             #if DEBUG
                 if let name = PaiFixtureLaunch.requestedTodosSettings() {
-                    fixtureSection = TodoSettingsSection(rawValue: name)
+                    fixtureSection = TodoSettingsSection(rawValue: name == "view-new" ? "views" : name)
                 }
             #endif
         }
@@ -63,7 +65,7 @@ enum TodoSettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .nudges: "Nudges"
         case .lists: "Lists"
         case .tags: "Tags"
-        case .views: "Favourite views"
+        case .views: "Views"
         }
     }
 
@@ -73,7 +75,7 @@ enum TodoSettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .nudges: "The reminders a todo gets by itself"
         case .lists: "Where todos live, and who shares them"
         case .tags: "Colours, quiet tags, merging and deleting"
-        case .views: "The views at the top of Views and lists"
+        case .views: "New views, their names, order and favourites"
         }
     }
 
@@ -815,42 +817,215 @@ struct TodoTagSettingsScreen: View {
     private func send(_ ops: [TodoOp?]) { TodoSettingsApply.send(ops, store: store, toasts: toasts) }
 }
 
-// MARK: - Favourite views
+// MARK: - Views
 
+/// Every saved view in its order: a tap edits one, the star makes it a favourite, Edit drags
+/// them into another order, and the plus makes a new one.
 struct TodoViewsSettings: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(ToastCenter.self) private var toasts
+    @State private var adding = false
 
     private var store: TodosStore { environment.todos }
 
     var body: some View {
         let views = (store.me?.views ?? []).sorted { $0.rank < $1.rank }
-        let tagColor = { (name: String) in
-            TodoIdentity.tagColor(name, chosen: TodoIdentity.chosenTagColors(self.store.me?.tags ?? []))
-        }
-        Form {
+        let chosen = TodoIdentity.chosenTagColors(store.me?.tags ?? [])
+        let tagColor = { (name: String) in TodoIdentity.tagColor(name, chosen: chosen) }
+        List {
             Section {
                 ForEach(views) { view in
-                    HStack(spacing: 10) {
-                        TodoIdentityIcon(identity: TodoIdentity.of(view: view, tagColor: tagColor))
-                        Text(view.name).foregroundStyle(PaiPalette.Semantic.textStrong)
-                        Spacer()
-                        Button {
-                            TodoSettingsApply.send(
-                                [TodoSettingsOps.favourite(view, !view.pinned)], store: store, toasts: toasts)
-                        } label: {
-                            Image(systemName: view.pinned ? "star.fill" : "star")
-                                .foregroundStyle(view.pinned ? TodoColor.amber.swatch : PaiPalette.Semantic.textFaint)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(view.pinned ? "Remove from the favourites" : "Make a favourite")
-                    }
+                    row(view, identity: TodoIdentity.of(view: view, tagColor: tagColor))
+                }
+                .onMove { source, destination in
+                    guard let from = source.first else { return }
+                    send([TodoSettingsOps.viewMove(views, from: from, to: destination)])
                 }
             } footer: {
                 Text("A favourite is listed first in Views and lists; the first one is where Todos opens.")
             }
         }
-        .navigationTitle("Favourite views")
+        .navigationTitle("Views")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) { EditButton() }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    adding = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel("New view")
+            }
+        }
+        .navigationDestination(isPresented: $adding) { TodoViewSettingsScreen(viewId: nil) }
+        .task { openFixtureState() }
+        .fixtureFact("todosSettingsViews", String(views.count))
+    }
+
+    private func row(_ view: TodoView, identity: TodoIdentity) -> some View {
+        NavigationLink {
+            TodoViewSettingsScreen(viewId: view.id)
+        } label: {
+            HStack(spacing: 10) {
+                TodoIdentityIcon(identity: identity)
+                Text(view.name).foregroundStyle(PaiPalette.Semantic.textStrong)
+                Spacer()
+                Button {
+                    send([TodoSettingsOps.favourite(view, !view.pinned)])
+                } label: {
+                    Image(systemName: view.pinned ? "star.fill" : "star")
+                        .foregroundStyle(view.pinned ? TodoColor.amber.swatch : PaiPalette.Semantic.textFaint)
+                        .frame(width: 40, height: 36)
+                        .contentShape(Rectangle())
+                }
+                // Borderless, so the star takes its own tap inside the row's link.
+                .buttonStyle(.borderless)
+                .accessibilityLabel(view.pinned ? "Remove from the favourites" : "Make a favourite")
+            }
+        }
+    }
+
+    private func send(_ ops: [TodoOp?]) { TodoSettingsApply.send(ops, store: store, toasts: toasts) }
+
+    private func openFixtureState() {
+        #if DEBUG
+            if PaiFixtureLaunch.requestedTodosSettings() == "view-new" { adding = true }
+        #endif
+    }
+}
+
+/// One view: its name, its query and whether it is a favourite; deleting it. `viewId` nil is a
+/// view being made. Nothing is sent before Save, and a refusal (a query the server cannot read)
+/// is said under the fields with everything typed still there.
+struct TodoViewSettingsScreen: View {
+    let viewId: String?
+
+    @Environment(AppEnvironment.self) private var environment
+    @Environment(ToastCenter.self) private var toasts
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var query = ""
+    @State private var pinned = true
+    @State private var loaded = false
+    @State private var saving = false
+    @State private var refusal: String?
+    @State private var deleting = false
+    @State private var discarding = false
+
+    private var store: TodosStore { environment.todos }
+    private var view: TodoView? { viewId.flatMap { id in store.me?.views.first { $0.id == id } } }
+
+    private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    private var changed: Bool {
+        guard let view else { return !trimmedName.isEmpty || !trimmedQuery.isEmpty }
+        return trimmedName != view.name || trimmedQuery != view.query || pinned != view.pinned
+    }
+
+    private var canSave: Bool { changed && !trimmedName.isEmpty && !saving }
+
+    var body: some View {
+        Form {
+            if viewId != nil && view == nil {
+                Text("This view is gone.").foregroundStyle(PaiPalette.Semantic.textMuted)
+            } else {
+                fields
+                if let view, view.builtin == nil {
+                    Section {
+                        Button("Delete \(view.name)", role: .destructive) { deleting = true }
+                    } footer: {
+                        Text("Only the view goes. Its todos stay where they are.")
+                    }
+                }
+            }
+        }
+        .navigationTitle(view?.name ?? (viewId == nil ? "New view" : "View"))
+        .navigationBarTitleDisplayMode(.inline)
+        // With something unsaved the way back asks first, so a swipe cannot drop what was typed.
+        .navigationBarBackButtonHidden(changed)
+        .toolbar {
+            if changed {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { discarding = true } }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") { save() }.disabled(!canSave)
+            }
+        }
+        .onAppear(perform: load)
+        .confirmationDialog("Delete this view?", isPresented: $deleting, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { remove() }
+        }
+        .confirmationDialog("Discard what you changed?", isPresented: $discarding, titleVisibility: .visible) {
+            Button("Discard", role: .destructive) { dismiss() }
+            Button("Keep editing", role: .cancel) {}
+        }
+        .fixtureFact("todosSettingsView", viewId == nil ? "new" : (view?.name ?? "gone"))
+    }
+
+    @ViewBuilder private var fields: some View {
+        Section("Name") {
+            TextField("Name", text: $name).submitLabel(.done)
+        }
+        Section {
+            TextField("tag:home horizon:<=week", text: $query, axis: .vertical)
+                .font(.body.monospaced())
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+        } header: {
+            Text("Query")
+        } footer: {
+            Text("What the view shows, in the words the search box takes. Empty shows every open todo.")
+        }
+        Section {
+            Toggle("Favourite", isOn: $pinned)
+        }
+        if let refusal {
+            Section {
+                Text(refusal).foregroundStyle(PaiPalette.Semantic.errorText)
+            }
+        }
+    }
+
+    private func load() {
+        guard !loaded else { return }
+        loaded = true
+        if let view {
+            name = view.name
+            query = view.query
+            pinned = view.pinned
+        }
+    }
+
+    private func save() {
+        let op = TodoSettingsOps.viewSave(
+            id: view?.id ?? TodosStore.uuidv7(), name: name, query: query,
+            layout: view?.layout ?? TodoSettingsOps.newViewLayout, pinned: pinned)
+        apply(op)
+    }
+
+    private func remove() {
+        guard let view else { return }
+        apply(TodoSettingsOps.viewDelete(view))
+    }
+
+    /// Sends one change and leaves once the server took it; a refusal stays on the screen.
+    private func apply(_ op: TodoOp) {
+        saving = true
+        refusal = nil
+        Task {
+            let settlement = await store.applySettings([op])
+            saving = false
+            switch settlement {
+            case .applied:
+                dismiss()
+            case .refused(let refused):
+                refusal = refused.message
+            case .waiting:
+                toasts.show("Saved on this iPhone. It is sent once there is a connection.", kind: .info)
+                dismiss()
+            }
+        }
     }
 }
