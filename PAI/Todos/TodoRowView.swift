@@ -4,7 +4,8 @@ import SwiftUI
 /// One todo in a page or on the desk: its tick circle (a dot in it while the todo is on the desk),
 /// the title, one quiet line of what else it carries, and on the right its day with its deadline
 /// under it, each in the colour of how near it is. A subtask sits indented under its parent; a row
-/// with subtasks has a chevron that opens them.
+/// with subtasks has a chevron that opens them. While todos are being selected the circle is the
+/// selection mark.
 struct TodoRowView: View {
     let model: TodoRowModel
     var depth = 0
@@ -16,17 +17,26 @@ struct TodoRowView: View {
     var onToggleExpanded: () -> Void = {}
     /// Tapping the row outside its circle and chevron opens the todo.
     var onOpen: (() -> Void)?
+    /// Set while several todos are being selected: whether this one is. The circle then shows
+    /// that instead of ticking, and a tap anywhere on the row switches it.
+    var selected: Bool?
+    var onSelect: () -> Void = {}
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             chevron
-            Button(action: onTick) {
-                TodoTickCircle(mark: model.horizon, done: model.done, onDesk: model.onDesk, size: compact ? 24 : 22)
-                    .padding(.top, 1)
+            if let selected {
+                Button(action: onSelect) {
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: compact ? 24 : 22))
+                        .foregroundStyle(selected ? PaiPalette.primary500 : PaiPalette.Semantic.textFaint)
+                        .padding(.top, 1)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(selected ? "Selected" : "Not selected")
+            } else {
+                tickButton
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(model.done ? "Reopen" : "Done")
-            .accessibilityValue(model.onDesk ? "On your desk" : "")
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.title)
@@ -40,11 +50,23 @@ struct TodoRowView: View {
                 dates
             }
             .contentShape(Rectangle())
-            .onTapGesture { onOpen?() }
+            .onTapGesture {
+                if selected != nil { onSelect() } else { onOpen?() }
+            }
         }
         .padding(.leading, CGFloat(depth) * 22)
         .padding(.vertical, compact ? 6 : 4)
         .contentShape(Rectangle())
+    }
+
+    private var tickButton: some View {
+        Button(action: onTick) {
+            TodoTickCircle(mark: model.horizon, done: model.done, onDesk: model.onDesk, size: compact ? 24 : 22)
+                .padding(.top, 1)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(model.done ? "Reopen" : "Done")
+        .accessibilityValue(model.onDesk ? "On your desk" : "")
     }
 
     @ViewBuilder private var chevron: some View {

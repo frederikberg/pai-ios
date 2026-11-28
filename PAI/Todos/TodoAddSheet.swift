@@ -21,9 +21,9 @@ struct TodoAddDeskSection: Equatable {
 /// icon puts its picker where the keyboard was, with the line kept as typed. The description is
 /// written in the panel itself, under the line.
 ///
-/// The line's keyboard carries @ and # beside the space bar, in Return's place. The round arrow
-/// (and Return on a keyboard that has it) adds the todo and leaves the sheet open for the next one, with the
-/// view's defaults back in place; a note above the sheet opens the one just made. What is typed
+/// The keyboard's Return key is Send: it adds the todo and leaves the sheet open with the line
+/// ready for the next one and the view's defaults back in place, as the round arrow does. A strip
+/// on the keyboard carries an @ key for tags. A note above the sheet opens the todo just made. What is typed
 /// is kept on the device until it is sent or discarded, and closing with words typed asks first.
 ///
 /// Opened on a todo (`parent`) it adds subtasks, with everything a todo's sheet can do. The
@@ -386,7 +386,7 @@ struct TodoAddSheet: View {
     @ViewBuilder private var lineBlock: some View {
         TodoTitleField(
             text: $draft.text, placeholder: parent == nil ? "What needs doing?" : "Subtask", dimmed: overflow,
-            marks: marks, isFocused: titleFocused, keyboardType: .twitter,
+            marks: marks, isFocused: titleFocused, showsTagKey: true,
             onFocusChange: { focused in
                 if titleFocused != focused { titleFocused = focused }
                 if focused, picker != nil { withAnimation(.easeOut(duration: 0.2)) { picker = nil } }

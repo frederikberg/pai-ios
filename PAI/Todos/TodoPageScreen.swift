@@ -5,6 +5,9 @@ import SwiftUI
 /// is Todos' home, the first favourite view (Today). Rows tick from their circle or a swipe left,
 /// go on the desk with a swipe right, and open their subtasks from the chevron. Every write is a
 /// change in the outbox, so ticking works without a connection.
+///
+/// A long press on a row offers Select: the rows then carry a selection mark, a tap switches it,
+/// and a bar on the bottom changes everything selected in one change with one Undo.
 struct TodoPageScreen: View {
     let page: TodoPage?
 
@@ -25,6 +28,12 @@ struct TodoPageScreen: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var switchQuery: String?
     @State private var showsSettings = false
+    /// The todos being selected; nil outside select mode.
+    @State private var selection: Set<String>?
+    /// The picker open in the selection's bar.
+    @State private var bulkPicker: TodoPicker?
+    /// Whether Upcoming has been put on its first day ahead, with the days behind above it.
+    @State private var startedAhead = false
 
     private var store: TodosStore { environment.todos }
 
@@ -115,8 +124,14 @@ struct TodoPageScreen: View {
         ) {
             pageList
         }
-        // Above the line the list folds to while the desk takes the whole height.
-        .overlay(alignment: .bottomTrailing) { addButton.padding(.bottom, deskMode == .desk ? 44 : 0) }
+        // Above the line the list folds to while the desk takes the whole height. The selection's
+        // bar takes the bottom while todos are being selected.
+        .overlay(alignment: .bottomTrailing) {
+            if selection == nil { addButton.padding(.bottom, deskMode == .desk ? 44 : 0) }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if selection != nil { selectionBar }
+        }
         // The bar names the view being shown, which the list's own heading stops doing once it
         // is scrolled away or folded under the desk.
         .navigationTitle(title)
@@ -183,6 +198,8 @@ struct TodoPageScreen: View {
         .onChange(of: scenePhase) { _, phase in if phase == .active { fronts += 1 } }
         .task { openFixtureState() }
         .task(id: rows.count) { tickForFixture() }
+        .task(id: fixtureSelectKey) { selectForFixture() }
+        .fixtureFact("todosSelected", selectedFact)
         .fixtureFact("todosPage", title)
         .fixtureFact("todosDeskMode", deskMode.rawValue)
         .fixtureFact("todosRows", String(rows.count))
@@ -195,18 +212,36 @@ struct TodoPageScreen: View {
         return layout
     }
 
+    /// Upcoming's first day ahead, when days behind stand above it.
+    private var upcomingStart: String? {
+        guard dayLayout == "agenda", let upcoming = store.upcoming, !upcoming.earlier.isEmpty else { return nil }
+        return upcoming.days.first.map { TodoDays.dayKey($0.date) }
+    }
+
     private var pageList: some View {
-        List {
-            header
-                .listRowSeparator(.hidden)
-            if let dayLayout {
-                TodoDayRows(layout: dayLayout, rowModel: rowModel, onTick: tick, onOpen: { open($0) })
-            } else {
-                pageRows
+        ScrollViewReader { proxy in
+            List {
+                header
+                    .listRowSeparator(.hidden)
+                if let dayLayout {
+                    TodoDayRows(
+                        layout: dayLayout, rowModel: rowModel, onTick: tick, onOpen: { open($0) }, selection: selection,
+                        onSelect: { (id: String) in toggleSelected(id) },
+                        onStartSelecting: { (id: String) in startSelecting(id) })
+                } else {
+                    pageRows
+                }
+            }
+            .listStyle(.plain)
+            .refreshable { await load() }
+            // Upcoming opens on the first day ahead; today and the days behind are a scroll up.
+            .task(id: upcomingStart) {
+                guard let upcomingStart, !startedAhead else { return }
+                startedAhead = true
+                await Task.yield()
+                proxy.scrollTo(upcomingStart, anchor: .top)
             }
         }
-        .listStyle(.plain)
-        .refreshable { await load() }
     }
 
     @ViewBuilder private var pageRows: some View {
@@ -250,29 +285,157 @@ struct TodoPageScreen: View {
             .listRowSeparator(.hidden)
         case .todo(let id, let depth, let expandable, let isExpanded):
             if let todo = store.todos[id] {
-                TodoRowView(
-                    model: rowModel(todo), depth: depth, expandable: expandable, expanded: isExpanded, compact: compact,
-                    onTick: { tick(id) }, onToggleExpanded: { toggleExpanded(id) }, onOpen: { open(id, fromRows: true) }
-                )
-                .opacity(store.pendingIds.contains(id) ? 0.75 : 1)
-                .swipeActions(edge: .leading) {
-                    Button {
-                        store.setOnDesk(todoId: id, !todo.onDesk)
-                    } label: {
-                        Label(todo.onDesk ? "Off the desk" : "Desk", systemImage: todo.onDesk ? "pin.slash" : "pin")
-                    }
-                    .tint(PaiPalette.primary500)
-                }
-                .swipeActions(edge: .trailing) {
-                    Button {
-                        tick(id)
-                    } label: {
-                        Label(todo.status == .open ? "Done" : "Reopen", systemImage: "checkmark")
-                    }
-                    .tint(PaiPalette.green500)
-                }
+                todoRow(todo, depth: depth, expandable: expandable, isExpanded: isExpanded)
             }
         }
+    }
+
+    /// A todo's row. While todos are being selected it carries the selection mark and no swipes.
+    @ViewBuilder private func todoRow(_ todo: Todo, depth: Int, expandable: Bool, isExpanded: Bool) -> some View {
+        let id = todo.id
+        let isSelected: Bool? = selection.map { $0.contains(id) }
+        let highlight: Color? = isSelected == true ? PaiPalette.primary500.opacity(0.12) : nil
+        TodoRowView(
+            model: rowModel(todo), depth: depth, expandable: expandable, expanded: isExpanded, compact: compact,
+            onTick: { tick(id) }, onToggleExpanded: { toggleExpanded(id) }, onOpen: { open(id, fromRows: true) },
+            selected: isSelected, onSelect: { toggleSelected(id) }
+        )
+        .opacity(store.pendingIds.contains(id) ? 0.75 : 1)
+        .listRowBackground(highlight)
+        .contextMenu {
+            if selection == nil {
+                Button("Select", systemImage: "checkmark.circle") { startSelecting(id) }
+            }
+        }
+        .swipeActions(edge: .leading) {
+            if selection == nil {
+                Button {
+                    store.setOnDesk(todoId: id, !todo.onDesk)
+                } label: {
+                    Label(todo.onDesk ? "Off the desk" : "Desk", systemImage: todo.onDesk ? "pin.slash" : "pin")
+                }
+                .tint(PaiPalette.primary500)
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            if selection == nil {
+                Button {
+                    tick(id)
+                } label: {
+                    Label(todo.status == .open ? "Done" : "Reopen", systemImage: "checkmark")
+                }
+                .tint(PaiPalette.green500)
+            }
+        }
+    }
+
+    // MARK: - Selecting
+
+    /// The todos the page shows, in its order: what "All" selects and what an action runs over.
+    private var visibleIds: [String] {
+        var ids: [String] = []
+        var seen = Set<String>()
+        if dayLayout == "agenda" {
+            guard let upcoming = store.upcoming else { return [] }
+            let dayRows = TodoDays.upcomingRows(
+                upcoming, todos: store.todos, today: store.personsToday, pending: store.queue)
+            for case .todo(_, let id) in dayRows where seen.insert(id).inserted { ids.append(id) }
+        } else if dayLayout == nil {
+            for case .todo(let id, _, _, _) in rows where seen.insert(id).inserted { ids.append(id) }
+        }
+        return ids
+    }
+
+    /// The selected todos still on the page, in its order: the bar's number is what an action hits.
+    private var selectedIds: [String] {
+        guard let selection else { return [] }
+        return visibleIds.filter { (id: String) in selection.contains(id) }
+    }
+
+    private func startSelecting(_ id: String) {
+        selection = [id]
+    }
+
+    private func toggleSelected(_ id: String) {
+        guard var chosen = selection else { return }
+        if chosen.contains(id) { chosen.remove(id) } else { chosen.insert(id) }
+        selection = chosen
+    }
+
+    private func endSelecting() {
+        bulkPicker = nil
+        selection = nil
+    }
+
+    /// One change for the action on everything selected, said with Undo. What this person may
+    /// not change is left out, and a toast says how many and why. A picker keeps the selection
+    /// for its next pick; an action of the bar itself ends it.
+    private func runBulk(_ action: TodoBulk.Action, keepsSelection: Bool) {
+        let plan = TodoBulk.plan(action, ids: selectedIds, todos: store.todos, lists: store.lists)
+        if let leftOut = plan.leftOut { toasts.show(leftOut, kind: .info) }
+        guard let change = plan.change else { return }
+        TodoUndoToast.show(change.toast, changeId: store.submit(change.ops), store: store, toasts: toasts)
+        ticks += 1
+        if !keepsSelection { endSelecting() }
+    }
+
+    /// What the bar's pickers change: every choice is one change over the whole selection.
+    private var bulkEditing: TodoFieldEditing {
+        TodoFieldEditing(
+            values: TodoBulk.common(selectedIds, todos: store.todos), today: store.personsToday,
+            setWhen: { (when: TodoWhen?) in runBulk(TodoBulk.Action.when(when), keepsSelection: true) },
+            setSomeday: { (on: Bool) in runBulk(TodoBulk.Action.someday(on), keepsSelection: true) },
+            setRepeat: { (rule: [String: PaiJSONValue]?) in
+                runBulk(TodoBulk.Action.repeatRule(rule), keepsSelection: true)
+            },
+            setDeadline: { (deadline: TodoDeadline?) in
+                runBulk(TodoBulk.Action.deadline(date: deadline?.date), keepsSelection: true)
+            },
+            setHorizon: { (horizon: TodoHorizon) in runBulk(TodoBulk.Action.horizon(horizon), keepsSelection: true) },
+            setTag: { (name: String, on: Bool) in
+                let action: TodoBulk.Action = on ? .tag(name) : .untag(name)
+                runBulk(action, keepsSelection: true)
+            },
+            setList: { (list: String) in runBulk(TodoBulk.Action.move(list: list), keepsSelection: true) },
+            setDesk: { (_: Bool) in runBulk(TodoBulk.Action.desk, keepsSelection: true) },
+            addNudge: { (choice: TodoFieldOps.NudgeChoice) in
+                runBulk(TodoBulk.Action.nudge(choice), keepsSelection: true)
+            },
+            removeNudge: { (_: String) in })
+    }
+
+    private var selectionBar: TodoSelectionBar {
+        let chosen: [String] = selectedIds
+        let open: [String] = chosen.filter { (id: String) in store.todos[id]?.status == .open }
+        let reopens: Bool = !chosen.isEmpty && open.isEmpty
+        return TodoSelectionBar(
+            count: chosen.count, visibleCount: visibleIds.count, reopens: reopens, picker: bulkPicker,
+            editing: bulkEditing,
+            onAll: { selection = Set(visibleIds) },
+            onEnd: { endSelecting() },
+            onAction: { (action: TodoBulk.Action) in runBulk(action, keepsSelection: false) },
+            onPick: { (next: TodoPicker?) in bulkPicker = next })
+    }
+
+    private var selectedFact: String {
+        guard let selection else { return "" }
+        return String(selection.count)
+    }
+
+    /// Moves when the rows a fixture launch selects from have arrived.
+    private var fixtureSelectKey: String {
+        let days: Int = store.upcoming?.days.count ?? 0
+        return "\(rows.count)#\(days)"
+    }
+
+    private func selectForFixture() {
+        #if DEBUG
+            guard selection == nil, let count = PaiFixtureLaunch.requestedTodosSelect(), !visibleIds.isEmpty else {
+                return
+            }
+            selection = Set(visibleIds.prefix(count))
+            bulkPicker = PaiFixtureLaunch.requestedTodosPicker().flatMap { TodoPicker(rawValue: $0) }
+        #endif
     }
 
     @ViewBuilder private var footer: some View {
@@ -478,7 +641,8 @@ struct TodoBrowseScreen: View {
         .navigationDestination(isPresented: $showsSettings) { TodoSettingsScreen() }
         .navigationTitle("Views and lists")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await environment.todos.refreshViewCounts() }
+        // Again after every change, made here or elsewhere, so no count is left behind.
+        .task(id: environment.todos.readTick) { await environment.todos.refreshViewCounts() }
         .fixtureFact("todosBrowse", "\(browse.favourites.count),\(browse.moreViews.count),\(browse.lists.count)")
     }
 

@@ -15,7 +15,7 @@ struct ToastOverlay: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 12)
+        .padding(.bottom, 12 + toasts.bottomBarHeight)
         .animation(.default, value: toasts.toasts.map(\.id))
         .allowsHitTesting(!toasts.toasts.isEmpty)
     }

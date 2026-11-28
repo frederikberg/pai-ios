@@ -21,7 +21,9 @@ struct TodoTitleField: UIViewRepresentable {
     var isEditable = true
     var maxLines = 5
     var returnKey: UIReturnKeyType = .send
-    var keyboardType: UIKeyboardType = .default
+    /// A strip on top of the keyboard with an @ key, for a line that reads `@tag`: the keyboard's
+    /// own @ is a layer away, and the keyboard that has one in reach has no Return key.
+    var showsTagKey = false
     var onFocusChange: (Bool) -> Void = { _ in }
     var onReturn: () -> Void = {}
     var onPasteImages: ([PastedImage]) -> Void = { _ in }
@@ -59,6 +61,7 @@ struct TodoTitleField: UIViewRepresentable {
             label.topAnchor.constraint(equalTo: view.topAnchor, constant: 4),
         ])
         context.coordinator.placeholder = label
+        if showsTagKey { view.inputAccessoryView = context.coordinator.makeTagKeyBar(for: view) }
         return view
     }
 
@@ -67,10 +70,6 @@ struct TodoTitleField: UIViewRepresentable {
         if view.text != text { view.text = text }
         view.isEditable = isEditable
         view.returnKeyType = returnKey
-        if view.keyboardType != keyboardType {
-            view.keyboardType = keyboardType
-            view.reloadInputViews()
-        }
         context.coordinator.placeholder?.text = placeholder
         context.coordinator.placeholder?.isHidden = !text.isEmpty
         context.coordinator.paint(view)
@@ -114,6 +113,33 @@ struct TodoTitleField: UIViewRepresentable {
 
         init(parent: TodoTitleField) {
             self.parent = parent
+        }
+
+        private weak var field: UITextView?
+
+        func makeTagKeyBar(for view: UITextView) -> UIToolbar {
+            field = view
+            let bar = UIToolbar(frame: CGRect(x: 0, y: 0, width: 0, height: 44))
+            let key = UIBarButtonItem(title: "@", style: .plain, target: self, action: #selector(typeTagMarker))
+            let face: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 22, weight: .semibold)]
+            key.setTitleTextAttributes(face, for: .normal)
+            key.setTitleTextAttributes(face, for: .highlighted)
+            key.width = 56
+            key.accessibilityLabel = "At sign, starts a tag"
+            bar.items = [key, UIBarButtonItem(systemItem: .flexibleSpace)]
+            bar.sizeToFit()
+            return bar
+        }
+
+        /// Types the @ at the caret, set off from the word before it so the tag reads as one.
+        @objc private func typeTagMarker() {
+            guard let field, field.markedTextRange == nil else { return }
+            let caret = field.selectedRange.location
+            let before =
+                caret > 0 ? (field.text as NSString).substring(with: NSRange(location: caret - 1, length: 1)) : " "
+            let needsSpace = before.unicodeScalars.allSatisfy { !CharacterSet.whitespacesAndNewlines.contains($0) }
+            field.insertText(needsSpace ? " @" : "@")
+            textViewDidChange(field)
         }
 
         func textViewDidChange(_ textView: UITextView) {

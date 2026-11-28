@@ -298,6 +298,12 @@
             value(for: "-PaiFixtureTodosFiles", in: arguments).flatMap { Int($0) }
         }
 
+        /// `-PaiFixtureTodosSelect <n>`: the page is in select mode with its first `n` todos
+        /// selected; with `-PaiFixtureTodosPicker` the bar shows that picker.
+        public static func requestedTodosSelect(arguments: [String] = ProcessInfo.processInfo.arguments) -> Int? {
+            value(for: "-PaiFixtureTodosSelect", in: arguments).flatMap { Int($0) }
+        }
+
         /// `-PaiFixtureTodosPicker when|nudge|deadline|tags|horizon|more`: the add sheet, or the
         /// todo `-PaiFixtureTodosOpen` opens, shows this picker. `parent` on the opened todo shows
         /// the search for the todo to move it under, with `-PaiFixtureTodosSearch` typed.

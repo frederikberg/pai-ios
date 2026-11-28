@@ -1190,14 +1190,15 @@ final class DraftStoreTests: XCTestCase {
         let written = fake.putBodies.count
         XCTAssertEqual(written, 1)
 
+        // The laptop types the next message before this phone has listed the drafts again.
+        fake.remoteDrafts = [row("s1", text: "typed on the laptop meanwhile", version: 9)]
         store.clearAfterSend(key: "s1")
         XCTAssertEqual(store.draft(for: "s1").text, "")
-        fake.remoteDrafts = [row("s1", text: "typed on the laptop meanwhile", version: 9)]
-        await store.syncFromServer()
         await store.flush(key: "s1")
-
-        XCTAssertEqual(store.draft(for: "s1").text, "typed on the laptop meanwhile")
         XCTAssertEqual(fake.putBodies.count, written)
+
+        await store.syncFromServer()
+        XCTAssertEqual(store.draft(for: "s1").text, "typed on the laptop meanwhile")
     }
 
     /// A write in the air at Send carries an earlier state of the message and may land after
