@@ -159,6 +159,27 @@ final class TodosRigTests: XCTestCase {
         await taken([TodoSettingsOps.tagDelete(merged)], "delete")
         XCTAssertNil(store.me?.tags.first { $0.name.hasPrefix(word) })
 
+        let viewId = TodosStore.uuidv7()
+        await taken(
+            [
+                TodoSettingsOps.viewSave(
+                    id: viewId, name: "Rig view", query: "is:open", layout: TodoSettingsOps.newViewLayout, pinned: false
+                )
+            ], "view create")
+        let made = try XCTUnwrap(store.me?.views.first { $0.id == viewId })
+        await taken(
+            [TodoSettingsOps.viewSave(id: viewId, name: "Rig view two", query: made.query, layout: made.layout)],
+            "view rename")
+        let ordered = (store.me?.views ?? []).sorted { $0.rank < $1.rank }
+        let at = try XCTUnwrap(ordered.firstIndex { $0.id == viewId })
+        await taken([TodoSettingsOps.viewMove(ordered, from: at, to: 0)], "view move")
+        let moved = (store.me?.views ?? []).sorted { $0.rank < $1.rank }
+        XCTAssertEqual(moved.first?.id, viewId)
+        XCTAssertEqual(moved.first?.name, "Rig view two")
+        XCTAssertEqual(moved.first?.pinned, false, "a save that names no favourite keeps it")
+        await taken([TodoSettingsOps.viewDelete(try XCTUnwrap(moved.first))], "view delete")
+        XCTAssertNil(store.me?.views.first { $0.id == viewId })
+
         let view = try XCTUnwrap(store.me?.views.first)
         await taken([TodoSettingsOps.favourite(view, !view.pinned)], "favourite")
         XCTAssertEqual(store.me?.views.first { $0.id == view.id }?.pinned, !view.pinned)
