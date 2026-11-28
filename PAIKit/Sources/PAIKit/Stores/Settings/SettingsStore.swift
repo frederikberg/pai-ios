@@ -13,7 +13,7 @@ import Observation
 ///   step, same as the web's `localStorage` + immediate apply.
 /// - **server-persisted, draft-and-save** — `smtp` and `statusMessage`, whole sub-stores, because Save/dirty
 ///   tracking/validation is real state, not a detail this store should flatten away.
-/// - **write-only secret** — `elevenLabsKey`, `homeAssistantToken`, `todoistToken` (and
+/// - **write-only secret** — `elevenLabsKey`, `homeAssistantToken` (and
 ///   `smtp.password`): presence is fetched, the value is only ever sent, never read back. See
 ///   `WriteOnlySecretField`.
 @MainActor
@@ -60,10 +60,9 @@ public final class SettingsStore {
     public var defaultRecordingMode: VoiceSttMode { registry.recordingMode }
 
     public let elevenLabsKey: WriteOnlySecretField
-    /// The two third-party credentials Computer presents itself. Set here rather than deployed
-    /// with the pod, so changing either needs no release.
+    /// The third-party credential Computer presents itself. Set here rather than deployed
+    /// with the pod, so changing it needs no release.
     public let homeAssistantToken: WriteOnlySecretField
-    public let todoistToken: WriteOnlySecretField
     public let smtp: SmtpSettingsStore
     public let alerts: AlertsStore
     public let alertRouting: AlertRoutingStore
@@ -94,7 +93,6 @@ public final class SettingsStore {
         self.elevenLabsKey = WriteOnlySecretField(name: .elevenlabs, apiClient: apiClient)
         self.homeAssistantToken = WriteOnlySecretField(
             name: .homeAssistantToken, apiClient: apiClient)
-        self.todoistToken = WriteOnlySecretField(name: .todoistToken, apiClient: apiClient)
         self.smtp = SmtpSettingsStore(apiClient: apiClient)
         self.alerts = AlertsStore(api: apiClient)
         self.alertRouting = AlertRoutingStore(api: apiClient)
@@ -124,7 +122,7 @@ public final class SettingsStore {
     /// show; any other allowlisted name gets a field of its own.
     public func keyField(forSecret name: String) -> WriteOnlySecretField {
         let secret = SecretName(rawValue: name)
-        for field in [elevenLabsKey, homeAssistantToken, todoistToken, smtp.password] where field.name == secret {
+        for field in [elevenLabsKey, homeAssistantToken, smtp.password] where field.name == secret {
             return field
         }
         if let field = extraKeyFields[name] { return field }
@@ -268,7 +266,7 @@ public final class SettingsStore {
     public func refreshSecretPresence() async {
         do {
             let statuses = try await apiClient.getSecretStatuses()
-            for field in [elevenLabsKey, homeAssistantToken, todoistToken, smtp.password] {
+            for field in [elevenLabsKey, homeAssistantToken, smtp.password] {
                 field.applyStatus(statuses.status(for: field.name))
             }
         } catch {

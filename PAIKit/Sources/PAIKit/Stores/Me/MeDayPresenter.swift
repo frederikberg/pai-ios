@@ -1,6 +1,6 @@
 import Foundation
 
-// What the Me screens draw about one day: the ribbon, the body lines, the Todoist and plan cards,
+// What the Me screens draw about one day: the ribbon, the body lines, the tasks and plan cards,
 // the grid cells and the day's fact lines. Pure functions of the models, so a day boundary, a
 // missing value or an unknown kind is covered by tests and the views only draw.
 
@@ -119,8 +119,6 @@ public struct MeTodayCard: Equatable, Sendable {
     public let countLine: String?
     /// `Todos unreachable · showing 14:02` when the read failed.
     public let footer: String?
-    /// `Todoist` or `Todos`: what the header link and the refresh button name.
-    public let sourceName: String
     /// Where the header link opens; nil when the server named no address, and there is no link.
     public let todayUrl: URL?
 }
@@ -248,7 +246,7 @@ extension MePresenter {
     }
 
     /// The day on the ribbon. `now` is drawn only when it falls on this day; `tasks` are the
-    /// day's own Todoist rows.
+    /// day's own task rows.
     public func ribbon(day: MeDay, tasks: MeTasks?, now: Date?) -> MeRibbon {
         var ribbon = MeRibbon()
         ribbon.sleep = sleepSpan(day)
@@ -472,13 +470,13 @@ extension MePresenter {
         var footer: String?
         if case .unavailable = tasks.status {
             let shown = clock(wire: tasks.asOf).map { " · showing \($0)" } ?? ""
-            footer = "\(tasks.sourceName) unreachable\(shown)"
+            footer = "Todos unreachable\(shown)"
         }
         return MeTodayCard(
-            fixed: fixed, desk: desk, open: open, openCaption: tasks.sourceName == "Todos" ? "Due" : "To come",
+            fixed: fixed, desk: desk, open: open, openCaption: "Due",
             done: done,
             countLine: counts.isEmpty ? nil : counts.joined(separator: " · "), footer: footer,
-            sourceName: tasks.sourceName, todayUrl: tasks.todayUrl.flatMap(URL.init(string:)))
+            todayUrl: tasks.todayUrl.flatMap(URL.init(string:)))
     }
 
     /// Plan events that have not ended, all-day ones first, then by start.
@@ -554,7 +552,7 @@ extension MePresenter {
         return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 
-    /// `Garmin 10:31 · Todoist 2 min ago · today not final`: when each source last answered well; a
+    /// `Garmin 10:31 · Todos 2 min ago · today not final`: when each source last answered well; a
     /// source that is not connected or failed is left out.
     public func sourcesLine(overview: MeOverview, tasks: MeTasks?, todayFinal: Bool?, now: Date) -> String? {
         var parts: [String] = []
@@ -562,7 +560,7 @@ extension MePresenter {
         if let garmin = overview.sources.garmin, case .ok = garmin.status { garminOk = true }
         if garminOk, let at = clock(wire: overview.sources.garmin?.asOf) { parts.append("Garmin \(at)") }
         if let tasks, case .ok = tasks.status, let wire = tasks.asOf, let read = IsoTimestamp.date(from: wire) {
-            parts.append("\(tasks.sourceName) \(ago(read, now: now))")
+            parts.append("Todos \(ago(read, now: now))")
         }
         if garminOk, todayFinal == false { parts.append("today not final") }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")

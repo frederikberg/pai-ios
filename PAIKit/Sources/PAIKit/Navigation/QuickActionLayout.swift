@@ -213,7 +213,7 @@ public struct QuickActionShortcut: Codable, Equatable, Sendable, Identifiable {
     }
 
     /// Where the link goes, shown under the name: the host of a web link, the scheme of an app
-    /// link (`todoist://…` reads as "todoist").
+    /// link (`maps://…` reads as "maps").
     public var subtitle: String {
         guard let url, let scheme = url.scheme?.lowercased() else { return "Set up" }
         if scheme == "http" || scheme == "https" { return url.host ?? scheme }

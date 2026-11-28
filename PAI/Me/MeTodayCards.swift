@@ -123,8 +123,8 @@ struct MeTodayCardView: View {
         }
     }
 
-    private var refreshLabel: String { "Refresh from " + card.sourceName }
-    private var openLabel: String { "Open " + card.sourceName + " ↗" }
+    private var refreshLabel: String { "Refresh from Todos" }
+    private var openLabel: String { "Open Todos ↗" }
 
     private func rowFrame<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         content()

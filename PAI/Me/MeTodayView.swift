@@ -1,7 +1,7 @@
 import PAIKit
 import SwiftUI
 
-/// Today: where the person is in the day. The ribbon, the body lines, a write card, the Todoist
+/// Today: where the person is in the day. The ribbon, the body lines, a write card, the tasks
 /// card, the plan and the diary's newest.
 struct MeTodayView: View {
     let store: MeOverviewStore
@@ -44,7 +44,7 @@ struct MeTodayView: View {
 
     // MARK: Sections
 
-    /// What Today draws, in order: the ribbon, the Todoist card and the plan only while they hold something.
+    /// What Today draws, in order: the ribbon, the tasks card and the plan only while they hold something.
     private func drawnSections(_ overview: MeOverview, _ presenter: MePresenter) -> [MeLayout.TodaySection] {
         let day = store.today
         let ribbon = day.map { presenter.ribbon(day: $0, tasks: store.todayTasks, now: nil).hasData } ?? false

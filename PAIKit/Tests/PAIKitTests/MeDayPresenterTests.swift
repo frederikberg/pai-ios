@@ -157,7 +157,7 @@ final class MeDayPresenterTests: XCTestCase {
         XCTAssertEqual(card.done.map(\.title), ["🛒 9 grocery items", "Pharmacy"])
         XCTAssertEqual(card.done.map(\.time), ["16:02–16:25", "09:42"])
         XCTAssertEqual(card.countLine, "10 done · 2 to come · 2 fixed")
-        XCTAssertEqual(card.footer, "Todoist unreachable · showing 14:02")
+        XCTAssertEqual(card.footer, "Todos unreachable · showing 14:02")
 
         let off = MeTasks(date: day, status: .notConfigured)
         XCTAssertNil(presenter.todayCard(tasks: off, events: events, now: now, todayKey: day))
@@ -221,7 +221,7 @@ final class MeDayPresenterTests: XCTestCase {
         let ok = MeTasks(date: day, asOf: "2026-11-24T10:31:00+00:00")
         XCTAssertEqual(
             presenter.sourcesLine(overview: overview, tasks: ok, todayFinal: false, now: now),
-            "Garmin 10:31 · Todoist 2 min ago · today not final")
+            "Garmin 10:31 · Todos 2 min ago · today not final")
         let down = MeTasks(date: day, status: .unavailable, asOf: "2026-11-24T10:31:00+00:00")
         let failed = MeOverview(
             today: day, sources: MeSources(garmin: MeSource(status: .unavailable)), days: [])
@@ -371,10 +371,9 @@ final class MeDayPresenterTests: XCTestCase {
         XCTAssertEqual(tasks.moved, 1)
     }
 
-    /// A server that names its task store: the card says that name everywhere and links where the
-    /// answer says, and a row without an address is no link. One that names none answers from
-    /// Todoist and offers no link it was not given.
-    func testTheTodayCardNamesAndLinksTheStoreTheAnswerNames() throws {
+    /// The card links where the answer says, and a row without an address is no link. An answer
+    /// that names no address offers no link.
+    func testTheTodayCardLinksWhereTheAnswerSays() throws {
         let now = date("2026-11-24T13:00:00+00:00")
         let todos = try JSONDecoder().decode(
             MeTasks.self,
@@ -387,7 +386,6 @@ final class MeDayPresenterTests: XCTestCase {
                  "done": [], "moved": 0}
                 """#.utf8))
         let card = try XCTUnwrap(presenter.todayCard(tasks: todos, events: [], now: now, todayKey: day))
-        XCTAssertEqual(card.sourceName, "Todos")
         XCTAssertEqual(card.todayUrl?.absoluteString, "https://pai.example.invalid/apps/todos")
         XCTAssertEqual(card.open.map { $0.url?.absoluteString }, ["https://pai.example.invalid/apps/todos/t/7", nil])
         XCTAssertTrue(card.footer?.hasPrefix("Todos unreachable") == true)
@@ -400,7 +398,6 @@ final class MeDayPresenterTests: XCTestCase {
                  "open": [{"id": "a", "title": "A"}], "done": [], "moved": 0}
                 """#.utf8))
         let olderCard = try XCTUnwrap(presenter.todayCard(tasks: older, events: [], now: now, todayKey: day))
-        XCTAssertEqual(olderCard.sourceName, "Todoist")
         XCTAssertNil(olderCard.todayUrl)
         XCTAssertNil(olderCard.open.first?.url)
     }

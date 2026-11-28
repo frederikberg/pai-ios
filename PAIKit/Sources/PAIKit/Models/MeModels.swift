@@ -741,8 +741,7 @@ public struct MeTaskDone: Decodable, Sendable, Equatable {
 public struct MeTasks: Decodable, Sendable, Equatable {
     public let date: String
     public let status: MeSourceStatus
-    /// Which task store the list comes from (`todoist`, `todos`); a server that does not send it
-    /// answers from Todoist.
+    /// Which task store the list comes from: `todos`.
     public let source: String
     /// Where that store's Today opens; nil from a server that does not send it.
     public let todayUrl: String?
@@ -755,7 +754,7 @@ public struct MeTasks: Decodable, Sendable, Equatable {
     public let moved: Int
 
     public init(
-        date: String, status: MeSourceStatus = .ok, source: String = "todoist", todayUrl: String? = nil,
+        date: String, status: MeSourceStatus = .ok, source: String = "todos", todayUrl: String? = nil,
         asOf: String? = nil, open: [MeTaskOpen] = [], done: [MeTaskDone] = [], moved: Int = 0
     ) {
         self.date = date
@@ -778,16 +777,13 @@ public struct MeTasks: Decodable, Sendable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         date = try container.decode(String.self, forKey: .date)
         status = (try? container.decodeIfPresent(MeSourceStatus.self, forKey: .status)) ?? .unavailable
-        source = (try? container.decodeIfPresent(String.self, forKey: .source)) ?? "todoist"
+        source = (try? container.decodeIfPresent(String.self, forKey: .source)) ?? "todos"
         todayUrl = try? container.decodeIfPresent(String.self, forKey: .todayUrl)
         asOf = try? container.decodeIfPresent(String.self, forKey: .asOf)
         open = (try? container.decodeIfPresent([MeTaskOpen].self, forKey: .open)) ?? []
         done = (try? container.decodeIfPresent([MeTaskDone].self, forKey: .done)) ?? []
         moved = container.decodeLenientInt(forKey: .moved) ?? 0
     }
-
-    /// The store's name as the card says it.
-    public var sourceName: String { source == "todos" ? "Todos" : "Todoist" }
 
     /// Whether the answer is worth a card: a source that is not configured has nothing to show.
     public var isConfigured: Bool {

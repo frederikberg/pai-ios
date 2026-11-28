@@ -42,14 +42,14 @@ final class QuickActionLayoutTests: XCTestCase {
     // MARK: Item ids
 
     func testItemIdsRoundTripAndAnUnknownOneIsDropped() throws {
-        let shortcut = QuickActionShortcut(name: "x", urlString: "todoist://today")
+        let shortcut = QuickActionShortcut(name: "x", urlString: "maps://today")
         for item in [QuickActionItem.action(.findNote), .more, .shortcut(shortcut.id)] {
             XCTAssertEqual(QuickActionItem(id: item.id), item)
         }
         let json = """
             {"grid":["home","retiredAction","shortcut:\(shortcut.id.uuidString)","shortcut:\(UUID().uuidString)"],
              "more":["more","home","newNote"],
-             "shortcuts":[{"id":"\(shortcut.id.uuidString)","name":"x","urlString":"todoist://today"}],
+             "shortcuts":[{"id":"\(shortcut.id.uuidString)","name":"x","urlString":"maps://today"}],
              "seen":\(String(data: try JSONEncoder().encode(QuickAction.allCases.map(\.rawValue)), encoding: .utf8)!)}
             """
         let decoded = try JSONDecoder().decode(QuickActionArrangement.self, from: Data(json.utf8))
@@ -129,7 +129,7 @@ final class QuickActionLayoutTests: XCTestCase {
     }
 
     func testShortcutSubtitleNamesWhereTheLinkGoes() {
-        XCTAssertEqual(QuickActionShortcut(name: "", urlString: "todoist://today").subtitle, "todoist")
+        XCTAssertEqual(QuickActionShortcut(name: "", urlString: "maps://today").subtitle, "maps")
         XCTAssertEqual(QuickActionShortcut(name: "", urlString: " https://example.com/a ").subtitle, "example.com")
         XCTAssertEqual(QuickActionShortcut(name: "", urlString: "").subtitle, "Set up")
         XCTAssertEqual(QuickActionShortcut(name: " ", urlString: "").title, "Shortcut")
@@ -188,7 +188,7 @@ final class QuickActionsStoreTests: XCTestCase {
     func testAddingAndDeletingAShortcutPersist() async {
         let storage = SettingsInMemoryKeyValueStore()
         let store = QuickActionsStore(storage: storage)
-        let today = store.addShortcut(name: "Today", urlString: "todoist://today")
+        let today = store.addShortcut(name: "Today", urlString: "maps://today")
         let other = store.addShortcut(name: "Other", urlString: "https://example.com")
         XCTAssertEqual(store.grid.suffix(2), [.shortcut(today.id), .shortcut(other.id)])
 
@@ -208,13 +208,13 @@ final class QuickActionsStoreTests: XCTestCase {
     func testANewStoreStartsFromTheStandardArrangementAndNilStorageKeepsNothing() async {
         let store = QuickActionsStore(storage: nil)
         XCTAssertEqual(store.arrangement, .standard)
-        store.addShortcut(name: "x", urlString: "todoist://x")
+        store.addShortcut(name: "x", urlString: "maps://x")
         XCTAssertEqual(QuickActionsStore(storage: nil).arrangement, .standard)
     }
 
     func testResetKeepsTheShortcutsHidden() async {
         let store = QuickActionsStore(storage: SettingsInMemoryKeyValueStore())
-        let shortcut = store.addShortcut(name: "x", urlString: "todoist://x")
+        let shortcut = store.addShortcut(name: "x", urlString: "maps://x")
         store.place(.action(.home), in: .hidden)
         store.resetToStandard()
         XCTAssertEqual(store.grid, QuickActionArrangement.standard.grid)

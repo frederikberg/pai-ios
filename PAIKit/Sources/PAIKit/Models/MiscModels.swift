@@ -1055,7 +1055,6 @@ public struct SecretName: Sendable, Equatable, Hashable, RawRepresentable {
     public static let elevenlabs = SecretName(rawValue: "elevenlabs")
     public static let smtpPassword = SecretName(rawValue: "smtp_password")
     public static let homeAssistantToken = SecretName(rawValue: "home_assistant_token")
-    public static let todoistToken = SecretName(rawValue: "todoist_token")
 }
 
 public struct SecretStatus: Codable, Sendable, Equatable {
@@ -1083,25 +1082,21 @@ public struct SecretStatusMap: Codable, Sendable, Equatable {
     public let elevenlabs: SecretStatus?
     public let smtpPassword: SecretStatus?
     public let homeAssistantToken: SecretStatus?
-    public let todoistToken: SecretStatus?
 
     enum CodingKeys: String, CodingKey {
         case elevenlabs
         case smtpPassword = "smtp_password"
         case homeAssistantToken = "home_assistant_token"
-        case todoistToken = "todoist_token"
     }
 
     public init(
         elevenlabs: SecretStatus?,
         smtpPassword: SecretStatus?,
-        homeAssistantToken: SecretStatus? = nil,
-        todoistToken: SecretStatus? = nil
+        homeAssistantToken: SecretStatus? = nil
     ) {
         self.elevenlabs = elevenlabs
         self.smtpPassword = smtpPassword
         self.homeAssistantToken = homeAssistantToken
-        self.todoistToken = todoistToken
     }
 
     /// The status for one name, so a view drawing a field per name does not need a switch
@@ -1111,7 +1106,6 @@ public struct SecretStatusMap: Codable, Sendable, Equatable {
         case .elevenlabs: elevenlabs
         case .smtpPassword: smtpPassword
         case .homeAssistantToken: homeAssistantToken
-        case .todoistToken: todoistToken
         default: nil
         }
     }
