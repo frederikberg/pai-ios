@@ -188,7 +188,19 @@ struct TodoAddSheet: View {
     /// As tall as the keyboard was, so the block above does not move when a picker takes its place.
     private var pickerHeight: CGFloat { max(260, TodoKeyboard.shared.lastHeight - TodoKeyboard.homeIndicatorInset) }
 
+    /// The held files' viewer hangs here, apart from the sheet's own chain of modifiers, which is
+    /// as long as the type checker takes in one expression.
     var body: some View {
+        sheetBody
+            .filePreview($preview)
+            .onChange(of: preview?.id) { _, shown in
+                // The viewer took the keyboard; the line gets it back.
+                if shown == nil, mode == .line, picker == nil, !editingDetails { titleFocused = true }
+            }
+            .fixtureFact("todosAddFiles", String(files.count))
+    }
+
+    private var sheetBody: some View {
         ZStack(alignment: .bottom) {
             Color.black.opacity(shown ? 0.4 : 0)
                 .ignoresSafeArea()
@@ -208,11 +220,6 @@ struct TodoAddSheet: View {
         }
         .sheet(isPresented: $pickingPhoto) { PhotoAttachmentPicker(onPicked: hold) }
         .sheet(isPresented: $pickingFile) { FileAttachmentPicker(onPicked: hold) }
-        .filePreview($preview)
-        .onChange(of: preview?.id) { _, shown in
-            // The viewer took the keyboard; the line gets it back.
-            if shown == nil, mode == .line, picker == nil, !editingDetails { titleFocused = true }
-        }
         .task(id: draft.text) {
             try? await Task.sleep(for: .seconds(TodoCaptureDraft.debounceSeconds))
             guard !Task.isCancelled else { return }
@@ -241,7 +248,6 @@ struct TodoAddSheet: View {
         .fixtureFact("todosAddDimmed", String(overflow.count))
         .fixtureFact("todosAddMarks", String(draft.marks.count))
         .fixtureFact("todosAddDescription", editingDetails ? "open" : "closed")
-        .fixtureFact("todosAddFiles", String(files.count))
     }
 
     /// What was kept from last time comes back, unless the sheet was opened with words of its own.
