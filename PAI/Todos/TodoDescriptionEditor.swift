@@ -178,8 +178,7 @@ struct TodoDescriptionScreen: View {
                 }
             }
             TodoPlainTextEditor(
-                text: Binding(get: { saver.text }, set: { saver.text = $0 }), isFocused: canEdit, isEditable: canEdit,
-                onPasteImages: canEdit ? attach : nil)
+                text: words(of: saver), isFocused: canEdit, isEditable: canEdit, onPasteImages: pasteHandler)
         }
         .padding(.horizontal, 16)
         .task(id: saver.text) {
@@ -188,6 +187,16 @@ struct TodoDescriptionScreen: View {
             guard !Task.isCancelled else { return }
             await saver.save()
         }
+    }
+
+    private func words(of saver: TodoBodySaver) -> Binding<String> {
+        Binding(get: { saver.text }, set: { saver.text = $0 })
+    }
+
+    /// Nil where the todo may not be changed, so a picture is not taken there.
+    private var pasteHandler: (([PastedImage]) -> Void)? {
+        guard canEdit else { return nil }
+        return { images in attach(images) }
     }
 
     @ViewBuilder private func status(_ state: TodoBodySaver.Status) -> some View {
