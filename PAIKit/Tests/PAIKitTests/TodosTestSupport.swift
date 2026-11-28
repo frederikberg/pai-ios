@@ -349,8 +349,20 @@ actor FakeTodosServer: TodosBackend {
         return try JSONDecoder().decode(TodosParseAnswer.self, from: JSONSerialization.data(withJSONObject: plain))
     }
 
-    func todosEvents(after: Int) async throws -> TodosEventsAnswer {
+    /// False for a server that answers the feed at once whatever wait it is asked for.
+    private var holdsFeedAsks = true
+    func answerFeedAsksAtOnce() { holdsFeedAsks = false }
+    private(set) var feedAsks = 0
+
+    /// Held like the server's long poll: answered when an event after `after` exists, or once
+    /// `wait` seconds have passed.
+    func todosEvents(after: Int, wait: Int) async throws -> TodosEventsAnswer {
         try reach()
+        feedAsks += 1
+        let until = Date().addingTimeInterval(holdsFeedAsks ? TimeInterval(wait) : 0)
+        while !feed.contains(where: { $0.seq > after }), Date() < until {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
         let events = feed.filter { $0.seq > after }
         return TodosEventsAnswer(events: events, head: max(seq, events.map(\.seq).max() ?? 0), reset: false)
     }

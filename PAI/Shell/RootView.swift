@@ -253,7 +253,10 @@ struct RootView: View {
                     PushRegistrar.notificationsStore = connection.notifications
                     // The scene was already active before the connection existed, so no phase
                     // change will report it.
-                    if scenePhase == .active { presenceReporter(connection).setActive(true) }
+                    if scenePhase == .active {
+                        presenceReporter(connection).setActive(true)
+                        environment.todos.follow()
+                    }
                 }
                 .environment(\.terminalStreamClientFactory) { sessionID, callbacks in
                     PaiTerminalStreamClient(
@@ -294,7 +297,7 @@ struct RootView: View {
                         Task { await connection.notes.resumeSync() }
                         // Todos waiting to go out leave now; what changed elsewhere is read.
                         environment.todos.retryNow()
-                        Task { await environment.todos.catchUp() }
+                        environment.todos.follow()
                         // Sync at once instead of up to a poll interval from now, and let the
                         // open transcript replace a connection the OS suspended while away.
                         connection.sessions.requestSync()
@@ -313,6 +316,7 @@ struct RootView: View {
                             await PushRegistrar.clearStoppedAlarmNotifications(ringing: Set(list.ringing.map(\.id)))
                         }
                     case .background:
+                        environment.todos.unfollow()
                         environment.todos.flushCache()
                         attention.setAppActive(false)
                         presence?.setActive(false)
