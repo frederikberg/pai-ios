@@ -1,8 +1,10 @@
 import Foundation
 
 /// The Reports app: the list, one report with a stored answer, and a page that speaks the host
-/// protocol (`ReportProtocol`) — it asks for `init`, reports its answers and has an Add to message
-/// button — so the screenshot workflow photographs the web view and the bridge works end to end.
+/// protocol (`ReportProtocol`) — it asks for `init`, reports its answers and, under a host with the
+/// message bar, their text; under one without it has an Add to message button — so the screenshot
+/// workflow photographs the web view and the bridge works end to end. Its session is the fixture
+/// session, so the bar is there.
 extension PaiFixtures {
 
     /// The report every fixture report route answers under, whatever id is asked for.
@@ -14,7 +16,7 @@ extension PaiFixtures {
             {
               "id": "5d3f7b20-0000-4a6e-9c1d-7e5a2b6f0d77",
               "title": "Launch plan: three decisions",
-              "session_id": "2c0f7a10-6f1e-4b0a-9a53-1f6f2d8d9a01",
+              "session_id": "305df4d3-1554-4fc3-be04-39a354a9e619",
               "session_title": "Launch planning",
               "url": "https://pai.example.invalid/apps/reports/5d3f7b20-0000-4a6e-9c1d-7e5a2b6f0d77",
               "answers": {"d1": "Option B"},
@@ -40,7 +42,7 @@ extension PaiFixtures {
           "report": {
             "id": "5d3f7b20-0000-4a6e-9c1d-7e5a2b6f0d77",
             "title": "Launch plan: three decisions",
-            "session_id": "2c0f7a10-6f1e-4b0a-9a53-1f6f2d8d9a01",
+            "session_id": "305df4d3-1554-4fc3-be04-39a354a9e619",
             "session_title": "Launch planning",
             "url": "https://pai.example.invalid/apps/reports/5d3f7b20-0000-4a6e-9c1d-7e5a2b6f0d77",
             "answers": {"d1": "Option B"},
@@ -68,6 +70,12 @@ extension PaiFixtures {
           <button id="add">Add to message</button>
           <script>
             var answers = {};
+            var composer = false;
+            function say() {
+              if (!composer) return;
+              window.parent.postMessage({protocol: 'pai-report', version: 1, type: 'answers-text',
+                text: answers.d1 ? 'Launch plan: ' + answers.d1 : '', answered: answers.d1 ? 1 : 0, total: 1}, '*');
+            }
             var options = ['Option A', 'Option B', 'Option C'];
             function draw() {
               var box = document.getElementById('options');
@@ -79,6 +87,7 @@ extension PaiFixtures {
                 el.onclick = function () {
                   answers.d1 = name;
                   window.parent.postMessage({protocol: 'pai-report', version: 1, type: 'answers', answers: answers}, '*');
+                  say();
                   draw();
                 };
                 box.appendChild(el);
@@ -88,6 +97,9 @@ extension PaiFixtures {
               var m = e.data;
               if (!m || m.protocol !== 'pai-report' || m.type !== 'init') return;
               answers = m.answers || {};
+              composer = m.composer === true;
+              document.getElementById('add').style.display = composer ? 'none' : '';
+              say();
               draw();
             });
             document.getElementById('add').onclick = function () {

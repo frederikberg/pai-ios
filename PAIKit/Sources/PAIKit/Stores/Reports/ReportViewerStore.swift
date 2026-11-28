@@ -13,8 +13,43 @@ extension DraftStore: ReportComposerDrafts {
     public func draftText(for key: String) -> String { draft(for: key).text }
 }
 
-/// One report on screen: its page, the answers the page reports, Add to message and the way back
-/// to the session. The host side of ``ReportProtocol``; Swift port of `ReportViewer.tsx`.
+/// Which answers a message from this device already carried, per report.
+public protocol ReportSentAnswers: Sendable {
+    func wasSent(_ text: String, reportID: String) -> Bool
+    func remember(_ text: String, reportID: String)
+}
+
+/// Kept in the app's defaults as a digest of the text per report.
+public struct DeviceReportSentAnswers: ReportSentAnswers {
+    static let key = "reportAnswersSent"
+
+    public init() {}
+
+    private static func digest(_ text: String) -> String { TodoBlobs.sha256Hex(Data(text.utf8)) }
+
+    public func wasSent(_ text: String, reportID: String) -> Bool {
+        UserDefaults.standard.dictionary(forKey: Self.key)?[reportID] as? String == Self.digest(text)
+    }
+
+    public func remember(_ text: String, reportID: String) {
+        var all = UserDefaults.standard.dictionary(forKey: Self.key) ?? [:]
+        all[reportID] = Self.digest(text)
+        UserDefaults.standard.set(all, forKey: Self.key)
+    }
+}
+
+/// Where the reader was in each report, for as long as the app stays loaded.
+@MainActor
+public final class ReportPositions {
+    public static let shared = ReportPositions()
+    var y: [String: Double] = [:]
+
+    public init() {}
+}
+
+/// One report on screen: its page, the answers the page reports, the message bar of its session
+/// (the answers go with the message sent there), Add to message for a page built before the bar,
+/// and the way back to the session. The host side of ``ReportProtocol``; Swift port of `ReportViewer.tsx`.
 ///
 /// The view owns the web view and feeds this store every message the page posts as JSON
 /// (``receive(json:)``); what the store answers (the `init` message) it hands back for the view
@@ -41,6 +76,13 @@ public final class ReportViewerStore {
     /// Whether the page reported answers that are not stored yet.
     public private(set) var isUnsaved = false
     public private(set) var isDeleted = false
+    /// Whether the report's session can be opened by this reader, so its message bar is shown
+    /// under the page. Known before the page is.
+    public private(set) var hasComposer = false
+    /// What the page last said its answers are as message text.
+    public private(set) var answersText: ReportAnswersText?
+    /// Posts a message to the page outside a reply: `saved`. Set by whoever owns the web view.
+    @ObservationIgnored public var deliver: (@MainActor (String) -> Void)?
 
     public let reportID: String
 
@@ -50,15 +92,30 @@ public final class ReportViewerStore {
     private var answers: [String: PaiJSONValue] = [:]
     private var isDirty = false
     private var saveTimer: Task<Void, Never>?
+    private let sessionLoads: @MainActor (String) async -> Bool
+    private let sentAnswers: any ReportSentAnswers
+    /// The answers text the reader left out of this message; changed answers are offered again.
+    private var leftOut: String?
+    /// The answers text a message sent from this screen carried.
+    private var carried: String?
+    /// The text this report last added to the draft, replaced where it stands by the next.
+    private var lastAdded: String?
+    private let positions: ReportPositions
 
+    /// - Parameter sessionLoads: whether the session with this id can be opened by this reader.
     public init(
         reportID: String, api: DynamicReportsApiClient, drafts: ReportComposerDrafts,
-        scheduler: DraftScheduler = RealDraftScheduler()
+        scheduler: DraftScheduler = RealDraftScheduler(),
+        sentAnswers: any ReportSentAnswers = DeviceReportSentAnswers(), positions: ReportPositions? = nil,
+        sessionLoads: @escaping @MainActor (String) async -> Bool = { _ in false }
     ) {
         self.reportID = reportID
         self.api = api
         self.drafts = drafts
         self.scheduler = scheduler
+        self.sentAnswers = sentAnswers
+        self.positions = positions ?? .shared
+        self.sessionLoads = sessionLoads
     }
 
     /// Fetches the report and its page. The page is fetched by the app, with the token, so the
@@ -71,6 +128,8 @@ public final class ReportViewerStore {
             let (loadedReport, loadedPage) = try await (row, html)
             answers = loadedReport.answers
             report = loadedReport
+            // Before the page: its `init` says whether there is a message bar.
+            if let sessionId = loadedReport.sessionId { hasComposer = await sessionLoads(sessionId) }
             pageHTML = loadedPage
         } catch let error as PaiError {
             errorMessage = error.isNotFound ? "This report does not exist, or is not yours." : error.userMessage
@@ -87,7 +146,10 @@ public final class ReportViewerStore {
         switch message {
         case .ready:
             let session = report?.sessionId.map { (id: $0, title: report?.sessionTitle) }
-            return ReportProtocol.initMessage(answers: answers, session: session)
+            // After the reply: the page learns that the answers `init` carried are not stored yet.
+            if isUnsaved { Task { [weak self] in self?.deliver?(ReportProtocol.savedMessage(false)) } }
+            return ReportProtocol.initMessage(
+                answers: answers, session: session, position: positions.y[reportID], composer: hasComposer)
         case .answers(let reported):
             answers = reported
             isDirty = true
@@ -98,7 +160,42 @@ public final class ReportViewerStore {
             Task { await save() }
             addToMessage(text)
             return nil
+        case .position(let y):
+            positions.y[reportID] = y
+            return nil
+        case .answersText(let reported):
+            answersText = reported
+            return nil
         }
+    }
+
+    /// The answers the next message from the bar carries, or nil when there are none to offer:
+    /// nothing answered, left out by the reader, already carried by a message, or already in the
+    /// draft.
+    public var rider: ReportAnswersText? {
+        guard hasComposer, let offered = answersText, offered.answered > 0 else { return nil }
+        let text = offered.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, text != leftOut, text != carried, !sentAnswers.wasSent(text, reportID: reportID) else {
+            return nil
+        }
+        if let sessionId = report?.sessionId, drafts.draftText(for: sessionId).contains(text) { return nil }
+        return ReportAnswersText(text: text, answered: offered.answered, total: offered.total)
+    }
+
+    /// What the chip above the field says.
+    public static func riderLabel(_ rider: ReportAnswersText) -> String {
+        "Your answers go with this message (\(rider.answered) of \(rider.total) decision\(rider.total == 1 ? "" : "s"))"
+    }
+
+    /// The reader leaves the answers out of this message.
+    public func leaveAnswersOut() {
+        leftOut = answersText?.text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// A message from the bar carried `text`: it is not offered again, on this device.
+    public func answersWereSent(_ text: String) {
+        carried = text
+        sentAnswers.remember(text, reportID: reportID)
     }
 
     /// Puts `text` into the report session's composer draft, unsent, and says so. A report with no
@@ -110,11 +207,17 @@ public final class ReportViewerStore {
             return
         }
         drafts.setDraftText(
-            key: sessionId, text: ReportProtocol.appendToDraft(drafts.draftText(for: sessionId), text))
+            key: sessionId,
+            text: ReportProtocol.appendToDraft(drafts.draftText(for: sessionId), text, replacing: lastAdded))
+        lastAdded = text
         drafts.requestComposerFocus()
-        notice = Notice(
-            text: "Your answers are in the message box, not sent yet. Go back to the session to read and send them.",
-            sessionId: sessionId)
+        notice =
+            hasComposer
+            ? Notice(text: "Your answers are in the message box below, not sent yet.", sessionId: nil)
+            : Notice(
+                text:
+                    "Your answers are in the message box, not sent yet. Go back to the session to read and send them.",
+                sessionId: sessionId)
     }
 
     public func dismissNotice() {
@@ -158,10 +261,14 @@ public final class ReportViewerStore {
         isDirty = false
         do {
             _ = try await api.putDynamicReportAnswers(id: reportID, answers: sent)
-            if !isDirty { isUnsaved = false }
+            if !isDirty {
+                isUnsaved = false
+                deliver?(ReportProtocol.savedMessage(true))
+            }
         } catch {
             isDirty = true
             isUnsaved = true
+            deliver?(ReportProtocol.savedMessage(false))
             if saveTimer == nil { scheduleSave(after: Self.saveRetrySeconds) }
         }
     }
