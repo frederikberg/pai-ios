@@ -10,7 +10,9 @@ enum TodoUndoToast {
     /// closed.
     static let lifetimeNanos: UInt64 = 8_000_000_000
 
-    static func show(_ text: String, changeId: String, store: TodosStore, toasts: ToastCenter) {
+    /// Returns the toast's id, for a screen that replaces it with its next one.
+    @discardableResult
+    static func show(_ text: String, changeId: String, store: TodosStore, toasts: ToastCenter) -> UUID {
         let action = ToastMessage.Action(label: "Undo") {
             Task { @MainActor in
                 let outcome = await store.undo(changeId: changeId)
@@ -18,10 +20,10 @@ enum TodoUndoToast {
                 toasts.show(message, kind: outcome == .undone ? .info : .error)
             }
         }
-        toasts.show(text, kind: .info, action: action, lifetimeNanos: lifetimeNanos)
         #if DEBUG
             FixtureFacts.shared.record("todosUndoToast", "shown")
         #endif
+        return toasts.show(text, kind: .info, action: action, lifetimeNanos: lifetimeNanos)
     }
 
     /// Ticks or reopens a todo; a tick says so with Undo, since a tick on a repeating todo moves

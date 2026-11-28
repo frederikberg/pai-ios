@@ -4,18 +4,22 @@ import SwiftUI
 /// The one search, the web's search box: asked a moment after the last key, the answer kept on
 /// screen until the next one arrives, words or the query language alike (`tag:home`, `is:done`).
 /// It draws what the server sends: the direct hit, the ranked todos with what matched marked, the
-/// corrections, the tags, views and lists to jump to, and a row that adds the text as a todo.
+/// corrections, the tags, views and lists to jump to, a row that adds the text as a todo and one
+/// that keeps the search as a view.
 /// The keyboard is up as the screen opens. Before anything is typed it shows how the box is used,
 /// what was opened from search lately and the searches run often; what is opened from here is
 /// told to the server, which keeps that list for every device.
 struct TodoSearchScreen: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(ToastCenter.self) private var toasts
     @State private var text = ""
     @State private var searching = false
     @State private var showsHelp = false
     @State private var answer: TodosSearchAnswer?
     @State private var failed = false
     @State private var opened: TodoSheetTarget?
+    /// The search being saved as a view, in the view's form.
+    @State private var saving: TodoSearchSave?
 
     private var store: TodosStore { environment.todos }
 
@@ -56,6 +60,11 @@ struct TodoSearchScreen: View {
         .task { searching = true }
         .task { openFixtureSearch() }
         .sheet(item: $opened) { target in TodoSheetView(todoId: target.id) }
+        .navigationDestination(item: $saving) { (search: TodoSearchSave) in
+            TodoViewSettingsScreen(
+                viewId: nil, search: search,
+                onSaved: { (id: String, name: String) in viewSaved(id: id, name: name) })
+        }
         .fixtureFact("todosSearchHits", String((answer?.todos.count ?? 0) + (answer?.top == nil ? 0 : 1)))
         .fixtureFact("todosSearchRecents", String(recents(answer).count))
     }
@@ -82,13 +91,48 @@ struct TodoSearchScreen: View {
         jumps(answer)
         ForEach(answer.offers.filter { $0.kind == "create" }, id: \.label) { offer in
             Button {
-                store.capture(text: offer.q ?? text)
-                text = ""
+                add(offer.q ?? text)
             } label: {
                 Label(offer.label, systemImage: "plus.circle")
             }
         }
+        if let search = TodoSearchSave.proposal(answer, text: text) {
+            Button {
+                saving = search
+            } label: {
+                Label("Save this search as a view\u{2026}", systemImage: "bookmark")
+            }
+        }
         if text.isEmpty { zeroState(answer) }
+    }
+
+    /// Adds the words as a todo and says how that went, as the add sheet does: added with Undo,
+    /// or why not. Words the server refused go back into the empty field.
+    private func add(_ words: String) {
+        let changeId: String = store.capture(text: words)
+        text = ""
+        Task {
+            let outcome: TodosCaptureOutcome = await store.outcome(of: changeId, timeout: 4)
+            switch outcome.settlement {
+            case .applied:
+                TodoUndoToast.show("Added · \(outcome.title)", changeId: changeId, store: store, toasts: toasts)
+            case .refused:
+                toasts.show(outcome.message(keeper: .app), kind: .error)
+                if text.isEmpty { text = words }
+            case .waiting:
+                toasts.show(outcome.message(keeper: .app), kind: .info)
+            }
+        }
+    }
+
+    /// The view the search was saved as, one tap away.
+    private func viewSaved(id: String, name: String) {
+        let open = ToastMessage.Action(label: "Open") { [environment = self.environment] in
+            environment.router.push(.todosPage(.view(id)))
+        }
+        toasts.show(
+            "Saved the view \u{201C}\(name)\u{201D}", kind: .info, action: open,
+            lifetimeNanos: TodoUndoToast.lifetimeNanos)
     }
 
     /// One line of the Recent section: something opened from search that can be named here.

@@ -9,7 +9,8 @@ struct TodoSheetTarget: Identifiable, Hashable {
 /// A todo opened from a row. Its screen starts with the block the add sheet is made of (the tick
 /// and the title, the description, the chips of what is set, the rail of field icons), then what
 /// only an existing todo has: subtasks, files, links and what changed lately. A subtask opens as
-/// a todo of its own inside the same sheet, and Back returns to its parent.
+/// a todo of its own inside the same sheet, and Back returns to its parent. What a change did is
+/// said in a toast with Undo, drawn inside the sheet.
 struct TodoSheetView: View {
     let todoId: String
     /// The defaults of the view the todo was opened from, which a subtask added here gets too.
@@ -28,9 +29,11 @@ struct TodoSheetView: View {
                         todoId: target.id, viewDefaults: nil, parentTitle: parentTitle(of: target.id), open: open)
                 }
         }
+        .overlay(alignment: .bottom) { ToastOverlay(toasts: toasts) }
     }
 
     @Environment(AppEnvironment.self) private var environment
+    @Environment(ToastCenter.self) private var toasts
 
     private func open(_ id: String) { path.append(TodoSheetTarget(id: id)) }
 
@@ -67,6 +70,8 @@ struct TodoScreen: View {
     @State private var pickingFile = false
     @State private var preview: FilePreviewTarget?
     @State private var showsAllChanges = false
+    /// The toast of the last change made here, which the next change's toast replaces.
+    @State private var undoToast: UUID?
 
     private var store: TodosStore { environment.todos }
 
@@ -104,12 +109,7 @@ struct TodoScreen: View {
             }
         }
         .sheet(item: $picker) { picker in
-            if let todo {
-                TodoPickerPanel(picker: picker, editing: editing(todo), startsAt: pickerStep) { self.picker = nil }
-                    .padding(.top, 8)
-                    .presentationDetents([.height(TodoKeyboard.shared.lastHeight + 40), .large])
-                    .presentationBackground(PaiPalette.Semantic.panelBackground)
-            }
+            if let todo { pickerSheet(picker, todo) }
         }
         .sheet(isPresented: $backdating) {
             TodoDayPickerScreen(title: "Done on an earlier day", today: today, maxDate: today) { day in
@@ -188,24 +188,40 @@ struct TodoScreen: View {
         #endif
     }
 
+    /// A field's picker over the todo. It stays up for further picks and covers the lower part
+    /// of the todo's screen, so it draws the toasts itself, in space of their own under its
+    /// choices: a pick's Undo is in reach while the picker is open, and lies on none of them.
+    private func pickerSheet(_ picker: TodoPicker, _ todo: Todo) -> some View {
+        TodoPickerPanel(picker: picker, editing: editing(todo), startsAt: pickerStep) { self.picker = nil }
+            .padding(.top, 8)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !toasts.toasts.isEmpty { ToastOverlay(toasts: toasts) }
+            }
+            .presentationDetents([.height(TodoKeyboard.shared.lastHeight + 40), .large])
+            .presentationBackground(PaiPalette.Semantic.panelBackground)
+    }
+
     // MARK: - Changes
 
-    /// A change that takes something away, said with Undo.
+    /// A change to the todo's own fields, said with Undo; refused with the reason where the list
+    /// does not let this person make it.
     private func undoable(_ ops: [TodoOp], _ text: String) {
         if let blocked {
             toasts.show(blocked, kind: .error)
             return
         }
-        TodoUndoToast.show(text, changeId: store.submit(ops), store: store, toasts: toasts)
+        say(text, undoes: store.submit(ops))
     }
 
-    private func submit(_ ops: [TodoOp]) {
-        if let blocked {
-            toasts.show(blocked, kind: .error)
-            return
-        }
-        store.submit(ops)
+    /// Says what a change did, with Undo. One toast at a time: a row of picks leaves the last
+    /// one's, not a pile over the screen.
+    private func say(_ text: String, undoes changeId: String) {
+        if let undoToast { toasts.dismiss(undoToast) }
+        undoToast = TodoUndoToast.show(text, changeId: changeId, store: store, toasts: toasts)
     }
+
+    /// A nudge is the person's own, like the desk: open to them whatever the list allows.
+    private func nudge(_ op: TodoOp, _ text: String) { say(text, undoes: store.submit([op])) }
 
     /// What the pickers change on an existing todo: each choice is one change, drawn at once.
     private func editing(_ todo: Todo) -> TodoFieldEditing {
@@ -214,17 +230,37 @@ struct TodoScreen: View {
         return TodoFieldEditing(
             values: TodoEntryValues(todo: todo, nudges: nudges), today: today,
             canEdit: blocked == nil && todo.status != .deleted, canMove: todo.parentId == nil,
-            setWhen: { when in submit([TodoFieldOps.when(id, date: when?.date, time: when?.time)]) },
-            setSomeday: { submit([TodoFieldOps.someday(id, $0)]) },
-            setRepeat: { submit([TodoFieldOps.repeat(id, $0)]) },
-            setDeadline: { deadline in
-                submit([TodoFieldOps.deadline(id, date: deadline?.date, leadDays: deadline?.leadDays)])
+            setWhen: { (when: TodoWhen?) in
+                undoable(
+                    [TodoFieldOps.when(id, date: when?.date, time: when?.time)],
+                    when == nil ? "Day cleared" : "Day changed")
             },
-            setHorizon: { horizon in if horizon != todo.horizon { submit([TodoFieldOps.horizon(id, horizon)]) } },
-            setTag: { name, on in
-                submit([on ? TodoFieldOps.tag(id, add: [name]) : TodoFieldOps.tag(id, remove: [name])])
+            setSomeday: { (on: Bool) in
+                undoable([TodoFieldOps.someday(id, on)], on ? "Set to someday" : "No longer someday")
             },
-            setList: { submit([TodoFieldOps.move(id, toList: $0)]) },
+            setRepeat: { (rule: [String: PaiJSONValue]?) in
+                undoable([TodoFieldOps.repeat(id, rule)], rule == nil ? "Repeat stopped" : "Repeat changed")
+            },
+            setDeadline: { (deadline: TodoDeadline?) in
+                undoable(
+                    [TodoFieldOps.deadline(id, date: deadline?.date, leadDays: deadline?.leadDays)],
+                    deadline == nil ? "Deadline cleared" : "Deadline changed")
+            },
+            setHorizon: { (horizon: TodoHorizon) in
+                guard horizon != todo.horizon else { return }
+                undoable([TodoFieldOps.horizon(id, horizon)], "Horizon changed")
+            },
+            setTag: { (name: String, on: Bool) in
+                if on {
+                    undoable([TodoFieldOps.tag(id, add: [name])], "Tagged #\(name)")
+                } else {
+                    undoable([TodoFieldOps.tag(id, remove: [name])], "Took #\(name) off")
+                }
+            },
+            setList: { (listId: String) in
+                let name: String = store.lists.first { $0.id == listId }?.name ?? "another list"
+                undoable([TodoFieldOps.move(id, toList: listId)], "Moved to \(name)")
+            },
             // The desk is the person's own: open to them whatever the list allows.
             setDesk: { on in
                 if on {
@@ -233,11 +269,15 @@ struct TodoScreen: View {
                     store.setOnDesk(todoId: id, false)
                 }
             },
-            addNudge: { store.submit([TodoFieldOps.nudgeSet(id, $0, id: TodosStore.uuidv7())]) },
-            removeNudge: { store.submit([TodoFieldOps.nudgeRemove($0)]) },
-            snoozeNudge: { store.submit([TodoFieldOps.nudgeSnooze($0, minutes: 60)]) },
+            addNudge: { (choice: TodoFieldOps.NudgeChoice) in
+                nudge(TodoFieldOps.nudgeSet(id, choice, id: TodosStore.uuidv7()), "Nudge added")
+            },
+            removeNudge: { (nudgeId: String) in nudge(TodoFieldOps.nudgeRemove(nudgeId), "Removed the nudge") },
+            snoozeNudge: { (nudgeId: String) in
+                nudge(TodoFieldOps.nudgeSnooze(nudgeId, minutes: 60), "Nudge snoozed for an hour")
+            },
             useDefaultNudges: TodoFieldOps.offersDefaults(todo, prefs: store.me?.prefs)
-                ? { store.submit([TodoFieldOps.nudgeDefaults(id)]) } : nil)
+                ? { nudge(TodoFieldOps.nudgeDefaults(id), "Applied your default nudges") } : nil)
     }
 
     // MARK: - The screen
@@ -275,7 +315,11 @@ struct TodoScreen: View {
             HStack {
                 Text("This todo is deleted.")
                 Spacer()
-                if blocked == nil { Button("Restore") { submit([TodoFieldOps.restore(todo.id)]) } }
+                if blocked == nil {
+                    Button("Restore") {
+                        undoable([TodoFieldOps.restore(todo.id)], "Restored \u{201C}\(todo.title)\u{201D}")
+                    }
+                }
             }
             .font(.subheadline)
             .foregroundStyle(PaiPalette.Semantic.errorText)
@@ -398,7 +442,7 @@ struct TodoScreen: View {
             title = todo.title
             return
         }
-        submit([op])
+        undoable([op], "Title changed")
     }
 
     private func moreMenu(_ todo: Todo) -> some View {

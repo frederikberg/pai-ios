@@ -20,6 +20,7 @@ struct TodoSelectionBar: View {
     let onPick: (TodoPicker?) -> Void
 
     @Environment(ToastCenter.self) private var toasts
+    @State private var toastOwner = UUID().uuidString
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,12 +37,9 @@ struct TodoSelectionBar: View {
         .background(PaiPalette.Semantic.panelBackground.ignoresSafeArea(edges: .bottom))
         .background(
             GeometryReader { proxy in
-                Color.clear
-                    .onAppear { toasts.bottomBarHeight = Double(proxy.size.height) }
-                    .onChange(of: proxy.size.height) { _, height in toasts.bottomBarHeight = Double(height) }
+                Color.clear.toastsStandAbove(Double(proxy.size.height), owner: toastOwner, toasts: toasts)
             }
         )
-        .onDisappear { toasts.bottomBarHeight = 0 }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Selected todos")
     }

@@ -5,8 +5,13 @@ import SwiftUI
 /// mounts, matching the web's single `ToastContainer`. Nothing existed here before this; every
 /// failure the session actions menu can hit needed somewhere to land other than inline text in
 /// whichever view happened to cause it.
+///
+/// A sheet covers the root's overlay, so a sheet whose changes are said in a toast mounts one of
+/// its own. Only the root's stands above what a screen keeps at the bottom (`clearsBottomBars`):
+/// those bars lie under a sheet with the rest of the screen.
 struct ToastOverlay: View {
     let toasts: ToastCenter
+    var clearsBottomBars = false
 
     var body: some View {
         VStack(spacing: 8) {
@@ -15,7 +20,7 @@ struct ToastOverlay: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 12 + toasts.bottomBarHeight)
+        .padding(.bottom, 12 + (clearsBottomBars ? toasts.bottomBarHeight : 0))
         .animation(.default, value: toasts.toasts.map(\.id))
         .allowsHitTesting(!toasts.toasts.isEmpty)
     }
@@ -73,5 +78,15 @@ private struct ToastRow: View {
         case .success: "success"
         case .info: "info"
         }
+    }
+}
+
+extension View {
+    /// Keeps the root's toasts above something this view pins to the bottom of the screen, `height`
+    /// tall, for as long as the view is shown.
+    func toastsStandAbove(_ height: Double, owner: String, toasts: ToastCenter) -> some View {
+        onAppear { toasts.reserveBottom(height, for: owner) }
+            .onChange(of: height) { _, next in toasts.reserveBottom(next, for: owner) }
+            .onDisappear { toasts.reserveBottom(0, for: owner) }
     }
 }
