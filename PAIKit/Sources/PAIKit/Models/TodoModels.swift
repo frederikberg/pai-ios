@@ -391,6 +391,11 @@ public struct TodoViewDefaults: Codable, Equatable, Sendable {
     public let when: String?
     public let desk: Bool?
     public let parent: String?
+
+    /// Whether a todo made in the view starts with anything.
+    public var isEmpty: Bool {
+        (tags ?? []).isEmpty && horizon == nil && list == nil && when == nil && desk != true && parent == nil
+    }
 }
 
 /// A saved view: a query and how to show it. (The web's `View`.)
@@ -716,7 +721,7 @@ public struct TodoNudge: Codable, Equatable, Sendable, Identifiable {
 }
 
 /// `GET /upcoming`: the days from tomorrow, each with its todos, deadlines and repeat ghosts,
-/// then later and someday.
+/// then later and someday; with `before`, also the days behind.
 public struct TodosUpcomingAnswer: Codable, Equatable, Sendable {
     public struct Ghost: Codable, Equatable, Sendable {
         public let todoId: String
@@ -733,13 +738,44 @@ public struct TodosUpcomingAnswer: Codable, Equatable, Sendable {
         public let todos: [String]
         public let deadlines: [String]
         public let ghosts: [Ghost]
+
+        public init(date: String, todos: [String], deadlines: [String], ghosts: [Ghost]) {
+            self.date = date
+            self.todos = todos
+            self.deadlines = deadlines
+            self.ghosts = ghosts
+        }
     }
 
+    /// Of the days behind that were asked for, today included, those that hold something, oldest
+    /// first: what was meant for the day or owed on it, open, done or dropped.
+    public let earlier: [Day]
     public let days: [Day]
     public let later: [String]
     public let someday: [String]
     public let todos: [String: Todo]
     public let seq: Int
+
+    public init(
+        earlier: [Day] = [], days: [Day], later: [String], someday: [String], todos: [String: Todo], seq: Int
+    ) {
+        self.earlier = earlier
+        self.days = days
+        self.later = later
+        self.someday = someday
+        self.todos = todos
+        self.seq = seq
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        earlier = try container.decodeIfPresent([Day].self, forKey: .earlier) ?? []
+        days = try container.decode([Day].self, forKey: .days)
+        later = try container.decode([String].self, forKey: .later)
+        someday = try container.decode([String].self, forKey: .someday)
+        todos = try container.decode([String: Todo].self, forKey: .todos)
+        seq = try container.decode(Int.self, forKey: .seq)
+    }
 }
 
 /// `GET /logbook`: completions by the day they count for, newest first.
@@ -947,6 +983,9 @@ public struct TodoOpResult: Codable, Equatable, Sendable {
     public let ref: String?
     public let id: String?
     public let error: TodosErrorBody?
+    /// For a `view.save` that named no defaults: what the server read from the query as the
+    /// fields a todo made in the view could start with.
+    public let defaults: TodoViewDefaults?
 }
 
 /// `POST /apply`'s answer. `replayed` says the change id was already applied and this is that
@@ -984,6 +1023,8 @@ public struct TodoParseFields: Codable, Equatable, Sendable {
     public let list: String?
     public let desk: Bool
     public let nudges: [PaiJSONValue]
+    /// The line said someday: hidden, with no day. Absent from a server that does not read it.
+    public let someday: Bool?
 }
 
 /// Something the parser read that cannot be used, such as a `/List` the caller has no list of.

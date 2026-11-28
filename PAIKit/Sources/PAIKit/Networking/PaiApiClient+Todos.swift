@@ -51,7 +51,7 @@ public protocol TodosBackend: Sendable {
     func todosDetail(ref: String) async throws -> TodosDetailAnswer
     /// The todo for its sheet: closed children too, and its last changes.
     func todosSheet(ref: String) async throws -> TodosDetailAnswer
-    func todosUpcoming(days: Int) async throws -> TodosUpcomingAnswer
+    func todosUpcoming(days: Int, before: Int) async throws -> TodosUpcomingAnswer
     func todosLogbook(cursor: String?) async throws -> TodosLogbookAnswer
     func todosSearch(_ request: TodosSearchRequest) async throws -> TodosSearchAnswer
     /// Records that something was opened from search (`POST /recents`).
@@ -130,8 +130,12 @@ extension PaiApiClient: TodosBackend {
             ])
     }
 
-    public func todosUpcoming(days: Int) async throws -> TodosUpcomingAnswer {
-        try await todosSend("GET", "/upcoming", query: [URLQueryItem(name: "days", value: String(days))])
+    public func todosUpcoming(days: Int, before: Int) async throws -> TodosUpcomingAnswer {
+        try await todosSend(
+            "GET", "/upcoming",
+            query: [
+                URLQueryItem(name: "days", value: String(days)), URLQueryItem(name: "before", value: String(before)),
+            ])
     }
 
     public func todosLogbook(cursor: String?) async throws -> TodosLogbookAnswer {

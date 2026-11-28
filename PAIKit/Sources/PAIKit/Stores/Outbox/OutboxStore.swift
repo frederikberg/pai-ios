@@ -8,7 +8,7 @@ public protocol OutboxSending: Sendable {
         sessionId: String?, message: String, clientMessageId: String, files: [PaiFileUpload],
         draftAttachmentIds: [String], supersededUploadIds: [String], sessionType: String?, workingDir: String?,
         agent: String?, model: String?,
-        thinking: String?, clientMode: String?, heldTake: HeldTake?, noMemory: Bool?, mailVerdictToken: String?
+        thinking: String?, clientMode: String?, heldTake: HeldTake?, noMemory: Bool?, mailVerdictToken: String?, draftVersion: Int?
     ) async throws -> PostMessageResponse
 }
 
@@ -135,6 +135,9 @@ public final class OutboxStore {
     public var onSent: (@MainActor (OutboxEntry) -> Void)?
     /// Called when an entry is queued, and for each entry restored from disk at startup.
     public var onQueued: (@MainActor (OutboxEntry) -> Void)?
+    /// The version of a draft row as its composer knows it, read when an entry is queued
+    /// (`OutboxEntry.draftVersion`).
+    public var draftVersionAtSend: (@MainActor (_ draftKey: String) -> Int?)?
     /// Called when an entry leaves the queue without having reached the server: discarded, pulled
     /// back by Undo send, or refused.
     public var onAbandoned: (@MainActor (OutboxEntry) -> Void)?
@@ -211,6 +214,7 @@ public final class OutboxStore {
     /// removed rather than one that succeeded. A create's id reaching nobody that way is a
     /// session sitting in the list with the reader still on the screen that made it.
     public func installHandover(drafts: DraftStore, sessions: SessionListStore, handoff: NewSessionHandoff) {
+        draftVersionAtSend = { [weak drafts] key in drafts?.drafts[key]?.knownVersion }
         onQueued = { [weak drafts] entry in
             drafts?.withholdAttachments(key: entry.draftKey, ids: entry.namedAttachmentIds)
         }
@@ -363,6 +367,8 @@ public final class OutboxStore {
     /// left. `inlineFiles`' bytes are written to ``OutboxStorage`` here too, once, rather than
     /// re-read from wherever the caller staged them on every retry.
     public func enqueue(_ entry: OutboxEntry, inlineFileData: [String: Data] = [:]) {
+        var entry = entry
+        if entry.draftVersion == nil { entry.draftVersion = draftVersionAtSend?(entry.draftKey) }
         entries.append(entry)
         persist()
         for (localId, data) in inlineFileData {
@@ -442,7 +448,8 @@ public final class OutboxStore {
                 supersededUploadIds: entry.supersededUploadIds ?? [], sessionType: entry.target.sessionType,
                 workingDir: entry.target.workingDir, agent: entry.target.agent, model: entry.target.model,
                 thinking: entry.target.thinking, clientMode: entry.clientMode, heldTake: entry.heldTake,
-                noMemory: entry.noMemory, mailVerdictToken: mailVerdictToken?(entry.target)
+                noMemory: entry.noMemory, mailVerdictToken: mailVerdictToken?(entry.target),
+                draftVersion: entry.draftVersion
             )
             guard let current = entries.firstIndex(where: { $0.id == entry.id }) else { return }
             if response.withdrawn {

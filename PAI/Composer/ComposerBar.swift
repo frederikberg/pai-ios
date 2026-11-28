@@ -690,7 +690,7 @@ struct ComposerBar: View {
             // network call has started. Nothing here waits on the network: the queue delivers it,
             // exactly once, whenever the link allows, and its own state is what the user sees from
             // here on — queued, sending, or failed with Retry/Put back in composer/Discard.
-            draftStore.setDraftText(key: sessionID, text: "")
+            draftStore.clearAfterSend(key: sessionID)
             staging.set([], for: sessionID)
             // The draft version this send consumes is recorded by the outbox's own handover, the
             // one place that learns a send has landed — nothing here may wait for that, since the

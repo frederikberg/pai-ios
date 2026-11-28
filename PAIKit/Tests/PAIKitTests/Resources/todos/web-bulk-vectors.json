@@ -1,0 +1,535 @@
+{
+ "note": "Produced by running the web client's bulkChange (shell/bulk.ts) over these todos.",
+ "todos": {
+  "a": {
+   "id": "a",
+   "list_id": "L1",
+   "parent_id": null,
+   "status": "open",
+   "on_desk": false,
+   "when": {
+    "date": "2026-11-27",
+    "time": "09:30:00"
+   },
+   "deadline": {
+    "date": "2026-12-01",
+    "lead_days": 3
+   },
+   "tags": []
+  },
+  "b": {
+   "id": "b",
+   "list_id": "L1",
+   "parent_id": null,
+   "status": "open",
+   "on_desk": true,
+   "when": null,
+   "deadline": null,
+   "tags": [
+    "home"
+   ]
+  },
+  "c": {
+   "id": "c",
+   "list_id": "L1",
+   "parent_id": "a",
+   "status": "open",
+   "on_desk": false,
+   "when": null,
+   "deadline": null,
+   "tags": []
+  },
+  "d": {
+   "id": "d",
+   "list_id": "L2",
+   "parent_id": null,
+   "status": "done",
+   "on_desk": false,
+   "when": null,
+   "deadline": null,
+   "tags": []
+  },
+  "e": {
+   "id": "e",
+   "list_id": "L1",
+   "parent_id": "c",
+   "status": "open",
+   "on_desk": true,
+   "when": null,
+   "deadline": null,
+   "tags": []
+  },
+  "f": {
+   "id": "f",
+   "list_id": "L1",
+   "parent_id": null,
+   "status": "dropped",
+   "on_desk": false,
+   "when": null,
+   "deadline": null,
+   "tags": []
+  }
+ },
+ "cases": [
+  {
+   "name": "complete ticks the open ones only",
+   "action": {
+    "type": "complete"
+   },
+   "ids": [
+    "a",
+    "b",
+    "d"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.complete",
+      "todo": "a",
+      "as": "done"
+     },
+     {
+      "op": "todo.complete",
+      "todo": "b",
+      "as": "done"
+     }
+    ],
+    "toast": "Completed 2 todos"
+   }
+  },
+  {
+   "name": "complete with none open reopens",
+   "action": {
+    "type": "complete"
+   },
+   "ids": [
+    "d",
+    "f"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.reopen",
+      "todo": "d"
+     },
+     {
+      "op": "todo.reopen",
+      "todo": "f"
+     }
+    ],
+    "toast": "Reopened 2 todos"
+   }
+  },
+  {
+   "name": "desk puts the missing on, in the order selected",
+   "action": {
+    "type": "desk"
+   },
+   "ids": [
+    "a",
+    "b",
+    "c"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "desk.add",
+      "todo": "c",
+      "position": "first"
+     },
+     {
+      "op": "desk.add",
+      "todo": "a",
+      "position": "first"
+     }
+    ],
+    "toast": "Put 2 todos on the desk"
+   }
+  },
+  {
+   "name": "desk with all on takes them off",
+   "action": {
+    "type": "desk"
+   },
+   "ids": [
+    "b",
+    "e"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "desk.remove",
+      "item": "b"
+     },
+     {
+      "op": "desk.remove",
+      "item": "e"
+     }
+    ],
+    "toast": "Took 2 todos off the desk"
+   }
+  },
+  {
+   "name": "horizon",
+   "action": {
+    "type": "horizon",
+    "horizon": "week"
+   },
+   "ids": [
+    "a",
+    "b"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.update",
+      "todo": "a",
+      "set": {
+       "horizon": "week"
+      }
+     },
+     {
+      "op": "todo.update",
+      "todo": "b",
+      "set": {
+       "horizon": "week"
+      }
+     }
+    ],
+    "toast": "Changed the horizon of 2 todos"
+   }
+  },
+  {
+   "name": "tag without its marker",
+   "action": {
+    "type": "tag",
+    "name": " @errand "
+   },
+   "ids": [
+    "a",
+    "b"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.tag",
+      "todo": "a",
+      "add": [
+       "errand"
+      ]
+     },
+     {
+      "op": "todo.tag",
+      "todo": "b",
+      "add": [
+       "errand"
+      ]
+     }
+    ],
+    "toast": "Tagged 2 todos “errand”"
+   }
+  },
+  {
+   "name": "an empty tag does nothing",
+   "action": {
+    "type": "tag",
+    "name": "#"
+   },
+   "ids": [
+    "a"
+   ],
+   "change": null
+  },
+  {
+   "name": "untag",
+   "action": {
+    "type": "untag",
+    "name": "home"
+   },
+   "ids": [
+    "a",
+    "b"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.tag",
+      "todo": "a",
+      "remove": [
+       "home"
+      ]
+     },
+     {
+      "op": "todo.tag",
+      "todo": "b",
+      "remove": [
+       "home"
+      ]
+     }
+    ],
+    "toast": "Took “home” off 2 todos"
+   }
+  },
+  {
+   "name": "a day keeps each time",
+   "action": {
+    "type": "when",
+    "when": {
+     "date": "2026-12-05"
+    }
+   },
+   "ids": [
+    "a",
+    "b"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.update",
+      "todo": "a",
+      "set": {
+       "when": {
+        "date": "2026-12-05",
+        "time": "09:30"
+       }
+      }
+     },
+     {
+      "op": "todo.update",
+      "todo": "b",
+      "set": {
+       "when": {
+        "date": "2026-12-05",
+        "time": null
+       }
+      }
+     }
+    ],
+    "toast": "Set the day of 2 todos"
+   }
+  },
+  {
+   "name": "a day with a time",
+   "action": {
+    "type": "when",
+    "when": {
+     "date": "2026-12-05",
+     "time": "18:00"
+    }
+   },
+   "ids": [
+    "a",
+    "b"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.update",
+      "todo": "a",
+      "set": {
+       "when": {
+        "date": "2026-12-05",
+        "time": "18:00"
+       }
+      }
+     },
+     {
+      "op": "todo.update",
+      "todo": "b",
+      "set": {
+       "when": {
+        "date": "2026-12-05",
+        "time": "18:00"
+       }
+      }
+     }
+    ],
+    "toast": "Set the day of 2 todos"
+   }
+  },
+  {
+   "name": "no day",
+   "action": {
+    "type": "when",
+    "when": null
+   },
+   "ids": [
+    "a",
+    "b"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.update",
+      "todo": "a",
+      "set": {
+       "when": null
+      }
+     },
+     {
+      "op": "todo.update",
+      "todo": "b",
+      "set": {
+       "when": null
+      }
+     }
+    ],
+    "toast": "Cleared the day of 2 todos"
+   }
+  },
+  {
+   "name": "a deadline keeps each lead",
+   "action": {
+    "type": "deadline",
+    "deadline": {
+     "date": "2026-12-24"
+    }
+   },
+   "ids": [
+    "a",
+    "b"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.update",
+      "todo": "a",
+      "set": {
+       "deadline": {
+        "date": "2026-12-24",
+        "lead_days": 3
+       }
+      }
+     },
+     {
+      "op": "todo.update",
+      "todo": "b",
+      "set": {
+       "deadline": {
+        "date": "2026-12-24",
+        "lead_days": null
+       }
+      }
+     }
+    ],
+    "toast": "Set the deadline of 2 todos"
+   }
+  },
+  {
+   "name": "no deadline",
+   "action": {
+    "type": "deadline",
+    "deadline": null
+   },
+   "ids": [
+    "a"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.update",
+      "todo": "a",
+      "set": {
+       "deadline": null
+      }
+     }
+    ],
+    "toast": "Cleared the deadline of 1 todo"
+   }
+  },
+  {
+   "name": "move leaves out children of the selected and what is there already",
+   "action": {
+    "type": "move",
+    "list": "L2"
+   },
+   "ids": [
+    "a",
+    "c",
+    "d",
+    "e",
+    "b"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.move",
+      "todo": "a",
+      "list": "L2"
+     },
+     {
+      "op": "todo.move",
+      "todo": "b",
+      "list": "L2"
+     }
+    ],
+    "toast": "Moved 2 todos"
+   }
+  },
+  {
+   "name": "move with nothing to move",
+   "action": {
+    "type": "move",
+    "list": "L2"
+   },
+   "ids": [
+    "d"
+   ],
+   "change": null
+  },
+  {
+   "name": "delete takes the top of the selection",
+   "action": {
+    "type": "delete"
+   },
+   "ids": [
+    "c",
+    "e",
+    "b"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.delete",
+      "todo": "c"
+     },
+     {
+      "op": "todo.delete",
+      "todo": "b"
+     }
+    ],
+    "toast": "Deleted 2 todos"
+   }
+  },
+  {
+   "name": "unknown ids are nothing",
+   "action": {
+    "type": "delete"
+   },
+   "ids": [
+    "zz"
+   ],
+   "change": null
+  },
+  {
+   "name": "one todo is said in the singular",
+   "action": {
+    "type": "complete"
+   },
+   "ids": [
+    "a",
+    "zz"
+   ],
+   "change": {
+    "ops": [
+     {
+      "op": "todo.complete",
+      "todo": "a",
+      "as": "done"
+     }
+    ],
+    "toast": "Completed 1 todo"
+   }
+  }
+ ]
+}

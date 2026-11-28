@@ -1175,6 +1175,48 @@ final class DraftStoreTests: XCTestCase {
         XCTAssertEqual(seen, ["s1": ["a1"], "s2": []])
     }
 
+    // MARK: - clearAfterSend
+
+    /// The box emptied by a send is not an edit: nothing is written for it, so what another
+    /// device typed into the same draft meanwhile is taken, not replaced by the empty box.
+    func testTheBoxEmptiedByASendIsNeverWrittenOverNewerText() async {
+        let fake = FakeDraftsFetching()
+        fake.remoteDrafts = [row("s1", text: "hel", version: 3)]
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
+        await store.syncFromServer()
+        store.setDraftText(key: "s1", text: "hello")
+        // Until the write has settled, not only answered: one still in the air is the other case.
+        await store.flush(key: "s1")
+        let written = fake.putBodies.count
+        XCTAssertEqual(written, 1)
+
+        store.clearAfterSend(key: "s1")
+        XCTAssertEqual(store.draft(for: "s1").text, "")
+        fake.remoteDrafts = [row("s1", text: "typed on the laptop meanwhile", version: 9)]
+        await store.syncFromServer()
+        await store.flush(key: "s1")
+
+        XCTAssertEqual(store.draft(for: "s1").text, "typed on the laptop meanwhile")
+        XCTAssertEqual(fake.putBodies.count, written)
+    }
+
+    /// A write in the air at Send carries an earlier state of the message and may land after
+    /// the send consumed the row, so the emptied box is written once that write has settled.
+    func testAWriteInTheAirAtSendIsFollowedByTheEmptiedBox() async {
+        let fake = FakeDraftsFetching()
+        let gate = Gate()
+        fake.putGate = gate
+        let store = listedDraftStore(api: fake, scheduler: InstantDraftScheduler())
+        store.setDraftText(key: "s1", text: "half a mess")
+        await waitUntil { fake.callLog.contains("putDraft:start:s1") }
+
+        store.clearAfterSend(key: "s1")
+        await gate.open()
+        await waitUntil { fake.putBodies.count == 2 }
+
+        XCTAssertEqual(fake.putBodies.map(\.text), ["half a mess", ""])
+    }
+
     // MARK: - recordVersionAfterSend
 
     func testRecordVersionAfterSendUpdatesKnownVersionOnAnUntouchedEmptyEntry() async {

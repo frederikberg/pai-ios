@@ -72,6 +72,9 @@ public final class TodosStore {
     public private(set) var details: [String: TodosDetailAnswer] = [:]
     /// The days ahead and the Logbook, as last read.
     public private(set) var upcoming: TodosUpcomingAnswer?
+    /// How many days behind Upcoming covers, and whether a further look back found nothing older.
+    public private(set) var upcomingBack = TodosStore.upcomingFirstBack
+    public private(set) var upcomingBackDone = false
     public private(set) var logbook: TodosLogbookAnswer?
     /// The Logbook's todos, kept apart from the open ones the cache holds.
     public private(set) var logbookTodos: [String: Todo] = [:]
@@ -887,14 +890,47 @@ public final class TodosStore {
         let own = Set(appliedIds)
         let effect = TodosOverlay.effectOfEvents(answer.events.filter { !own.contains($0.changeId) })
         var read = true
+        // The screens in front read their own page again on this.
         if !effect.todoIds.isEmpty || effect.refreshMe { readTick += 1 }
-        if !effect.todoIds.isEmpty {
+        if effect.todoIds.count > Self.feedNamedReadsMax {
             read = await refresh()
+        } else if !effect.todoIds.isEmpty {
+            read = await readNamed(effect.todoIds)
         } else if effect.refreshMe {
             read = await refreshMe()
         }
         if read { cursor = max(cursor, answer.head) }
         return read
+    }
+
+    /// How many todos a feed answer may name and still be read one by one; more than that (a
+    /// long absence, an import) is the whole read.
+    static let feedNamedReadsMax = 12
+
+    /// Reads again what a few changes can have moved: the person's lists and counts, the desk
+    /// and the due strip, and each todo the feed named. A named todo the server no longer
+    /// shows this person is dropped. The open page reads itself (`readTick`); the whole open
+    /// set is not read.
+    private func readNamed(_ ids: [String]) async -> Bool {
+        guard let backend else { return false }
+        do {
+            adoptMe(try await backend.todosMe())
+            applyToday(try await backend.todosToday())
+            for id in ids {
+                do {
+                    let answer = try await backend.todosDetail(ref: id)
+                    merge([answer.todo] + (answer.children ?? []))
+                } catch let refusal as TodosApiError where refusal.statusCode == 404 || refusal.statusCode == 410 {
+                    base[id] = nil
+                }
+            }
+            recompute()
+            scheduleCacheWrite()
+            return true
+        } catch {
+            note(error)
+            return false
+        }
     }
 
     // MARK: - Following the feed
@@ -1204,15 +1240,38 @@ public final class TodosStore {
         TodoWords.overlayNudges(details[todoId]?.nudges ?? [], ops: queue.flatMap(\.ops), todoId: todoId)
     }
 
-    /// The days ahead (the server's ceiling is 92).
-    public func loadUpcoming(days: Int = 30) async {
-        guard let backend else { return }
+    /// Days behind asked for first (today is the last of them), how many more each further look
+    /// back covers, and the server's ceiling.
+    public static let upcomingFirstBack = 30
+    static let upcomingStepBack = 90
+    static let upcomingMaxBack = 3660
+
+    /// The days ahead (the server's ceiling is 92) and the days behind covered so far. Says
+    /// whether the server answered.
+    @discardableResult
+    public func loadUpcoming(days: Int = 30) async -> Bool {
+        guard let backend else { return false }
         do {
-            let answer = try await backend.todosUpcoming(days: days)
+            let answer = try await backend.todosUpcoming(days: days, before: upcomingBack)
             merge(Array(answer.todos.values))
             upcoming = answer
+            return true
         } catch {
             note(error)
+            return false
+        }
+    }
+
+    /// Looks further back in Upcoming. A look that brings no older day (or reaches the server's
+    /// ceiling) is the last one: `upcomingBackDone`.
+    public func loadEarlierUpcoming() async {
+        guard !upcomingBackDone else { return }
+        let target = min(Self.upcomingMaxBack, upcomingBack + Self.upcomingStepBack)
+        let oldest = upcoming?.earlier.first?.date
+        upcomingBack = target
+        let answered = await loadUpcoming()
+        if target >= Self.upcomingMaxBack || (answered && upcoming?.earlier.first?.date == oldest) {
+            upcomingBackDone = true
         }
     }
 

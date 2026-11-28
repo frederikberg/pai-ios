@@ -247,7 +247,7 @@ actor FakeTodosServer: TodosBackend {
                 sessionId: nil, summary: "", opCount: change.ops.count, undoOf: nil, undoneBy: nil,
                 createdAt: "2026-11-26T10:00:00+00:00", events: nil),
             applied: change.ops.count, of: change.ops.count,
-            results: change.ops.indices.map { TodoOpResult(index: $0, ok: true, ref: nil, id: nil, error: nil) },
+            results: change.ops.indices.map { TodoOpResult(index: $0, ok: true, ref: nil, id: nil, error: nil, defaults: nil) },
             todos: Array(touched.values), events: [], replayed: false)
         answers[change.changeId] = answer
         if loseNextAnswer {
@@ -289,7 +289,7 @@ actor FakeTodosServer: TodosBackend {
         undoable[changeId] = nil
         undone.append(changeId)
         return TodosApplyResult(
-            change: nil, applied: 1, of: 1, results: [TodoOpResult(index: 0, ok: true, ref: nil, id: nil, error: nil)],
+            change: nil, applied: 1, of: 1, results: [TodoOpResult(index: 0, ok: true, ref: nil, id: nil, error: nil, defaults: nil)],
             todos: restored, events: [], replayed: false)
     }
 
@@ -323,8 +323,11 @@ actor FakeTodosServer: TodosBackend {
             desk: desk, todos: todos.filter { onDesk.contains($0.key) }, due: [], seq: seq, day: "2026-11-26")
     }
 
+    private(set) var queryAsks = 0
+
     func todosQuery(_ request: TodosQueryRequest) async throws -> TodosQueryAnswer {
         try reach()
+        queryAsks += 1
         let open = todos.values.filter { $0.status == .open }
         return TodosQueryAnswer(
             todos: Array(open), groups: [], total: open.count, nextCursor: nil, seq: seq,
@@ -435,9 +438,21 @@ actor FakeTodosServer: TodosBackend {
         return TodosDetailAnswer(todo: todo, children: children, nudges: [], history: [])
     }
 
-    func todosUpcoming(days: Int) async throws -> TodosUpcomingAnswer {
+    /// The oldest day behind that holds something, as a count of days back from today; a look
+    /// back that covers it gets a day more than a shorter one.
+    var upcomingOldestBack = 0
+    private(set) var upcomingAsks: [Int] = []
+
+    func setUpcomingOldestBack(_ days: Int) { upcomingOldestBack = days }
+
+    func todosUpcoming(days: Int, before: Int) async throws -> TodosUpcomingAnswer {
         try reach()
-        return TodosUpcomingAnswer(days: [], later: [], someday: [], todos: [:], seq: seq)
+        upcomingAsks.append(before)
+        var earlier = [TodosUpcomingAnswer.Day(date: "2026-11-26", todos: [], deadlines: [], ghosts: [])]
+        if upcomingOldestBack > 0, before >= upcomingOldestBack {
+            earlier.insert(TodosUpcomingAnswer.Day(date: "2026-09-01", todos: [], deadlines: [], ghosts: []), at: 0)
+        }
+        return TodosUpcomingAnswer(earlier: earlier, days: [], later: [], someday: [], todos: [:], seq: seq)
     }
 
     func todosLogbook(cursor: String?) async throws -> TodosLogbookAnswer {

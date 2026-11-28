@@ -51,7 +51,7 @@ private final class FlakyOutboxApi: OutboxSending, @unchecked Sendable {
         draftAttachmentIds: [String], supersededUploadIds: [String], sessionType: String?, workingDir: String?,
         agent: String?, model: String?,
         thinking: String?, clientMode: String?, heldTake: HeldTake?, noMemory: Bool?,
-        mailVerdictToken: String?
+        mailVerdictToken: String?, draftVersion: Int?
     ) async throws -> PostMessageResponse {
         if let failure = recordAttempt(claiming: draftAttachmentIds) { throw failure }
         return response
@@ -214,6 +214,19 @@ final class NewSessionFlowTests: XCTestCase {
 
     /// A message to a session that already exists lands through the same handover, and the
     /// session it went to rises to the top at once instead of after the list has settled.
+    /// A send names the draft row its composer knew, which is what lets the server leave text
+    /// another device wrote since.
+    func testASendCarriesTheDraftVersionItsComposerKnew() async {
+        let h = makeHarness()
+        h.drafts.drafts[DraftKey.newSession] = DraftEntry(
+            text: "first message", sessionType: nil, workingDir: nil, knownVersion: 7)
+
+        h.create.enqueueSend(message: "first message", outbox: h.outbox, drafts: h.drafts)
+
+        XCTAssertEqual(h.outbox.entries.first?.draftVersion, 7)
+        XCTAssertEqual(h.drafts.draft(for: DraftKey.newSession).text, "")
+    }
+
     func testALandedSendToAnExistingSessionMovesItToTheTopAtOnce() async {
         let h = makeHarness()
         h.api.response = PostMessageResponse(sessionId: "older", messageId: 3, duplicate: false, draftVersion: 2)

@@ -153,7 +153,7 @@ private final class RecordingSender: OutboxSending, @unchecked Sendable {
         draftAttachmentIds: [String], supersededUploadIds: [String], sessionType: String?, workingDir: String?,
         agent: String?, model: String?,
         thinking: String?, clientMode: String?, heldTake: HeldTake?, noMemory: Bool?,
-        mailVerdictToken: String?
+        mailVerdictToken: String?, draftVersion: Int?
     ) async throws -> PostMessageResponse {
         record(message, mailVerdictToken)
         return PostMessageResponse(sessionId: sessionId ?? "new", messageId: 1)

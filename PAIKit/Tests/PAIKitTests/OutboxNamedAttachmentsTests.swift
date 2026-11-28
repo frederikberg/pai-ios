@@ -50,7 +50,7 @@ private final class GatedSender: OutboxSending, @unchecked Sendable {
         draftAttachmentIds: [String], supersededUploadIds: [String], sessionType: String?, workingDir: String?,
         agent: String?, model: String?,
         thinking: String?, clientMode: String?, heldTake: HeldTake?, noMemory: Bool?,
-        mailVerdictToken: String?
+        mailVerdictToken: String?, draftVersion: Int?
     ) async throws -> PostMessageResponse {
         lock.withLock { _superseded.append(supersededUploadIds) }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in

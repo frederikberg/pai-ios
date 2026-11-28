@@ -118,6 +118,11 @@ public struct OutboxEntry: Codable, Sendable, Equatable, Identifiable {
     /// close. Meaningful for a ``OutboxTarget/newSession`` entry only; optional so an entry
     /// persisted without it still decodes.
     public var noMemory: Bool?
+    /// The version of the draft row the composer had last reconciled with when Send was pressed.
+    /// The server clears the draft with the send only while the row is at or below it (or holds
+    /// the sent text), so text another device wrote since stays. Set once and sent unchanged on
+    /// every retry; nil for a draft the server never listed.
+    public var draftVersion: Int?
     public var state: OutboxEntryState
     public var attempts: Int
     public var lastError: String?
