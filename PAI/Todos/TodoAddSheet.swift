@@ -188,16 +188,81 @@ struct TodoAddSheet: View {
     /// As tall as the keyboard was, so the block above does not move when a picker takes its place.
     private var pickerHeight: CGFloat { max(260, TodoKeyboard.shared.lastHeight - TodoKeyboard.homeIndicatorInset) }
 
-    /// The held files' viewer hangs here, apart from the sheet's own chain of modifiers, which is
-    /// as long as the type checker takes in one expression.
+    /// Built in steps, each a short chain with its values typed beforehand: as one chain the
+    /// sheet is more than the type checker takes in one expression.
     var body: some View {
-        sheetBody
+        facts(on: viewer(on: lifecycle))
+    }
+
+    /// The held files' viewer over the sheet. It takes the keyboard; the line gets it back.
+    private func viewer(on sheet: some View) -> some View {
+        let shownPreview: UUID? = preview?.id
+        return
+            sheet
             .filePreview($preview)
-            .onChange(of: preview?.id) { _, shown in
-                // The viewer took the keyboard; the line gets it back.
-                if shown == nil, mode == .line, picker == nil, !editingDetails { titleFocused = true }
+            .onChange(of: shownPreview) { (_: UUID?, shown: UUID?) in
+                if shown == nil { returnKeyboardToLine() }
             }
+    }
+
+    private func returnKeyboardToLine() {
+        if mode == .line, picker == nil, !editingDetails { titleFocused = true }
+    }
+
+    /// What the sheet says about itself to a fixture run.
+    private func facts(on sheet: some View) -> some View {
+        let chips: [TodoAddChip] = self.chips
+        let modeName: String = mode == .line ? "line" : "describe"
+        let horizonChip: TodoAddChip? = chips.first(where: { (chip: TodoAddChip) -> Bool in chip.kind == "horizon" })
+        let horizon: String = horizonChip?.label ?? ""
+        let defaults: Int = chips.filter({ (chip: TodoAddChip) -> Bool in chip.dismissKey != nil }).count
+        let wordCount: Int = words.split(separator: " ").count
+        let pickerName: String = picker?.rawValue ?? ""
+        let description: String = editingDetails ? "open" : "closed"
+        let first =
+            sheet
+            .fixtureFact("todosAddMode", modeName)
+            .fixtureFact("todosAddChips", String(chips.count))
+            .fixtureFact("todosAddHorizon", horizon)
+            .fixtureFact("todosAddDefaults", String(defaults))
+            .fixtureFact("todosAddWords", String(wordCount))
+        return
+            first
+            .fixtureFact("todosAddPicker", pickerName)
+            .fixtureFact("todosAddDimmed", String(overflow.count))
+            .fixtureFact("todosAddMarks", String(draft.marks.count))
+            .fixtureFact("todosAddDescription", description)
             .fixtureFact("todosAddFiles", String(files.count))
+    }
+
+    /// The work that runs while the sheet is up: reading the line, restoring what was kept,
+    /// clearing the notice, keeping what is typed, sending a finished dictation.
+    private var lifecycle: some View {
+        let noticeId: UUID? = notice?.id
+        let wordsComing: Bool = dictation?.wordsAreOnTheWay ?? false
+        return
+            sheetBody
+            .task(id: draft.text) {
+                try? await Task.sleep(for: .seconds(TodoCaptureDraft.debounceSeconds))
+                guard !Task.isCancelled else { return }
+                // On its own, so the next keystroke does not cancel it: its answer is placed on the
+                // line as typed since, and the words it read are marked while typing goes on.
+                Task { await draft.read() }
+            }
+            .task { restore() }
+            .task(id: noticeId) {
+                guard notice != nil else { return }
+                try? await Task.sleep(for: .seconds(6))
+                guard !Task.isCancelled else { return }
+                withAnimation { notice = nil }
+            }
+            .onChange(of: entry) { (_: TodoEntryDraft, entry: TodoEntryDraft) in
+                if restored { kept.keep(entry, for: keptKey) }
+            }
+            .onChange(of: wordsComing) { (wasComing: Bool, coming: Bool) in
+                // A take that ends in this field is sent at once, as on the web.
+                if wasComing, !coming, mode == .describe, canSend { send() }
+            }
     }
 
     private var sheetBody: some View {
@@ -218,36 +283,8 @@ struct TodoAddSheet: View {
         } message: {
             Text("What you typed here is not saved as a todo yet.")
         }
-        .sheet(isPresented: $pickingPhoto) { PhotoAttachmentPicker(onPicked: hold) }
-        .sheet(isPresented: $pickingFile) { FileAttachmentPicker(onPicked: hold) }
-        .task(id: draft.text) {
-            try? await Task.sleep(for: .seconds(TodoCaptureDraft.debounceSeconds))
-            guard !Task.isCancelled else { return }
-            // On its own, so the next keystroke does not cancel it: its answer is placed on the
-            // line as typed since, and the words it read are marked while typing goes on.
-            Task { await draft.read() }
-        }
-        .task { restore() }
-        .task(id: notice?.id) {
-            guard notice != nil else { return }
-            try? await Task.sleep(for: .seconds(6))
-            guard !Task.isCancelled else { return }
-            withAnimation { notice = nil }
-        }
-        .onChange(of: entry) { _, entry in if restored { kept.keep(entry, for: keptKey) } }
-        .onChange(of: dictation?.wordsAreOnTheWay ?? false) { wasComing, coming in
-            // A take that ends in this field is sent at once, as on the web.
-            if wasComing, !coming, mode == .describe, canSend { send() }
-        }
-        .fixtureFact("todosAddMode", mode == .line ? "line" : "describe")
-        .fixtureFact("todosAddChips", String(chips.count))
-        .fixtureFact("todosAddHorizon", chips.first { $0.kind == "horizon" }?.label ?? "")
-        .fixtureFact("todosAddDefaults", String(chips.filter { $0.dismissKey != nil }.count))
-        .fixtureFact("todosAddWords", String(words.split(separator: " ").count))
-        .fixtureFact("todosAddPicker", picker?.rawValue ?? "")
-        .fixtureFact("todosAddDimmed", String(overflow.count))
-        .fixtureFact("todosAddMarks", String(draft.marks.count))
-        .fixtureFact("todosAddDescription", editingDetails ? "open" : "closed")
+        .sheet(isPresented: $pickingPhoto) { PhotoAttachmentPicker { (picked: [StagedAttachment]) in hold(picked) } }
+        .sheet(isPresented: $pickingFile) { FileAttachmentPicker { (picked: [StagedAttachment]) in hold(picked) } }
     }
 
     /// What was kept from last time comes back, unless the sheet was opened with words of its own.
@@ -376,13 +413,7 @@ struct TodoAddSheet: View {
             .buttonStyle(.plain)
             .accessibilityLabel(details.isEmpty ? "Add a description" : "Description: \(detailsLine)")
         }
-        TodoHeldFiles(
-            items: files.map { TodoHeldFiles.Item(id: $0.id.uuidString, name: $0.filename, image: thumbnails[$0.id]) },
-            onOpen: open(file:)
-        ) { id in
-            files.removeAll { $0.id.uuidString == id }
-            thumbnails = thumbnails.filter { $0.key.uuidString != id }
-        }
+        heldFiles
         TodoFieldChips(chips: chips, tagColor: tagColor, onTap: tapChip)
         ForEach(draft.issues, id: \.self) { issue in
             Text(issue).font(.footnote).foregroundStyle(PaiPalette.Semantic.textSecondary)
@@ -445,6 +476,21 @@ struct TodoAddSheet: View {
             images.map {
                 AttachmentCompression.stage(data: $0.data, filename: $0.filename, mimeType: $0.mimeType)
             })
+    }
+
+    /// The files waiting with this todo: a tap opens one, its cross leaves it out.
+    private var heldFiles: TodoHeldFiles {
+        let items: [TodoHeldFiles.Item] = files.map { (file: StagedAttachment) -> TodoHeldFiles.Item in
+            TodoHeldFiles.Item(id: file.id.uuidString, name: file.filename, image: thumbnails[file.id])
+        }
+        let onOpen: (String) -> Void = { (id: String) in open(file: id) }
+        let onRemove: (String) -> Void = { (id: String) in leaveOut(file: id) }
+        return TodoHeldFiles(items: items, onOpen: onOpen, onRemove: onRemove)
+    }
+
+    private func leaveOut(file id: String) {
+        files.removeAll { (file: StagedAttachment) -> Bool in file.id.uuidString == id }
+        if let key = UUID(uuidString: id) { thumbnails.removeValue(forKey: key) }
     }
 
     /// Takes picked or pasted files. A picture keeps a small thumbnail in place of its full
