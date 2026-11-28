@@ -22,7 +22,7 @@ new-session-landing notes-filtering notifications-filter scheduler-task-push set
 note-uncached-online notes-offline jump-landing deep-link-landing warm-jump clamped-landing note-refused
 watch-keys alarm-facts alarm-sheet weather-states location-settings location-launch watch-key-create watch-key-revoke-ask watch-key-revoke
 camera-import-result me-screens session-filters new-session-usage quick-actions settings-owner settings-guest sleep-mode
-reminders-feed reminders-scheduler me-where todos-screens"
+reminders-feed reminders-scheduler me-where todos-screens report-bar"
 
 mkdir -p artifacts
 udid="${SIM_UDID:?SIM_UDID is required}"
@@ -557,7 +557,8 @@ if want todos-screens; then
   # day, the same with "no date", the add sheet describing in plain words, Browse, a todo's
   # screen with its rendered description, its nudges with a default one, the sheet that adds a
   # subtask read with chips, the toast with Undo after a tick, the switcher with a typed name, Todos'
-  # settings and four of its sections, Upcoming, the Logbook, search, and the desk being arranged,
+  # settings and its sections with the form for a new view, the add sheet holding thirty files, the
+  # search that moves a todo under another, Upcoming, the Logbook, search, and the desk being arranged,
   # each light and dark. The add sheet is also photographed with a picker where the keyboard
   # sits (when, horizon, tags, the nudges inside when), with a title long enough to be cut and
   # with its description being written, the todo's screen with a picker raised over it, and
@@ -604,6 +605,10 @@ if want todos-screens; then
   todos_screen settings-nudges "todosSettings=nudges todosSettingsNudges=2" -PaiFixtureRoute todos -PaiFixtureTodosSettings nudges
   todos_screen settings-lists "todosSettings=lists todosSettingsLists=3" -PaiFixtureRoute todos -PaiFixtureTodosSettings lists
   todos_screen settings-tags "todosSettings=tags todosSettingsTags=8" -PaiFixtureRoute todos -PaiFixtureTodosSettings tags
+  todos_screen settings-views "todosSettings=views todosSettingsViews=8" -PaiFixtureRoute todos -PaiFixtureTodosSettings views
+  todos_screen settings-view-new "todosSettingsView=new" -PaiFixtureRoute todos -PaiFixtureTodosSettings view-new
+  todos_screen add-files "todosAddMode=line todosAddFiles=30" -PaiFixtureRoute todos -PaiFixtureTodosAdd "Send the scans" -PaiFixtureTodosFiles 30
+  todos_screen sheet-move "todosSheet=T-9" -PaiFixtureRoute todosList -PaiFixtureTodosOpen -PaiFixtureTodosPicker parent -PaiFixtureTodosSearch plumber
   todos_screen tick-undo "todosUndoToast=shown" -PaiFixtureRoute todos -PaiFixtureTodosTick
   todos_screen upcoming "todosPage=Upcoming" -PaiFixtureRoute todosUpcoming
   todos_screen logbook "todosPage=Logbook todosDayRows=7" -PaiFixtureRoute todosLogbook
@@ -635,6 +640,14 @@ if want me-where; then
   # The day detail's Where line over invented places: four stays, no gaps.
   screenshot me-where -PaiFixtureRoute me -PaiFixtureMeTab days -PaiFixtureScrollTo meDayDetail
   fact_assert me-where meWhere "stays=4 gaps=false"
+  xcrun simctl terminate "$udid" "$bundle" || true
+fi
+
+if want report-bar; then
+  # A report that came from a session: the session's message bar under the page, with the chip
+  # that says the stored answer goes with the message.
+  screenshot report-bar -PaiFixtureRoute report
+  fact_assert report-bar reportBar answers
   xcrun simctl terminate "$udid" "$bundle" || true
 fi
 

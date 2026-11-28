@@ -313,6 +313,79 @@ final class ReportsTests: XCTestCase {
         XCTAssertNotNil(store.notice)
     }
 
+    /// The answers ride with the next message until the reader leaves them out, a message carried
+    /// them or the draft already holds them; changed answers are offered again.
+    @MainActor
+    func testTheAnswersAreOfferedOnceAndAgainOnlyWhenChanged() async {
+        let api = FakeReportsApi()
+        api.detail = report("r1", created: "2026-11-01", session: "s1")
+        let drafts = FakeComposerDrafts()
+        let sent = FakeSentAnswers()
+        let store = ReportViewerStore(
+            reportID: "r1", api: api, drafts: drafts, scheduler: InstantScheduler(), sentAnswers: sent,
+            sessionLoads: { _ in true })
+        await store.load()
+        let reply = store.receive(json: message("ready")) ?? ""
+        XCTAssertTrue(reply.contains(#""composer":true"#), reply)
+        XCTAssertTrue(reply.contains(#""acks":true"#), reply)
+
+        func says(_ text: String, answered: Int) {
+            _ = store.receive(
+                json: message("answers-text", #""text": "\#(text)", "answered": \#(answered), "total": 3"#))
+        }
+        says("", answered: 0)
+        XCTAssertNil(store.rider, "nothing answered, nothing to carry")
+        says("D1: A", answered: 1)
+        XCTAssertEqual(store.rider?.text, "D1: A")
+        store.leaveAnswersOut()
+        XCTAssertNil(store.rider)
+        says("D1: B", answered: 1)
+        XCTAssertEqual(store.rider?.text, "D1: B", "changed answers are offered again")
+        store.answersWereSent("D1: B")
+        XCTAssertNil(store.rider)
+        XCTAssertTrue(sent.wasSent("D1: B", reportID: "r1"))
+        says("D1: C", answered: 1)
+        drafts.texts["s1"] = "see D1: C"
+        XCTAssertNil(store.rider, "the draft already holds them")
+    }
+
+    /// No bar, and nothing offered, for a report whose session this reader cannot open.
+    @MainActor
+    func testAReportWhoseSessionDoesNotLoadHasNoMessageBar() async {
+        let (store, _, _) = await viewer()
+        let reply = store.receive(json: message("ready")) ?? ""
+        XCTAssertTrue(reply.contains(#""composer":false"#), reply)
+        _ = store.receive(json: message("answers-text", #""text": "D1: A", "answered": 1, "total": 1"#))
+        XCTAssertNil(store.rider)
+    }
+
+    /// The page is told when a write failed and when everything it reported is stored.
+    @MainActor
+    func testThePageIsToldWhetherItsAnswersAreStored() async {
+        let (store, api, _) = await viewer()
+        var told: [String] = []
+        store.deliver = { told.append($0) }
+        api.putFailures = 1
+        _ = store.receive(json: message("answers", #""answers": {"d1": "C"}"#))
+        await waitUntil { !store.isUnsaved }
+        XCTAssertEqual(told, [ReportProtocol.savedMessage(false), ReportProtocol.savedMessage(true)])
+    }
+
+    func testThePagesPositionAndAnswersTextParse() {
+        XCTAssertEqual(ReportProtocol.parse(json: message("position", #""y": 412.5"#)), .position(412.5))
+        XCTAssertNil(ReportProtocol.parse(json: message("position", #""y": -1"#)))
+        XCTAssertEqual(
+            ReportProtocol.parse(json: message("answers-text", #""text": "D1: A", "answered": 1, "total": 2"#)),
+            .answersText(ReportAnswersText(text: "D1: A", answered: 1, total: 2)))
+        XCTAssertNil(ReportProtocol.parse(json: message("answers-text", #""text": "x", "answered": 1.5, "total": 2"#)))
+    }
+
+    func testTextAReportAddedBeforeIsReplacedWhereItStands() {
+        XCTAssertEqual(
+            ReportProtocol.appendToDraft("Hello\n\nD1: A\n\nBye", "D1: B", replacing: "D1: A"), "Hello\n\nD1: B\n\nBye")
+        XCTAssertEqual(ReportProtocol.appendToDraft("Hello", "D1: B", replacing: "D1: A"), "Hello\n\nD1: B")
+    }
+
     @MainActor
     func testDeletingTellsTheCaller() async {
         let (store, api, _) = await viewer()
@@ -349,6 +422,12 @@ private struct InstantScheduler: DraftScheduler {
 
 private struct NeverScheduler: DraftScheduler {
     func sleep(seconds: TimeInterval) async throws { try await Task.sleep(nanoseconds: 3_600_000_000_000) }
+}
+
+private final class FakeSentAnswers: ReportSentAnswers, @unchecked Sendable {
+    private var texts: [String: String] = [:]
+    func wasSent(_ text: String, reportID: String) -> Bool { texts[reportID] == text }
+    func remember(_ text: String, reportID: String) { texts[reportID] = text }
 }
 
 @MainActor

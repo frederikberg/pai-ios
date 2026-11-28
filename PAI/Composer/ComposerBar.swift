@@ -12,6 +12,17 @@ private struct SecretGrantTarget: Identifiable {
     var id: String { promptAt ?? "manual" }
 }
 
+/// Text that goes with the next message after what was typed (a report's answers), named in a
+/// chip above the field. It is enough to send alone.
+struct ComposerRider {
+    let label: String
+    let text: String
+    /// The chip's cross: this message goes without it.
+    let onLeaveOut: () -> Void
+    /// A message that carried it is in the outbox.
+    let onCarried: () -> Void
+}
+
 /// The message composer, mounted under a session's transcript. Exported for the transcript screen
 /// to place directly under its scroll view; it needs only a session id and reads everything
 /// else from the environment.
@@ -35,6 +46,9 @@ struct ComposerBar: View {
     @Environment(\.scenePhase) private var scenePhase
 
     let sessionID: String
+    var rider: ComposerRider?
+    /// Runs once a message is in the outbox.
+    var onSent: (() -> Void)?
 
     @State private var draftStore: DraftStore?
 
@@ -64,8 +78,10 @@ struct ComposerBar: View {
     @State private var showingRecordingsSheet = false
     @State private var showingSentMessagesSheet = false
 
-    init(sessionID: String) {
+    init(sessionID: String, rider: ComposerRider? = nil, onSent: (() -> Void)? = nil) {
         self.sessionID = sessionID
+        self.rider = rider
+        self.onSent = onSent
     }
 
     /// Held per session in a store that outlives this view — a file picked, then a trip to another
@@ -270,6 +286,8 @@ struct ComposerBar: View {
                     .accessibilityIdentifier("voice-failure-message")
             }
 
+            if let rider { riderChip(rider) }
+
             if !displayAttachments.isEmpty {
                 AttachmentPreviewStrip(
                     draftKey: sessionID, attachments: displayAttachments, onRemove: removeAttachment,
@@ -448,6 +466,27 @@ struct ComposerBar: View {
         .accessibilityIdentifier("composer-bar")
     }
 
+    private func riderChip(_ rider: ComposerRider) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checklist")
+            Text(rider.label).lineLimit(2)
+            Spacer(minLength: 4)
+            Button(action: rider.onLeaveOut) {
+                Image(systemName: "xmark")
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Leave the answers out of this message")
+        }
+        .font(PaiTypography.caption.font)
+        .foregroundStyle(PaiPalette.Semantic.textSecondary)
+        .padding(.leading, 10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(PaiPalette.Semantic.raisedSurface))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("composer-rider")
+    }
+
     private func sendButton(draftStore: DraftStore, voiceController: VoiceRecorderController) -> some View {
         Button {
             send(draftStore: draftStore, voiceController: voiceController)
@@ -587,7 +626,7 @@ struct ComposerBar: View {
     /// Enabled with nothing typed while a take of this composer is still on its way: the send
     /// then waits on the server for the take's words.
     private var canSend: Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !stagedAttachments.isEmpty
+        rider != nil || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !stagedAttachments.isEmpty
             || !drafts.draft(for: sessionID).attachments.isEmpty
             || (environment.connection?.voice.sendWaitsOnTake(draftKey: sessionID) ?? false)
     }
@@ -599,6 +638,7 @@ struct ComposerBar: View {
         let isRecordingHereNow = isRecordingHere(voiceController)
         let waitsOnTake = voiceController.sendWaitsOnTake(draftKey: sessionID)
         let clientMessageId = UUID().uuidString
+        let rider = self.rider
 
         Task {
             // Send while this composer's take is finishing or transcribing goes now and waits on
@@ -612,8 +652,9 @@ struct ComposerBar: View {
                 await draftStore.syncFromServer()
             }
 
-            let messageText =
+            let typedText =
                 held?.message ?? draftStore.draft(for: sessionID).text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let messageText = ReportProtocol.messageBody(typed: typedText, answers: rider?.text ?? "")
             let attachmentsSnapshot = stagedAttachments
             let supersededUploadIds = staging.inlineUploadIds(for: sessionID)
             let uploadedAttachmentIds = DraftAttachmentDisplay.claimableIds(
@@ -656,6 +697,8 @@ struct ComposerBar: View {
             // same handover retires the entry at the moment it is sent.
             outbox.enqueue(entry, inlineFileData: inlineFileData)
             isSending = false
+            rider?.onCarried()
+            onSent?()
         }
     }
 

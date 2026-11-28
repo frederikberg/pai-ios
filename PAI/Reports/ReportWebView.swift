@@ -13,6 +13,8 @@ struct ReportWebView: UIViewRepresentable {
     let html: String
     /// The page's message as JSON; returns the JSON of a message to post back, if any.
     let onMessage: (String) -> String?
+    /// Handed, once the web view exists, the function that posts a message into the page.
+    let onConnect: (@escaping @MainActor (String) -> Void) -> Void
     /// A link the reader tapped in the page, to confirm before it opens outside the app.
     let onOpenLink: (URL) -> Void
     /// The page could not be shown at all.
@@ -37,6 +39,9 @@ struct ReportWebView: UIViewRepresentable {
         webView.allowsBackForwardNavigationGestures = false
         context.coordinator.webView = webView
         let coordinator = context.coordinator
+        onConnect { [weak webView] json in
+            webView?.evaluateJavaScript(ReportSandbox.deliveryScript(messageJSON: json), completionHandler: nil)
+        }
         let page = html
         Task { @MainActor in await coordinator.load(page) }
         return webView
