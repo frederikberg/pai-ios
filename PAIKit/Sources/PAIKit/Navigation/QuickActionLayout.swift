@@ -29,11 +29,14 @@ public enum QuickAction: String, CaseIterable, Sendable {
     case searchTodos
     case todosSwitcher
     case todosDesk
+    case pauseNotifications
 
     /// Actions added after the arrangement learnt to record which actions it has seen: an
     /// arrangement stored before them knows none of them, and they arrive in its More list
     /// instead of hidden.
-    static let unrecordedAtFirst: Set<QuickAction> = [.todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk]
+    static let unrecordedAtFirst: Set<QuickAction> = [
+        .todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk, .pauseNotifications,
+    ]
 
     /// The Apps list entry an action opens, for the actions that only open an app. Its title,
     /// icon, who may open it and whether sleep mode puts it away all come from that entry.
@@ -71,6 +74,7 @@ public enum QuickAction: String, CaseIterable, Sendable {
         case .searchTodos: "Search todos"
         case .todosSwitcher: "Go to"
         case .todosDesk: "Desk"
+        case .pauseNotifications: "Pause push"
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport:
             appEntry?.title ?? rawValue
         }
@@ -92,6 +96,7 @@ public enum QuickAction: String, CaseIterable, Sendable {
         case .searchTodos: "Find"
         case .todosSwitcher: "View or list"
         case .todosDesk: "In full"
+        case .pauseNotifications: "This iPhone"
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport: "Open"
         }
     }
@@ -115,6 +120,7 @@ public enum QuickAction: String, CaseIterable, Sendable {
         case .searchTodos: "text.magnifyingglass"
         case .todosSwitcher: "arrow.right.circle.fill"
         case .todosDesk: "pin.fill"
+        case .pauseNotifications: "bell.slash.fill"
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport:
             appEntry?.systemImage ?? "app"
         }
@@ -128,7 +134,8 @@ public enum QuickAction: String, CaseIterable, Sendable {
             .mailverdict:
             true
         case .selfReport, .me, .computer, .findNote, .newNote, .notes, .alarm, .weather, .canteen, .scheduler,
-            .decisions, .usage, .cameraImport, .todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk:
+            .decisions, .usage, .cameraImport, .todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk,
+            .pauseNotifications:
             false
         }
     }
@@ -142,7 +149,8 @@ public enum QuickAction: String, CaseIterable, Sendable {
         case .computer, .home, .ultrafast, .homeCall, .ultrafastCamera, .ultrafastCall, .fastSession, .fastCall,
             .mailverdict:
             true
-        case .selfReport, .me, .findNote, .newNote, .todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk:
+        case .selfReport, .me, .findNote, .newNote, .todos, .newTodo, .searchTodos, .todosSwitcher, .todosDesk,
+            .pauseNotifications:
             false
         case .notes, .alarm, .weather, .canteen, .scheduler, .decisions, .usage, .cameraImport:
             appEntry?.isNightBlocked ?? false
@@ -308,7 +316,7 @@ public struct QuickActionArrangement: Equatable, Sendable, Codable {
         more: [
             .action(.fastSession), .action(.fastCall), .action(.canteen), .action(.scheduler),
             .action(.decisions), .action(.usage), .action(.cameraImport), .action(.todos), .action(.newTodo),
-            .action(.searchTodos), .action(.todosSwitcher), .action(.todosDesk),
+            .action(.searchTodos), .action(.todosSwitcher), .action(.todosDesk), .action(.pauseNotifications),
         ]
     )
 

@@ -66,7 +66,7 @@ final class QuickActionLayoutTests: XCTestCase {
             older.more,
             [
                 .action(.notes), .action(.todos), .action(.newTodo), .action(.searchTodos), .action(.todosSwitcher),
-                .action(.todosDesk),
+                .action(.todosDesk), .action(.pauseNotifications),
             ])
         XCTAssertEqual(older.placement(of: .action(.alarm)), .hidden, "an action it knew stays where it was")
 
@@ -179,7 +179,7 @@ final class QuickActionsStoreTests: XCTestCase {
             ids(reloaded.more),
             [
                 "canteen", "scheduler", "decisions", "usage", "cameraImport", "todos", "newTodo", "searchTodos",
-                "todosSwitcher", "todosDesk", "findNote",
+                "todosSwitcher", "todosDesk", "pauseNotifications", "findNote",
             ])
         XCTAssertEqual(ids(reloaded.hidden), ["fastSession"])
         XCTAssertEqual(reloaded.items(in: .more), reloaded.more)

@@ -16,9 +16,12 @@ public struct DynamicReport: Codable, Sendable, Equatable, Identifiable {
     public let answers: [String: PaiJSONValue]
     public let createdAt: String
     public let updatedAt: String
+    /// How many of the report's decisions the reader has answered; `nil` from a server that does
+    /// not count them.
+    public let decisions: ReportDecisionCount?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, url, answers
+        case id, title, url, answers, decisions
         case sessionId = "session_id"
         case sessionTitle = "session_title"
         case createdAt = "created_at"
@@ -27,7 +30,8 @@ public struct DynamicReport: Codable, Sendable, Equatable, Identifiable {
 
     public init(
         id: String, title: String, sessionId: String?, sessionTitle: String?, url: String,
-        answers: [String: PaiJSONValue], createdAt: String, updatedAt: String
+        answers: [String: PaiJSONValue], createdAt: String, updatedAt: String,
+        decisions: ReportDecisionCount? = nil
     ) {
         self.id = id
         self.title = title
@@ -37,7 +41,27 @@ public struct DynamicReport: Codable, Sendable, Equatable, Identifiable {
         self.answers = answers
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.decisions = decisions
     }
+}
+
+/// How many decisions a report asks for and how many of them are answered.
+public struct ReportDecisionCount: Codable, Sendable, Equatable {
+    public let answered: Int
+    public let total: Int
+
+    public init(answered: Int, total: Int) {
+        self.answered = answered
+        self.total = total
+    }
+
+    /// What the list says under a report, or `nil` for a report that asks for nothing.
+    public var label: String? {
+        total > 0 ? "\(answered) of \(total) answered" : nil
+    }
+
+    /// Whether a decision still waits for the reader.
+    public var hasOpen: Bool { answered < total }
 }
 
 /// `GET /api/dynamic-reports` — newest first.

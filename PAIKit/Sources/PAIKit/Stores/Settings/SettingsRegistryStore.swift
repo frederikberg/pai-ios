@@ -168,4 +168,17 @@ public final class SettingsRegistryStore {
     /// The sign-in of the one iPhone that reports its location in the background; `nil` when no
     /// phone does.
     public var locationSignInId: String? { person["location_sign_in_id"]?.stringValue }
+
+    /// The person's order of apps (``AppOrder``); empty until their settings have been read.
+    public var appOrder: [String] { person[Self.appOrderKey]?.stringList ?? [] }
+
+    static let appOrderKey = "app_order"
+
+    /// Stores the apps as the person arranged them on this phone: `sequence` is the ids on
+    /// screen with the line among them. Returns whether the server took it.
+    @discardableResult
+    public func setAppOrder(sequence: [String]) async -> Bool {
+        let next = AppOrder.reordered(stored: appOrder, sequence: sequence)
+        return await updatePerson([Self.appOrderKey: .array(next.map(SettingValue.string))])
+    }
 }

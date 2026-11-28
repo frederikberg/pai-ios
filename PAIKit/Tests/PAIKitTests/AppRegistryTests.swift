@@ -45,14 +45,15 @@ final class AppRegistryTests: XCTestCase {
         XCTAssertEqual(
             night, ["quick-actions", "me", "todos", "notes", "alarm", "weather", "canteen", "camera-import"])
         XCTAssertEqual(
-            Set(listed).subtracting(night), ["arc", "scheduler", "usage", "decisions", "reports", "browser"])
+            Set(listed).subtracting(night),
+            ["sessions", "arc", "scheduler", "usage", "decisions", "reports", "browser"])
         XCTAssertTrue(night.contains("quick-actions"))
         XCTAssertTrue(night.contains("camera-import"))
     }
 
     func testAnAppIsPutAwayExactlyWhenItsRouteIsAnAgentsSurface() {
         for entry in AppRegistry.all {
-            XCTAssertEqual(entry.isNightBlocked, entry.route.isSessionSurface, entry.id)
+            XCTAssertEqual(entry.isNightBlocked, entry.route?.isSessionSurface ?? true, entry.id)
         }
     }
 
@@ -71,7 +72,7 @@ final class AppRegistryTests: XCTestCase {
             AppRegistry.listedAtNight(for: guest()).map(\.id),
             ["quick-actions", "todos", "alarm", "weather", "camera-import"])
         XCTAssertEqual(
-            AppRegistry.listed(for: .unknown).map(\.id), ["quick-actions", "camera-import", "usage"],
+            AppRegistry.listed(for: .unknown).map(\.id), ["sessions", "quick-actions", "camera-import", "usage"],
             "until the role is known only what needs none")
     }
 
