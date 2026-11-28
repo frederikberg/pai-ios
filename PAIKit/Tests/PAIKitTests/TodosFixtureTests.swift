@@ -70,6 +70,9 @@
                 TodoDays.logbookRows(logbook.days, todos: logbook.todos, today: PaiFixtures.todosDay).count, 7)
             let found = try answer(TodosSearchAnswer.self, "POST", "/api/todos/search", body: #"{"q":"plumber"}"#)
             XCTAssertEqual(found.todos.count, 1)
+            // The search shot draws the row that saves the search, from the same fields the server sends.
+            XCTAssertEqual(
+                TodoSearchSave.proposal(found, text: "plumber"), TodoSearchSave(name: "plumber", query: "plumber"))
         }
     }
 #endif

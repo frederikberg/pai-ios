@@ -18,6 +18,7 @@ struct TodoDayRows: View {
     var onStartSelecting: (String) -> Void = { _ in }
 
     @Environment(AppEnvironment.self) private var environment
+    @Environment(ToastCenter.self) private var toasts
     @State private var lookingBack = false
 
     private var store: TodosStore { environment.todos }
@@ -113,7 +114,9 @@ struct TodoDayRows: View {
             if let todo = store.logbookTodos[todoId] {
                 HStack(spacing: 10) {
                     Button {
-                        store.submit([.reopen(todo: todoId)])
+                        TodoUndoToast.show(
+                            "Reopened \u{201C}\(todo.title)\u{201D}", changeId: store.submit([.reopen(todo: todoId)]),
+                            store: store, toasts: toasts)
                     } label: {
                         TodoTickCircle(mark: TodoHorizonMark.of(todo.horizon), done: true)
                     }

@@ -42,9 +42,20 @@ public struct ToastMessage: Sendable, Identifiable {
 public final class ToastCenter {
     public private(set) var toasts: [ToastMessage] = []
 
-    /// The height of a bar a screen keeps at the bottom (a selection's actions): toasts stand
-    /// above it, so none covers a control of the bar. Zero when there is none.
-    public var bottomBarHeight: Double = 0
+    /// What screens keep at the bottom of the screen (a selection's actions, a round add button),
+    /// each under its owner's name with its height.
+    private var bottomBars: [String: Double] = [:]
+
+    /// How far toasts stand above the bottom, so none covers a control kept there: the tallest
+    /// thing reserved, zero when there is none.
+    public var bottomBarHeight: Double { bottomBars.values.max() ?? 0 }
+
+    /// Keeps toasts above something `owner` pins to the bottom of the screen; a height of zero
+    /// gives the space back. Each owner holds its own entry, so one leaving the screen cannot
+    /// take away what another just reserved.
+    public func reserveBottom(_ height: Double, for owner: String) {
+        bottomBars[owner] = height > 0 ? height : nil
+    }
 
     /// How long an ordinary toast stays before it removes itself. The web's `addToast` has no
     /// timeout at all — the user dismisses it by hand — but a phone has no idle mouse hovering over

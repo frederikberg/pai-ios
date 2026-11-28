@@ -32,6 +32,7 @@ struct TodoPageScreen: View {
     @State private var selection: Set<String>?
     /// The picker open in the selection's bar.
     @State private var bulkPicker: TodoPicker?
+    @State private var toastOwner = UUID().uuidString
     /// Whether Upcoming has been put on its first day ahead, with the days behind above it.
     @State private var startedAhead = false
 
@@ -127,8 +128,9 @@ struct TodoPageScreen: View {
         // Above the line the list folds to while the desk takes the whole height. The selection's
         // bar takes the bottom while todos are being selected.
         .overlay(alignment: .bottomTrailing) {
-            if selection == nil { addButton.padding(.bottom, deskMode == .desk ? 44 : 0) }
+            if selection == nil { addButton.padding(.bottom, addButtonLift) }
         }
+        .toastsStandAbove(addButtonTop, owner: toastOwner, toasts: toasts)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if selection != nil { selectionBar }
         }
@@ -454,6 +456,18 @@ struct TodoPageScreen: View {
         Color.clear.frame(height: 72)
     }
 
+    private static let addButtonSize: CGFloat = 56
+    private static let addButtonMargin: CGFloat = 20
+
+    /// How far the add button is raised: above the line the list folds to under the whole desk.
+    private var addButtonLift: CGFloat { deskMode == .desk ? 44 : 0 }
+
+    /// How far the add button reaches up from the bottom of the page, zero while the selection's
+    /// bar has its place. A toast stands above it, so its Undo never lies on the button.
+    private var addButtonTop: Double {
+        selection == nil ? Double(Self.addButtonMargin + Self.addButtonSize + addButtonLift) : 0
+    }
+
     /// A tap adds one line; a long press also offers describing it in plain words.
     private var addButton: some View {
         Button {
@@ -462,7 +476,7 @@ struct TodoPageScreen: View {
             Image(systemName: "plus")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
+                .frame(width: Self.addButtonSize, height: Self.addButtonSize)
                 .background(Circle().fill(PaiPalette.primary500))
                 .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
         }
@@ -470,7 +484,7 @@ struct TodoPageScreen: View {
             Button("New todo", systemImage: "plus") { startAdding(.line) }
             Button("Describe it", systemImage: "sparkles") { startAdding(.describe) }
         }
-        .padding(20)
+        .padding(Self.addButtonMargin)
         .accessibilityLabel("New todo")
     }
 

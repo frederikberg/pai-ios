@@ -867,8 +867,22 @@ public struct TodosSearchAnswer: Codable, Equatable, Sendable {
         public let to: String
     }
 
+    /// What the server understood of the text.
     public struct Query: Codable, Equatable, Sendable {
+        public struct Token: Codable, Equatable, Sendable {
+            public let kind: String
+        }
+
         public let corrections: [Correction]
+        /// The text this answer is for, as it was sent.
+        public var raw: String?
+        /// The text as a query a view can hold.
+        public var normalized: String?
+        public var tokens: [Token]?
+        /// What the server could not read in the text.
+        public var issues: [PaiJSONValue]?
+        /// The filter still being typed, when the text ends inside one.
+        public var pending: PaiJSONValue?
     }
 
     public struct TagHit: Codable, Equatable, Sendable { public let tag: TodoTag }

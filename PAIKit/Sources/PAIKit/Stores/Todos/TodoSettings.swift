@@ -205,6 +205,26 @@ public enum TodoSettingsOps {
     public static let newViewLayout = "list"
 }
 
+/// A search kept as a view, the save row of the web's `searchItems`: the view is named by the
+/// text as typed and holds the query as the server read it.
+public struct TodoSearchSave: Hashable, Sendable {
+    public let name: String
+    public let query: String
+
+    /// What saving the search on screen would make, or nil when it is not worth keeping: the
+    /// answer is for an earlier text, the server could not read all of it or it ends inside a
+    /// filter, or it is a bare reference, which names one todo and not a search.
+    public static func proposal(_ answer: TodosSearchAnswer?, text: String) -> TodoSearchSave? {
+        let name = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let info = answer?.query, !name.isEmpty, info.raw == text,
+            let query = info.normalized?.trimmingCharacters(in: .whitespacesAndNewlines), !query.isEmpty,
+            info.issues?.isEmpty != false, info.pending == nil,
+            info.tokens?.contains(where: { $0.kind == "ref" }) != true
+        else { return nil }
+        return TodoSearchSave(name: name, query: query)
+    }
+}
+
 /// Who may do what to a list's settings and people, the web's `manage/people.ts` and the
 /// `ListRow` rules.
 public enum TodoListRules {

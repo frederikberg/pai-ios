@@ -169,6 +169,35 @@ final class TodosPlacesTests: XCTestCase {
 
     /// A view dragged in the settings list is placed before the row it was dropped above, or
     /// after the last one; a drop where it already stands sends nothing.
+    func testASearchIsKeptAsAViewOnlyWhenTheAnswerIsForTheTextAndReadsAsASearch() async throws {
+        func answer(_ query: TodosSearchAnswer.Query) -> TodosSearchAnswer {
+            TodosSearchAnswer(
+                query: query, top: nil, todos: [], fewer: [],
+                counts: .init(open: 0, closed: 0, deleted: 0, capped: false), tags: [], views: [], lists: [],
+                offers: [], nextCursor: nil, recents: nil, repeated: nil, examples: nil)
+        }
+        let read = TodosSearchAnswer.Query(
+            corrections: [], raw: " Tag:Home oven ", normalized: "tag:home oven", tokens: [.init(kind: "atom")],
+            issues: [], pending: nil)
+        XCTAssertEqual(
+            TodoSearchSave.proposal(answer(read), text: " Tag:Home oven "),
+            TodoSearchSave(name: "Tag:Home oven", query: "tag:home oven"))
+        // The answer on screen is still the one for the text before the last key.
+        XCTAssertNil(TodoSearchSave.proposal(answer(read), text: " Tag:Home oven d"))
+
+        var halfTyped = read
+        halfTyped.pending = .object(["field": .string("tag")])
+        XCTAssertNil(TodoSearchSave.proposal(answer(halfTyped), text: " Tag:Home oven "))
+        var unread = read
+        unread.issues = [.object(["message": .string("unknown filter")])]
+        XCTAssertNil(TodoSearchSave.proposal(answer(unread), text: " Tag:Home oven "))
+        var reference = read
+        reference.tokens = [.init(kind: "ref")]
+        XCTAssertNil(TodoSearchSave.proposal(answer(reference), text: " Tag:Home oven "))
+        // A server that says nothing about how it read the text offers nothing to save.
+        XCTAssertNil(TodoSearchSave.proposal(answer(.init(corrections: [])), text: "oven"))
+    }
+
     func testADraggedViewIsPlacedWhereItWasDropped() async throws {
         let views = try TodosWireSamples.decode(TodosMeAnswer.self, "me").views.sorted { $0.rank < $1.rank }
         try XCTSkipIf(views.count < 3, "the sample holds too few views")

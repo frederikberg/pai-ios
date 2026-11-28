@@ -194,7 +194,7 @@ struct RootView: View {
                                 }
                         }
                     }
-                    ToastOverlay(toasts: connection.toasts)
+                    ToastOverlay(toasts: connection.toasts, clearsBottomBars: true)
                 }
                 .overlay(alignment: .top) {
                     ArrivalBannerView(store: arrivals) { environment.router.surface(.notifications) }

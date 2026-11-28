@@ -904,6 +904,10 @@ struct TodoViewsSettings: View {
 /// a save, and by a button here.
 struct TodoViewSettingsScreen: View {
     let viewId: String?
+    /// A search being kept as a view: the name and the query a new view's form starts with.
+    var search: TodoSearchSave?
+    /// Told the id and the name of a view this form saved, once the server took it.
+    var onSaved: ((_ id: String, _ name: String) -> Void)?
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(ToastCenter.self) private var toasts
@@ -1062,6 +1066,9 @@ struct TodoViewSettingsScreen: View {
             name = view.name
             query = view.query
             pinned = view.pinned
+        } else if let search {
+            name = search.name
+            query = search.query
         }
     }
 
@@ -1091,6 +1098,7 @@ struct TodoViewSettingsScreen: View {
                 {
                     offerDefaults(proposed, for: op)
                 }
+                if op.name == "view.save", let id = op.string("id") { onSaved?(id, op.string("name") ?? "") }
                 dismiss()
             case .refused(let refused):
                 refusal = refused.message
